@@ -1,0 +1,22 @@
+[book]
+authors = ["ajz34"]
+language = "en"
+multilingual = false
+src = "src"
+title = "RSTSR Book"
+
+[preprocessor.katex]
+after = ["links"]
+
+[preprocessor.theme]
+pagetoc = true
+pagetoc-width = "20%"
+sidebar-width = "20%"
+content-main-margin-right = "25%"
+pagetoc-fontsize = "1em"
+sidebar-bg = "transparent"
+turn-off = true
+
+[output.html]
+additional-css = ["theme/pagetoc.css"]
+additional-js = ["theme/pagetoc.js"]
