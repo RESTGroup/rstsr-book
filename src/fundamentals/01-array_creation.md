@@ -8,7 +8,7 @@ In the following case, memory of vector object `vec` will be transferred to tens
 Except for relatively small overhead (generating layout of tensor), **no explicit data copy occurs**.
 
 ```rust
-{{#include ../../listings/fundamentals/listing-01-vec_to_tsr/src/main.rs}}
+{{#include ../../listings/features-default/tests/array_creation.rs:example_01}}
 ```
 
 \* Note: This will generate tensor object for default CPU device.
@@ -17,7 +17,7 @@ If other devices are of interest (such as single-threaded `DeviceCpuSerial`), or
 For example, to limit 4 threads when performing computation, you may initialize tensor by the following code:
 
 ```rust
-{{#include ../../listings/fundamentals/listing-01-vec_to_tsr_otherdevice/src/main.rs}}
+{{#include ../../listings/features-default/tests/array_creation.rs:example_02}}
 ```
 
 ## 2) $n$-D tensor from rust vector
