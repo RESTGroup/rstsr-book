@@ -65,10 +65,14 @@ Most useful 1-D tensor creation functions are `arange` and `linspace`.
 Following code shows multiple ways to generate arrays[^3].
 
 ```rust
-{{#include ../../listings/features-default/tests/array_creation.rs:example_06}}
+{{#include ../../listings/features-default/tests/array_creation.rs:example_arange}}
 ```
 
 [^3]: Many RSTSR functions, especially array creation functions, are signature-overloaded.
 Input should be wrapped by tuple to pass multiple function parameters.
 
+`linspace` will create arrays with a specified number of elements, and spaced equally between the specified beginning and end values.
 
+```rust
+{{#include ../../listings/features-default/tests/array_creation.rs:example_linspace}}
+```

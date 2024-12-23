@@ -5,9 +5,11 @@ fn example_01() {
     // ANCHOR: example_01
     use rstsr_core::prelude_dev::*;
     // move ownership of vec to 1-D tensor (default CPU device)
-    let vec = vec![1, 2, 3, 4, 5];
+    let vec = vec![1.0, 2.968, 3.789, 4.35, 5.575];
     let tensor = Tensor::asarray(vec);
-    println!("{:?}", tensor);
+    // only print 2 decimal places
+    println!("{:.2}", tensor);
+    // output: [ 1.00 2.97 3.79 4.35 5.58]
     // ANCHOR_END: example_01
 }
 
@@ -65,8 +67,8 @@ fn example_05() {
 }
 
 #[test]
-fn example_06() {
-    // ANCHOR: example_06
+fn example_arange() {
+    // ANCHOR: example_arange
     use rstsr_core::prelude_dev::*;
 
     let tensor = Tensor::arange(10);
@@ -81,5 +83,21 @@ fn example_06() {
     let tensor = Tensor::arange((2.0, 3.0, 0.1));
     println!("{:}", tensor);
     // output: [ 2 2.1 2.2 ... 2.7000000000000006 2.8000000000000007 2.900000000000001]
-    // ANCHOR_END: example_06
+    // ANCHOR_END: example_arange
+}
+
+#[test]
+fn example_linspace() {
+    // ANCHOR: example_linspace
+    use num::complex::c64;
+    use rstsr_core::prelude_dev::*;
+
+    let tensor = Tensor::linspace((0.0, 10.0, 11));
+    println!("{:}", tensor);
+    // output: [ 0 1 2 ... 8 9 10]
+
+    let tensor = Tensor::linspace((c64(1.0, 2.0), c64(-15.0, 10.0), 5, &DeviceFaer::new(4)));
+    println!("{:}", tensor);
+    // output: [ 1+2i -3+4i -7+6i -11+8i -15+10i]
+    // ANCHOR_END: example_linspace
 }
