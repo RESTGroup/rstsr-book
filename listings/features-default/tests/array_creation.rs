@@ -63,3 +63,23 @@ fn example_05() {
     assert_eq!(vec.as_ptr(), tensor.storage().rawvec().as_ptr());
     // ANCHOR_END: example_05
 }
+
+#[test]
+fn example_06() {
+    // ANCHOR: example_06
+    use rstsr_core::prelude_dev::*;
+
+    let tensor = Tensor::arange(10);
+    println!("{:}", tensor);
+    // output: [ 0 1 2 ... 7 8 9]
+
+    let device = DeviceFaer::new(4);
+    let tensor = Tensor::arange((2.0, 10.0, &device));
+    println!("{:}", tensor);
+    // output: [ 2 3 4 5 6 7 8 9]
+
+    let tensor = Tensor::arange((2.0, 3.0, 0.1));
+    println!("{:}", tensor);
+    // output: [ 2 2.1 2.2 ... 2.7000000000000006 2.8000000000000007 2.900000000000001]
+    // ANCHOR_END: example_06
+}
