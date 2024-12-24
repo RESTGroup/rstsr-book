@@ -39,15 +39,6 @@ So for nested vectors, you may wish to first generate a flattened `Vec<T>`, then
 {{#include ../../listings/features-default/tests/array_creation.rs:example_04}}
 ```
 
-### 1.3 2-D tensor from nested rust vector
-
-A special case for generating 2-D tensor is using nested rust vector.
-This can be performed by following code, but please note that explicit memory copy is applied, which is not efficient.
-
-```rust
-{{#include ../../listings/features-default/tests/array_creation.rs:example_04}}
-```
-
 ## 2. Converting Rust Slices to RSTSR 1-D TensorView
 
 Rust language is extremely sensitive to ownership of variables, unlike python.
@@ -59,7 +50,7 @@ For RSTSR, this is stored by `TensorView`[^2].
 ```
 
 [^2]: Initialization of `TensorView` by rust slices `&[T]` is performed by `ManuallyDrop` internally.
-For the data types `T` that scientific computation concerns, it will not cause memory leak.
+For the data types `T` that scientific computation concerns (such as `f64`, `Complex<f64>`), it will not cause memory leak.
 However, if type `T` has its own deconstructor (`drop` function), you may wish to double check for memory leak safety.
 
 ## 3. Intrinsic RSTSR Tensor Creation Functions

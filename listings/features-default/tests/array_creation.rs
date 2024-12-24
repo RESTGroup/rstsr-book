@@ -20,13 +20,21 @@ fn example_02() {
     // ANCHOR: example_02
     use rstsr_core::prelude::rstsr as rt;
     use rt::DeviceFaer;
-    
+
     // move ownership of vec to 1-D tensor
     // custom CPU device that limits threads to 4
     let vec = vec![1, 2, 3, 4, 5];
     let device = DeviceFaer::new(4);
     let tensor = rt::asarray((vec, &device));
     println!("{:?}", tensor);
+
+    // output:
+    // === Debug Tensor Print ===
+    // [ 1 2 3 4 5]
+    // DeviceFaer { base: DeviceCpuRayon { num_threads: 4 } }
+    // 1-Dim, contiguous: CcFf
+    // shape: [5], stride: [1], offset: 0
+    // Type: rstsr_core::tensorbase::TensorBase<rstsr_core::tensor::data::DataOwned<rstsr_core::storage::device::Storage<i32, rstsr_core::device_faer::device::DeviceFaer>>, [usize; 1]>
     // ANCHOR_END: example_02
 }
 
@@ -34,16 +42,25 @@ fn example_02() {
 fn example_03() -> Result<()> {
     // ANCHOR: example_03
     use rstsr_core::prelude::rstsr as rt;
-    
+
     // generate 2-D tensor from 1-D vec, without explicit data copy
     let vec = vec![1, 2, 3, 4, 5, 6];
     let tensor = rt::asarray(vec).into_shape_assume_contig([2, 3]);
-    println!("{:?}", tensor);
-    
+    println!("{:}", tensor);
+
     // if you feel function `into_shape_assume_contig` ugly, following code also works
     let vec = vec![1, 2, 3, 4, 5, 6];
     let tensor = rt::asarray(vec).into_shape([2, 3]).into_owned();
-    println!("{:?}", tensor);
+    println!("{:}", tensor);
+
+    // and even more concise
+    let vec = vec![1, 2, 3, 4, 5, 6];
+    let tensor = rt::asarray((vec, [2, 3]));
+    println!("{:}", tensor);
+
+    // output:
+    // [[ 1 2 3]
+    //  [ 4 5 6]]
     // ANCHOR_END: example_03
     Ok(())
 }
@@ -52,13 +69,19 @@ fn example_03() -> Result<()> {
 fn example_04() {
     // ANCHOR: example_04
     use rstsr_core::prelude::rstsr as rt;
+
     let vec = vec![vec![1, 2, 3], vec![4, 5, 6]];
+
     // generate 2-D tensor from nested Vec<T>, WITH EXPLICIT DATA COPY
     // so this is not recommended for large data
     let (nrow, ncol) = (vec.len(), vec[0].len());
     let vec = vec.into_iter().flatten().collect::<Vec<_>>();
-    let tensor = rt::asarray(vec).into_shape([nrow, ncol]).into_owned();
-    println!("{:?}", tensor);
+
+    let tensor = rt::asarray((vec, [nrow, ncol]));
+    println!("{:}", tensor);
+    // output:
+    // [[ 1 2 3]
+    //  [ 4 5 6]]
     // ANCHOR_END: example_04
 }
 
@@ -66,13 +89,24 @@ fn example_04() {
 fn example_05() {
     // ANCHOR: example_05
     use rstsr_core::prelude::rstsr as rt;
+
     // generate 1-D tensor view from &[T], without data copy
     let vec = vec![1, 2, 3, 4, 5, 6];
     let tensor = rt::asarray(&vec);
+
     // note `tensor` is TensorView instead of Tensor, so it doesn't own data
     println!("{:?}", tensor);
+
     // check if pointer of vec and tensor's storage are the same
     assert_eq!(vec.as_ptr(), tensor.storage().rawvec().as_ptr());
+
+    // output:
+    // === Debug Tensor Print ===
+    // [ 1 2 3 4 5 6]
+    // DeviceFaer { base: DeviceCpuRayon { num_threads: 0 } }
+    // 1-Dim, contiguous: CcFf
+    // shape: [6], stride: [1], offset: 0
+    // Type: rstsr_core::tensorbase::TensorBase<rstsr_core::tensor::data::DataRef<rstsr_core::storage::device::Storage<i32, rstsr_core::device_faer::device::DeviceFaer>>, [usize; 1]>
     // ANCHOR_END: example_05
 }
 
