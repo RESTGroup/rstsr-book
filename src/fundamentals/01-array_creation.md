@@ -32,6 +32,13 @@ For $n$-D tensor, the recommended way to build from existing vector, without exp
 {{#include ../../listings/features-default/tests/array_creation.rs:example_03}}
 ```
 
+We do not recommend generating $n$-D tensor from nested vectors, i.e. `Vec<Vec<T>>`.
+Explicit memory copy will always occur anyway in this case.
+So for nested vectors, you may wish to first generate a flattened `Vec<T>`, then perform reshape on this:
+```rust
+{{#include ../../listings/features-default/tests/array_creation.rs:example_04}}
+```
+
 ### 1.3 2-D tensor from nested rust vector
 
 A special case for generating 2-D tensor is using nested rust vector.
@@ -76,3 +83,18 @@ Input should be wrapped by tuple to pass multiple function parameters.
 ```rust
 {{#include ../../listings/features-default/tests/array_creation.rs:example_linspace}}
 ```
+
+### 3.2 2-D tensor creation functions
+
+Most useful 2-D tensor creation functions is `eye` and `diag`.
+
+`eye` generates identity matrix.
+In many cases, you may just provide the number of rows, and `eye(n_row)` will return a square identity matrix, or `eye((n_row, &device))` if device is of concern.
+If you may wish to generate a rectangular identity matrix with offset, you may call `eye((n_row, n_col, offset))`.
+
+```rust
+{{#include ../../listings/features-default/tests/array_creation.rs:example_eye}}
+```
+
+`diag` generates diagonal 2-D tensor from 1-D tensor, or generate 1-D tensor from diagonal of 2-D tensor.
+
