@@ -177,25 +177,17 @@ fn example_diag() {
     use rstsr_core::prelude::rstsr as rt;
     use rstsr_core::prelude::*;
 
-    let vec = rt::asarray(vec![1, 2, 5]);
-    let vec = unsafe { vec.empty_like() };
-    println!("{:?}", vec);
-
-    // let vec = Tensor::asarray(vec![1, 2, 5]);
-    // let tensor = vec.diag();
-    // let tensor = Tensor::diag(&vec);
-    // println!("{:}", tensor);
+    let vec = rt::arange(3) + 1;
+    let tensor = vec.diag();
+    println!("{:}", tensor);
     // output:
     // [[ 1 0 0]
     //  [ 0 2 0]
     //  [ 0 0 3]]
 
-    // let tensor = Tensor::diag((&vec![1, 2, 3], 1, &DeviceFaer::new(4)));
-    // println!("{:}", tensor);
-    // output:
-    // [[ 0 1 0 0]
-    //  [ 0 0 2 0]
-    //  [ 0 0 0 3]
-    //  [ 0 0 0 0]]
+    let tensor = rt::arange(9).into_shape([3, 3]).into_owned();
+    let diag = tensor.diag();
+    println!("{:}", diag);
+    // output: [ 0 4 8]
     // ANCHOR_END: example_diag
 }

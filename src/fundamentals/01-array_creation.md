@@ -88,4 +88,8 @@ If you may wish to generate a rectangular identity matrix with offset, you may c
 ```
 
 `diag` generates diagonal 2-D tensor from 1-D tensor, or generate 1-D tensor from diagonal of 2-D tensor.
+`diag` is defined as overloaded function; if offset of diagonal is of concern, you may wish to call `diag((&tensor, offset))`.
 
+```rust
+{{#include ../../listings/features-default/tests/array_creation.rs:example_diag}}
+```
