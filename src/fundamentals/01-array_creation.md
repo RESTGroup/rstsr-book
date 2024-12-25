@@ -1,5 +1,12 @@
 # Array creation
 
+In many cases, we import RSTSR by following code:
+```rust
+use rstsr_core::prelude::*;
+use rstsr_core::prelude::rstsr as rt;
+use rt::{DeviceCpuSerial, DeviceFaer, Tensor};
+```
+
 ## 1. Converting Rust Vector to RSTSR Tensor
 
 ### 1.1 1-D tensor from rust vector
@@ -77,7 +84,7 @@ Input should be wrapped by tuple to pass multiple function parameters.
 
 ### 3.2 2-D tensor creation functions
 
-Most useful 2-D tensor creation functions is `eye` and `diag`.
+Most useful 2-D tensor creation functions are `eye` and `diag`.
 
 `eye` generates identity matrix.
 In many cases, you may just provide the number of rows, and `eye(n_row)` will return a square identity matrix, or `eye((n_row, &device))` if device is of concern.
@@ -93,3 +100,50 @@ If you may wish to generate a rectangular identity matrix with offset, you may c
 ```rust
 {{#include ../../listings/features-default/tests/array_creation.rs:example_diag}}
 ```
+
+### 3.3 General $n$-D tensor creation functions
+
+Most useful $n$-D tensor creation functions are `zeros`, `ones`, `empty`.
+These functions can build tensors with any desired shape (or layout).
+
+- `zeros` fill tensor with all zero values;
+- `ones` fill tensor with all one values;
+- unsafe `empty` give tensor with uninitialized values;
+- `fill` fill tensor with the same value provided by user;
+
+We will mostly use `zeros` as example.
+For common usages, you may wish to generate a tensor with shape (or additionally device bounded to tensor):
+
+```rust
+{{#include ../../listings/features-default/tests/array_creation.rs:example_zeros_01}}
+```
+
+You may also specify layout: whether it is c-contiguous (row-major) or f-contiguous (column-major)[^4].
+In RSTSR, attribute function `c` and `f` are used for generating c/f-contiguous layouts:
+
+```rust
+{{#include ../../listings/features-default/tests/array_creation.rs:example_zeros_02}}
+```
+
+[^4]: <https://en.wikipedia.org/wiki/Row-_and_column-major_order>
+
+A special $n$-D case is 0-D tensor (scalar). You may also generate 0-D tensor by `zeros`:
+
+```rust
+{{#include ../../listings/features-default/tests/array_creation.rs:example_zeros_03}}
+```
+
+You may also initialize a tensor without filling specific values. This is unsafe.
+
+```rust
+{{#include ../../listings/features-default/tests/array_creation.rs:example_empty}}
+```
+
+This crate has not implemented API for random initialization.
+However, you may still able to perform this kind of task by `asarray`.
+
+```rust
+{{#include ../../listings/features-default/tests/array_creation.rs:example_random}}
+```
+
+
