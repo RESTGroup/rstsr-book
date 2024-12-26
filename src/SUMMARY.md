@@ -4,5 +4,5 @@
 
 # Fundamentals and Usage
 
-- [Array Creation](fundamentals/01-array_creation.md)
+- [Tensor Creation](fundamentals/01-tensor_creation.md)
 

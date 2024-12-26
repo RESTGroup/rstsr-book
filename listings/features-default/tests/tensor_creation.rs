@@ -270,7 +270,7 @@ fn example_empty() {
     // ANCHOR: example_empty
     // generate empty tensor with default device
     let tensor: Tensor<i32, _> = unsafe { rt::empty([10, 10]) };
-    println!("{:}", tensor);
+    println!("{:?}", tensor);
     // ANCHOR_END: example_empty
 }
 

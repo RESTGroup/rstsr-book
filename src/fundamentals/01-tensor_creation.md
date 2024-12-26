@@ -1,4 +1,4 @@
-# Array creation
+# Tensor creation
 
 In many cases, we import RSTSR by following code:
 ```rust
@@ -17,7 +17,7 @@ In the following case, memory of vector object `vec` will be transferred to tens
 Except for relatively small overhead (generating layout of tensor), **no explicit data copy occurs**.
 
 ```rust
-{{#include ../../listings/features-default/tests/array_creation.rs:example_01}}
+{{#include ../../listings/features-default/tests/tensor_creation.rs:example_01}}
 ```
 
 [^1]: This will generate tensor object for default CPU device.
@@ -26,7 +26,7 @@ If other devices are of interest (such as single-threaded `DeviceCpuSerial`), or
 For example, to limit 4 threads when performing computation, you may initialize tensor by the following code:
 
 ```rust
-{{#include ../../listings/features-default/tests/array_creation.rs:example_02}}
+{{#include ../../listings/features-default/tests/tensor_creation.rs:example_02}}
 ```
 
 ### 1.2 $n$-D tensor from rust vector
@@ -36,14 +36,14 @@ For $n$-D tensor, the recommended way to build from existing vector, without exp
 - second, reshape to the $n$-D tensor you desire;
 
 ```rust
-{{#include ../../listings/features-default/tests/array_creation.rs:example_03}}
+{{#include ../../listings/features-default/tests/tensor_creation.rs:example_03}}
 ```
 
 We do not recommend generating $n$-D tensor from nested vectors, i.e. `Vec<Vec<T>>`.
 Explicit memory copy will always occur anyway in this case.
 So for nested vectors, you may wish to first generate a flattened `Vec<T>`, then perform reshape on this:
 ```rust
-{{#include ../../listings/features-default/tests/array_creation.rs:example_04}}
+{{#include ../../listings/features-default/tests/tensor_creation.rs:example_04}}
 ```
 
 ## 2. Converting Rust Slices to RSTSR 1-D TensorView
@@ -53,7 +53,7 @@ For rust, reference of contiguous memory of data is usually represented as slice
 For RSTSR, this is stored by `TensorView`[^2].
 
 ```rust
-{{#include ../../listings/features-default/tests/array_creation.rs:example_05}}
+{{#include ../../listings/features-default/tests/tensor_creation.rs:example_05}}
 ```
 
 [^2]: Initialization of `TensorView` by rust slices `&[T]` is performed by `ManuallyDrop` internally.
@@ -66,20 +66,20 @@ However, if type `T` has its own deconstructor (`drop` function), you may wish t
 
 Most useful 1-D tensor creation functions are `arange` and `linspace`.
 
-`arange` creates arrays with regularly incrementing values.
-Following code shows multiple ways to generate arrays[^3].
+`arange` creates tensors with regularly incrementing values.
+Following code shows multiple ways to generate tensor[^3].
 
 ```rust
-{{#include ../../listings/features-default/tests/array_creation.rs:example_arange}}
+{{#include ../../listings/features-default/tests/tensor_creation.rs:example_arange}}
 ```
 
-[^3]: Many RSTSR functions, especially array creation functions, are signature-overloaded.
+[^3]: Many RSTSR functions, especially tensor creation functions, are signature-overloaded.
 Input should be wrapped by tuple to pass multiple function parameters.
 
-`linspace` will create arrays with a specified number of elements, and spaced equally between the specified beginning and end values.
+`linspace` will create tensors with a specified number of elements, and spaced equally between the specified beginning and end values.
 
 ```rust
-{{#include ../../listings/features-default/tests/array_creation.rs:example_linspace}}
+{{#include ../../listings/features-default/tests/tensor_creation.rs:example_linspace}}
 ```
 
 ### 3.2 2-D tensor creation functions
@@ -91,14 +91,14 @@ In many cases, you may just provide the number of rows, and `eye(n_row)` will re
 If you may wish to generate a rectangular identity matrix with offset, you may call `eye((n_row, n_col, offset))`.
 
 ```rust
-{{#include ../../listings/features-default/tests/array_creation.rs:example_eye}}
+{{#include ../../listings/features-default/tests/tensor_creation.rs:example_eye}}
 ```
 
 `diag` generates diagonal 2-D tensor from 1-D tensor, or generate 1-D tensor from diagonal of 2-D tensor.
 `diag` is defined as overloaded function; if offset of diagonal is of concern, you may wish to call `diag((&tensor, offset))`.
 
 ```rust
-{{#include ../../listings/features-default/tests/array_creation.rs:example_diag}}
+{{#include ../../listings/features-default/tests/tensor_creation.rs:example_diag}}
 ```
 
 ### 3.3 General $n$-D tensor creation functions
@@ -115,14 +115,14 @@ We will mostly use `zeros` as example.
 For common usages, you may wish to generate a tensor with shape (or additionally device bounded to tensor):
 
 ```rust
-{{#include ../../listings/features-default/tests/array_creation.rs:example_zeros_01}}
+{{#include ../../listings/features-default/tests/tensor_creation.rs:example_zeros_01}}
 ```
 
 You may also specify layout: whether it is c-contiguous (row-major) or f-contiguous (column-major)[^4].
 In RSTSR, attribute function `c` and `f` are used for generating c/f-contiguous layouts:
 
 ```rust
-{{#include ../../listings/features-default/tests/array_creation.rs:example_zeros_02}}
+{{#include ../../listings/features-default/tests/tensor_creation.rs:example_zeros_02}}
 ```
 
 [^4]: <https://en.wikipedia.org/wiki/Row-_and_column-major_order>
@@ -130,20 +130,20 @@ In RSTSR, attribute function `c` and `f` are used for generating c/f-contiguous 
 A special $n$-D case is 0-D tensor (scalar). You may also generate 0-D tensor by `zeros`:
 
 ```rust
-{{#include ../../listings/features-default/tests/array_creation.rs:example_zeros_03}}
+{{#include ../../listings/features-default/tests/tensor_creation.rs:example_zeros_03}}
 ```
 
 You may also initialize a tensor without filling specific values. This is unsafe.
 
 ```rust
-{{#include ../../listings/features-default/tests/array_creation.rs:example_empty}}
+{{#include ../../listings/features-default/tests/tensor_creation.rs:example_empty}}
 ```
 
 This crate has not implemented API for random initialization.
 However, you may still able to perform this kind of task by `asarray`.
 
 ```rust
-{{#include ../../listings/features-default/tests/array_creation.rs:example_random}}
+{{#include ../../listings/features-default/tests/tensor_creation.rs:example_random}}
 ```
 
 
