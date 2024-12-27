@@ -46,7 +46,7 @@ So for nested vectors, you may wish to first generate a flattened `Vec<T>`, then
 {{#include ../../listings/features-default/tests/tensor_creation.rs:example_04}}
 ```
 
-## 2. Converting Rust Slices to RSTSR 1-D TensorView
+## 2. Converting Rust Slices to RSTSR TensorView
 
 Rust language is extremely sensitive to ownership of variables, unlike python.
 For rust, reference of contiguous memory of data is usually represented as slice `&[T]`.

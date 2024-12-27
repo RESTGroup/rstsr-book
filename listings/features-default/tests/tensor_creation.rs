@@ -114,7 +114,7 @@ fn example_06() {
     use rstsr_core::prelude::rstsr as rt;
 
     // ANCHOR: example_06
-    // generate 1-D tensor mutable view from &mut [T], without data copy
+    // generate 2-D tensor mutable view from &mut [T], without data copy
     let mut vec = vec![1, 2, 3, 4, 5, 6];
     let mut tensor = rt::asarray((&mut vec, [2, 3]));
 
