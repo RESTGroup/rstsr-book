@@ -110,6 +110,28 @@ fn example_05() {
 }
 
 #[test]
+fn example_06() {
+    use rstsr_core::prelude::rstsr as rt;
+
+    // ANCHOR: example_06
+    // generate 1-D tensor mutable view from &mut [T], without data copy
+    let mut vec = vec![1, 2, 3, 4, 5, 6];
+    let mut tensor = rt::asarray((&mut vec, [2, 3]));
+
+    // you may perform arithmetic operations on `tensor`
+    tensor *= 2;
+    println!("{:}", tensor);
+    // output:
+    // [[ 2 4 6]
+    //  [ 8 10 12]]
+
+    // you may also see variable `vec` is also changed
+    println!("{:?}", vec);
+    // output: [2, 4, 6, 8, 10, 12]
+    // ANCHOR_END: example_06
+}
+
+#[test]
 fn example_arange() {
     use rstsr_core::prelude::rstsr as rt;
     use rt::DeviceFaer;

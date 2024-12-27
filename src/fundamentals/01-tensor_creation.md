@@ -56,9 +56,16 @@ For RSTSR, this is stored by `TensorView`[^2].
 {{#include ../../listings/features-default/tests/tensor_creation.rs:example_05}}
 ```
 
+You may also convert mutable slice `&mut [T]` into tensor. For RSTSR, this is stored by `TensorMut`:
+
+```rust
+{{#include ../../listings/features-default/tests/tensor_creation.rs:example_06}}
+```
+
 [^2]: Initialization of `TensorView` by rust slices `&[T]` is performed by `ManuallyDrop` internally.
 For the data types `T` that scientific computation concerns (such as `f64`, `Complex<f64>`), it will not cause memory leak.
 However, if type `T` has its own deconstructor (`drop` function), you may wish to double check for memory leak safety.
+This also applies to `TensorMut` by mutable rust slices `&mut [T]`.
 
 ## 3. Intrinsic RSTSR Tensor Creation Functions
 
