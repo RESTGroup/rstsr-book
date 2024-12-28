@@ -70,6 +70,12 @@ Different ownerships can be converted to each other. However, some conversion fu
     - This function does not have any cost.
 - `into_shared_keep_layout` and `into_shared` gives `TensorArc<'l, T, D, B>`. This is similar to `into_owned_keep_layout` and `into_owned`.
 
+An example for tensor ownership conversion follows:
+
+```rust
+{{#include ../../listings/features-default/tests/structure_and_ownership.rs:tensor_ownership}}
+```
+
 ### 2.2 Tensor and `Vec<T>` conversion
 
 We have already touched some array creation functions in [previous section](01-tensor_creation.md#2-converting-rust-slices-to-rstsr-tensorview). 
@@ -90,3 +96,20 @@ However, we provide function `as_ptr()` and `as_mut_ptr()`, giving the pointer o
 
 Please note the above mentioned utilities only works in CPU.
 For other devices (will implemented in future), you may wish to first convert tensor into CPU, then perform Tensor to `Vec<T>` conversion.
+
+As an example, we compute matrix-vector multiplication and report `Vec<f64>`:
+
+```rust
+{{#include ../../listings/features-default/tests/structure_and_ownership.rs:to_vec}}
+```
+
+### 2.3 Tensor and scalar conversion
+
+RSTSR do not provide method that directly convert `T` to 0-D tensor `Tensor<T, Ix0, B>`.
+For convertion of 0-D tensor `Tensor<T, Ix0, B>` to `T`, we provide `to_scalar` function.
+
+As an example, we compute innerdot and report float result:
+
+```rust
+{{#include ../../listings/features-default/tests/structure_and_ownership.rs:to_scalar}}
+```
