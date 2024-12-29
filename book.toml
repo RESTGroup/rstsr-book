@@ -18,5 +18,5 @@ sidebar-bg = "transparent"
 turn-off = true
 
 [output.html]
-additional-css = ["theme/pagetoc.css"]
-additional-js = ["theme/pagetoc.js"]
+additional-css = ["theme/pagetoc.css", "theme/ferris.css"]
+additional-js = ["theme/pagetoc.js", "theme/ferris.js"]
