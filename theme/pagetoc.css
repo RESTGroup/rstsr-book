@@ -23,7 +23,7 @@
         width: var(--pagetoc-width);
     }
     .pagetoc a {
-        border-left: 1px solid var(--sidebar-bg);
+        border-left: 1px solid var(--sidebar-fg);
         /* color: var(--fg); */
         /* color: var(--sidebar-fg); */
         color: var(--fg);
