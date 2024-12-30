@@ -85,3 +85,31 @@ fn example_to_scalar() {
     assert_eq!(c, 10.0);
     // ANCHOR_END: to_scalar
 }
+
+#[test]
+fn example_dim_conversion() {
+    // ANCHOR: dim_conversion
+    use rstsr_core::prelude::*;
+
+    // fixed dimension
+    let a = rt::arange(12).into_shape([3, 4]).into_owned();
+    println!("{:?}", a);
+    // output: 2-Dim, contiguous: Cc
+
+    // convert to dynamic dimension
+    let a = a.into_dim::<IxD>(); // or a.into_dyn();
+    println!("{:?}", a);
+    // output: 2-Dim (dyn), contiguous: Cc
+
+    // convert to fixed dimension again
+    let a = a.into_dim::<Ix2>();
+    println!("{:?}", a);
+    // output: 2-Dim, contiguous: Cc
+    // ANCHOR_END: dim_conversion
+
+    // ANCHOR: dyn_dim_construct
+    let a = rt::arange(12).into_shape(vec![3, 4]).into_owned();
+    println!("{:?}", a);
+    // output: 2-Dim (dyn), contiguous: Cc
+    // ANCHOR_END: dyn_dim_construct
+}

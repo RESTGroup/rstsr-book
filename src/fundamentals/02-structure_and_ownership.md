@@ -44,7 +44,7 @@ Structure and usage of RSTSR's `TensorBase` is similar to `ndarray`'s `ArrayBase
       RSTSR also allows virtaully all kinds of element types (you can take `rug` or even `Vec<T>` as tensor element, as they implemented `Clone`), similar to `ndarray`.
       However, RSTSR will probably not implement autodiff in future, which is drawback compared to `candle` and `burn`.
 
-## 2. Ownership conversion
+## 2. Ownership Conversion
 
 ### 2.1 Tensor to tensor ownership conversion
 
@@ -113,3 +113,39 @@ As an example, we compute innerdot and report float result:
 ```rust
 {{#include ../../listings/features-default/tests/structure_and_ownership.rs:to_scalar}}
 ```
+
+## 3. Dimension Conversion
+
+RSTSR provides fixed dimension and dynamic dimension tensors. Dimensions can be converted by `into_dim::<D>()` or `into_dyn`.
+
+```rust
+{{#include ../../listings/features-default/tests/structure_and_ownership.rs:dim_conversion}}
+```
+
+We only touched array creation with fixed dimension. To create array with dynamic dimension, use `Vec<T>` instead of `[T; N]`:
+
+```rust
+{{#include ../../listings/features-default/tests/structure_and_ownership.rs:dyn_dim_construct}}
+```
+
+Fixed dimension will be more efficient than dynamic dimension. However, in many arithmetic computations, depneding on contiguous of tensors, the efficiency difference will not be very notable.
+
+<div class="warning">
+
+**Fixed dimension is not equilvalent to fixed shape/strides.**
+
+For dimensionality, RSTSR uses similar workarounds to rust crate `ndarray`, which provides only fixed dimension.
+Fixed dimension means $n$ is fixed at compile time for $n$-D tensor. This is different to numpy, which dimension is always dynamic.
+
+RSTSR is very different to rust crates `nalgebra` and `dfdx`; these rust crates supports fixed shape and strides.
+That is to say, not only dimension $n$ is fixed, but also shape and strides are known at compile time.
+For small vectors or matrices, fixing shape and strides can usually be compiled to much more efficient assembly code.
+For large vectors or matrices, that will depends on types of arithmetic computations;
+compiler with `-O3` is not omniscient, and in most cases, fixing shape and strides will not benefit more than manual cache, pipeline and multi-threading optimization.
+
+RSTSR, by design and motivation, is for scientific computation for medium or large tensors.
+By concerning benefits and difficulties, we choose not introducing fixed shape and strides.
+This leaves RSTSR not suitable for tasks that handling small matrices (such as gaming and shading).
+For some tasks that are sensitive to certain shapes (such as filter shape of CNN in deep learning), RSTSR is suitable for tensor storage, and user may wish to use custom arithmetic computation functions instead of RSTSR's to perform computation intensive parts.
+
+</div>

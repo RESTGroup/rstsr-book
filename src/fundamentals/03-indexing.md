@@ -42,9 +42,6 @@ We will persuit to realize some of advanced indexing features in future.
 Please note that by slicing, RSTSR will always generate dynamic dimension (`IxD`) tensor, instead of generating fixed dimension (`Ix1` for 1-D, `Ix2` for 2-D, etc.).
 This is a fallback compared to `ndarray`, where `ndarray` have a more sophisticated macro system to handle fixed dimension slicing.
 
-To convert fixed and dynamic dimension, you may wish to use `into_dim::<D>()` function.
-Fixed dimension will be more efficient than dynamic dimension; however, in many arithmetic computations, depneding on contiguous of tensors, the efficiency difference will not be very notable.
-
 </div>
 
 ## Terminology
