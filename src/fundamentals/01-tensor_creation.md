@@ -3,8 +3,13 @@
 In many cases, we import RSTSR by following code:
 ```rust
 use rstsr_core::prelude::*;
+```
+
+It may be possible that names of RSTSR structs or functions clash with other crates.
+You may wish to import RSTSR by following code if that happens:
+```rust
 use rstsr_core::prelude::rstsr as rt;
-use rt::{DeviceCpuSerial, DeviceFaer, Tensor};
+use rt::rstsr_traits::*;
 ```
 
 ## 1. Converting Rust Vector to RSTSR Tensor

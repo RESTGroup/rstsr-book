@@ -1,8 +1,8 @@
+use rstsr_core::prelude::*;
+
 #[test]
 fn example_index_by_num() {
     // ANCHOR: example_index_by_num_01
-    use rstsr_core::prelude::*;
-
     // generate 3-D tensor A_ijk
     let a = rt::arange(24).into_shape([4, 3, 2]).into_owned();
     println!("{:}", a);
@@ -38,8 +38,6 @@ fn example_index_by_num() {
 #[test]
 fn example_index_by_range() {
     // ANCHOR: example_index_by_range_01
-    use rstsr_core::prelude::*;
-
     // generate 3-D tensor A_ijk
     let a = rt::arange(24).into_shape([4, 3, 2]).into_owned();
     println!("{:}", a);
@@ -106,8 +104,6 @@ fn example_index_by_range() {
 
 #[test]
 fn example_slice_with_strides() {
-    use rstsr_core::prelude::*;
-
     // ANCHOR: example_slice_with_strides_01
     let a = rt::arange(24);
 
@@ -141,8 +137,6 @@ fn example_slice_with_strides() {
 
 #[test]
 fn example_insert_axes() {
-    use rstsr_core::prelude::*;
-
     // ANCHOR: example_insert_axes_01
     let a = rt::arange(24).into_shape([4, 3, 2]).into_owned();
 
@@ -166,8 +160,6 @@ fn example_insert_axes() {
 #[test]
 #[should_panic]
 fn example_insert_axes_panic() {
-    use rstsr_core::prelude::*;
-
     // ANCHOR: example_insert_axes_02
     let a = rt::arange(24).into_shape([4, 3, 2]).into_owned();
 
@@ -180,8 +172,6 @@ fn example_insert_axes_panic() {
 
 #[test]
 fn example_ellipsis() {
-    use rstsr_core::prelude::*;
-
     // ANCHOR: example_ellipsis_01
     let a = rt::arange(24).into_shape([4, 3, 2]).into_owned();
 
@@ -200,8 +190,6 @@ fn example_ellipsis() {
 
 #[test]
 fn example_mixed_indexing() {
-    use rstsr_core::prelude::*;
-
     // ANCHOR: example_mixed_indexing
     let a: Tensor<f64, _> = rt::zeros([6, 7, 5, 9, 8]);
 
@@ -214,8 +202,6 @@ fn example_mixed_indexing() {
 
 #[test]
 fn example_elementwise_safe() {
-    use rstsr_core::prelude::*;
-
     // ANCHOR: example_elementwise_safe
     let a = rt::arange(24).into_shape([4, 3, 2]).into_owned();
 
@@ -247,8 +233,6 @@ fn example_elementwise_safe() {
 #[test]
 #[should_panic]
 fn example_elementwise_safe_panic() {
-    use rstsr_core::prelude::*;
-
     // ANCHOR: example_elementwise_safe_panic
     let a = rt::arange(24).into_shape([4, 3, 2]).into_owned();
 
@@ -260,8 +244,6 @@ fn example_elementwise_safe_panic() {
 
 #[test]
 fn example_elementwise_unchecked() {
-    use rstsr_core::prelude::*;
-
     // ANCHOR: example_elementwise_unchecked
     let a = rt::arange(24).into_shape([4, 3, 2]).into_owned();
 
@@ -273,8 +255,6 @@ fn example_elementwise_unchecked() {
 
 #[test]
 fn example_elementwise_unchecked_not_desired() {
-    use rstsr_core::prelude::*;
-
     // ANCHOR: example_elementwise_unchecked_not_desired
     let a = rt::arange(24).into_shape([4, 3, 2]).into_owned();
 

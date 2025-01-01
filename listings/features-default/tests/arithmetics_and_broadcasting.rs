@@ -1,7 +1,7 @@
+use rstsr_core::prelude::*;
+
 #[test]
 fn example_basic_arithmetics() {
-    use rstsr_core::prelude::*;
-
     // ANCHOR: basic_arithmetics_01
     let a = rt::arange(5.0);
     let b = rt::arange(5.0) + 1.0;
@@ -68,8 +68,6 @@ fn example_basic_arithmetics() {
 
 #[test]
 fn example_op_percent() {
-    use rstsr_core::prelude::*;
-
     // ANCHOR: star_as_elem_mult
     let mat = rt::arange(12).into_shape([3, 4]).into_owned();
     let vec = rt::arange(4);
@@ -115,8 +113,6 @@ fn example_op_percent() {
 
 #[test]
 fn example_lt_os_mp2() {
-    use rstsr_core::prelude::*;
-
     // ANCHOR: lt_os_mp2_01
     // task definition
     let (naux, nocc, nvir) = (8, 2, 4); // subscripts (P, i, a)
@@ -149,8 +145,6 @@ fn example_lt_os_mp2() {
 
 #[test]
 fn example_ao2mo_vo() {
-    use rstsr_core::prelude::*;
-
     // ANCHOR: ao2mo_vo_01
     // task definition
     let (naux, nocc, nvir, nao, _) = (8, 2, 4, 6, 6); // subscripts (P, i, a, μ, ν)
@@ -169,8 +163,6 @@ fn example_ao2mo_vo() {
 
 #[test]
 fn example_memory_aspects() {
-    use rstsr_core::prelude::*;
-
     let a = rt::arange(5.0);
     let b = rt::arange(5.0) + 1.0;
 

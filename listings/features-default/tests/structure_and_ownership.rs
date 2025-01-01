@@ -1,10 +1,8 @@
-use rstsr_core::tensor::indexing::TensorSliceAPI;
+use rstsr_core::prelude::*;
 
 #[test]
 fn example_tensor_ownership() {
     // ANCHOR: tensor_ownership
-    use rstsr_core::prelude::rstsr as rt;
-
     // generate 1-D owned tensor
     let tensor = rt::arange(12);
     let ptr_1 = tensor.rawvec().as_ptr();
@@ -36,8 +34,6 @@ fn example_tensor_ownership() {
 #[test]
 fn example_to_vec() {
     // ANCHOR: to_vec
-    use rstsr_core::prelude::rstsr as rt;
-
     // generate *dynamic* 2-D tensor (vec![3, 4] is dynamic)
     let a = rt::arange(12.0).into_shape(vec![3, 4]);
     let b = rt::arange(4.0);
@@ -63,9 +59,6 @@ fn example_to_vec() {
 #[test]
 fn example_to_scalar() {
     // ANCHOR: to_scalar
-    use rstsr_core::prelude::rstsr as rt;
-    use rt::rstsr_macros::*;
-
     // a: [0, 1, 2, 3, 4]
     let a = rt::arange(5.0);
 
@@ -89,8 +82,6 @@ fn example_to_scalar() {
 #[test]
 fn example_dim_conversion() {
     // ANCHOR: dim_conversion
-    use rstsr_core::prelude::*;
-
     // fixed dimension
     let a = rt::arange(12).into_shape([3, 4]).into_owned();
     println!("{:?}", a);

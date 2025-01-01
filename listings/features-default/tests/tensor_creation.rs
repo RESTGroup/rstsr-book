@@ -1,7 +1,7 @@
+use rstsr_core::prelude::*;
+
 #[test]
 fn example_01() {
-    use rstsr_core::prelude::rstsr as rt;
-
     // ANCHOR: example_01
     // move ownership of vec to 1-D tensor (default CPU device)
     let vec = vec![1.0, 2.968, 3.789, 4.35, 5.575];
@@ -15,9 +15,6 @@ fn example_01() {
 
 #[test]
 fn example_02() {
-    use rstsr_core::prelude::rstsr as rt;
-    use rt::DeviceFaer;
-
     // ANCHOR: example_02
     // move ownership of vec to 1-D tensor
     // custom CPU device that limits threads to 4
@@ -38,8 +35,6 @@ fn example_02() {
 
 #[test]
 fn example_03() {
-    use rstsr_core::prelude::rstsr as rt;
-
     // ANCHOR: example_03
     // generate 2-D tensor from 1-D vec, without explicit data copy
     let vec = vec![1, 2, 3, 4, 5, 6];
@@ -64,9 +59,6 @@ fn example_03() {
 
 #[test]
 fn example_04() {
-    use rstsr_core::prelude::rstsr as rt;
-    use rstsr_core::prelude::*;
-
     // ANCHOR: example_04
     let vec = vec![vec![1, 2, 3], vec![4, 5, 6]];
 
@@ -86,8 +78,6 @@ fn example_04() {
 
 #[test]
 fn example_05() {
-    use rstsr_core::prelude::rstsr as rt;
-
     // ANCHOR: example_05
     // generate 1-D tensor view from &[T], without data copy
     let vec = vec![1, 2, 3, 4, 5, 6];
@@ -111,8 +101,6 @@ fn example_05() {
 
 #[test]
 fn example_06() {
-    use rstsr_core::prelude::rstsr as rt;
-
     // ANCHOR: example_06
     // generate 2-D tensor mutable view from &mut [T], without data copy
     let mut vec = vec![1, 2, 3, 4, 5, 6];
@@ -133,9 +121,6 @@ fn example_06() {
 
 #[test]
 fn example_arange() {
-    use rstsr_core::prelude::rstsr as rt;
-    use rt::DeviceFaer;
-
     // ANCHOR: example_arange
     let tensor = rt::arange(10);
     println!("{:}", tensor);
@@ -154,9 +139,6 @@ fn example_arange() {
 
 #[test]
 fn example_linspace() {
-    use rstsr_core::prelude::rstsr as rt;
-    use rt::DeviceFaer;
-
     // ANCHOR: example_linspace
     use num::complex::c64;
 
@@ -172,9 +154,6 @@ fn example_linspace() {
 
 #[test]
 fn example_eye() {
-    use rstsr_core::prelude::rstsr as rt;
-    use rt::{DeviceFaer, Tensor};
-
     // ANCHOR: example_eye
     let device = DeviceFaer::new(4);
     let tensor: Tensor<f64, _> = rt::eye((3, &device));
@@ -195,9 +174,6 @@ fn example_eye() {
 
 #[test]
 fn example_diag() {
-    use rstsr_core::prelude::rstsr as rt;
-    use rstsr_core::prelude::*;
-
     // ANCHOR: example_diag
     let vec = rt::arange(3) + 1;
     let tensor = vec.diag();
@@ -216,9 +192,6 @@ fn example_diag() {
 
 #[test]
 fn example_zeros_01() {
-    use rstsr_core::prelude::rstsr as rt;
-    use rt::{DeviceCpuSerial, Tensor};
-
     // ANCHOR: example_zeros_01
     // generate tensor with default device
     let tensor: Tensor<f64, _> = rt::zeros([2, 2, 3]); // Tensor<f64, Ix3>
@@ -244,10 +217,6 @@ fn example_zeros_01() {
 
 #[test]
 fn example_zeros_02() {
-    use rstsr_core::prelude::rstsr as rt;
-    use rstsr_core::prelude::*;
-    use rt::Tensor;
-
     // ANCHOR: example_zeros_02
     // generate tensor with c-contiguous
     let tensor: Tensor<f64, _> = rt::zeros([2, 2, 3].c());
@@ -263,9 +232,6 @@ fn example_zeros_02() {
 
 #[test]
 fn example_zeros_03() {
-    use rstsr_core::prelude::rstsr as rt;
-    use rt::Tensor;
-
     // ANCHOR: example_zeros_03
     // generate 0-D tensor
     let mut a: Tensor<f64, _> = rt::zeros([]);
@@ -286,9 +252,6 @@ fn example_zeros_03() {
 
 #[test]
 fn example_empty() {
-    use rstsr_core::prelude::rstsr as rt;
-    use rt::Tensor;
-
     // ANCHOR: example_empty
     // generate empty tensor with default device
     let tensor: Tensor<i32, _> = unsafe { rt::empty([10, 10]) };
@@ -298,9 +261,6 @@ fn example_empty() {
 
 #[test]
 fn example_random() {
-    use rstsr_core::prelude::rstsr as rt;
-    use rstsr_core::prelude::*;
-
     // ANCHOR: example_random
     use rand::rngs::StdRng;
     use rand::{Rng, SeedableRng};
