@@ -32,7 +32,7 @@ The following document in this section will cover some advanced topics.
 We have already shown that `%` is the operator for matrix multiplication. This is RSTSR specific usage.
 This may cause some confusion, and we will discuss this topic.
 
-Firstly, we follow convention of numpy that `*` will always be elementwise multiply, similar to `+`.
+Firstly, we follow convention of numpy that `*` will always be elementwise multiply, similar to `+`, and it does not give matrix multiplication or vector inner dot.
 
 ```rust
 {{#include ../../listings/features-default/tests/arithmetics_and_broadcasting.rs:star_as_elem_mult}}
@@ -49,10 +49,32 @@ However, we consider that though `%` has been commonly used as remainder, it is 
 `%` also shares the same operator priority with `*` and `/`.
 Thus, we decided to apply `%` as matrix multiplication notation if proper.
 
-As a result, remainder function can not be easily called by RSTSR. Currently, a temporary workaround is using `rstsr_core::tensor::operators::rem`:
+We reserve name of function `rem` for remainder computation, and name `matmul` for matrix multiplication.
 ```rust
 {{#include ../../listings/features-default/tests/arithmetics_and_broadcasting.rs:true_rem}}
 ```
+
+<div class="warning">
+
+**Do not use `rem` as associated (struct member) function**
+
+We have shown that `rt::rem` is a valid function for evaluating tensor remainder:
+
+```rust
+{{#include ../../listings/features-default/tests/arithmetics_and_broadcasting.rs:confusing_percent_01}}
+```
+
+However, function `tensor.rem(other)` is not `rt::rem` by definition.
+It is defined as rust's associated function, by trait `core::ops::Rem`.
+Since we overrided this trait by matmul, `tensor.rem(other)` will also call matmul operation.
+
+```rust,not_desired_behavior
+{{#include ../../listings/features-default/tests/arithmetics_and_broadcasting.rs:confusing_percent_02}}
+```
+
+Since this kind of code will cause confusion, we advice API users not using `rem` as associated function.
+
+</div>
 
 ## 3. Broadcasting
 
@@ -144,6 +166,8 @@ We will touch this topic in a later time.
 
 This is related to how value is passed to arithmetic operations.
 
+### 4.1 Computation by arithmetic operators
+
 In rust, variable ownership and lifetime rule is strict. The following code will give compiler error:
 
 ```rust,does_not_compile
@@ -183,4 +207,27 @@ So if you are sure that `a` will not be used anymore, you can pass `a` by value,
 
 ```rust
 {{#include ../../listings/features-default/tests/arithmetics_and_broadcasting.rs:memory_aspects_02}}
+```
+
+### 4.2 Computation by associated functions
+
+In RSTSR, there are three ways to perform arithmetic operations:
+- by operator: `&a + &b`;
+- by function: `rt::add(&a, &b)`;
+- by associated function: `(&a).add(&b)` or `a.view().add(&b)`.
+
+You may found that code of usage of associated function is somehow weird.
+In fact, `a.add(&b)` is also valid in rust, but this will consumes variable `a`.
+The following code will not compile due to this problem:
+```rust,ignore,does_not_compile
+    let a = rt::arange(5.0);
+    let b = rt::arange(5.0) + 1.0;
+
+    // below is valid, however `a` is moved
+    let c = a.add(&b);
+
+    // below is invalid
+    let d = a.div(&b);
+    //      ^ value used here after move
+    // note: `std::ops::Add::add` takes ownership of the receiver `self`, which moves `a`
 ```

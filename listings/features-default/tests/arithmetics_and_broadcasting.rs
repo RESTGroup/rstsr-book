@@ -95,20 +95,39 @@ fn example_op_percent() {
     // ANCHOR_END: star_as_elem_mult
 
     // ANCHOR: true_rem
-    use rstsr_core::tensor::operators::rem;
     let a = rt::arange(6);
 
     // remainder to scalar
-    let c = rem(&a, 3).unwrap();
+    let c = rt::rem(&a, 3);
     println!("{:}", c);
     // output: [ 0 1 2 0 1 2]
 
     // remainder to array
     let b = rt::asarray(vec![3, 2, 3, 3, 2, 2]);
-    let c = rem(&a, &b).unwrap();
+    let c = rt::rem(&a, &b);
     println!("{:}", c);
     // output: [ 0 1 2 0 0 1]
     // ANCHOR_END: true_rem
+}
+
+#[test]
+fn example_op_percent_confusing() {
+    // ANCHOR: confusing_percent_01
+    let a = rt::arange(6);
+    let b = rt::asarray(vec![3, 2, 3, 3, 2, 2]);
+
+    // remainder to array
+    let c = rt::rem(&a, &b);
+    println!("{:}", c);
+    // output: [ 0 1 2 0 0 1]
+    // ANCHOR_END: confusing_percent_01
+
+    // ANCHOR: confusing_percent_02
+    // inner product (due to override to `Rem`)
+    let c = a.view().rem(&b);
+    println!("{:}", c);
+    // output: 35
+    // ANCHOR_END: confusing_percent_02
 }
 
 #[test]

@@ -146,6 +146,6 @@ compiler with `-O3` is not omniscient, and in most cases, fixing shape and strid
 RSTSR, by design and motivation, is for scientific computation for medium or large tensors.
 By concerning benefits and difficulties, we choose not introducing fixed shape and strides.
 This leaves RSTSR not suitable for tasks that handling small matrices (such as gaming and shading).
-For some tasks that are sensitive to certain shapes (such as filter shape of CNN in deep learning), RSTSR is suitable for tensor storage, and user may wish to use custom arithmetic computation functions instead of RSTSR's to perform computation intensive parts.
+For some tasks that are sensitive to certain shapes (such as filter shape of CNN in deep learning), RSTSR is suitable for tensor storage, and user may wish to use custom computation functions instead of RSTSR's to perform computation intensive parts.
 
 </div>
