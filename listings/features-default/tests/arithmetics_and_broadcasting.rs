@@ -20,8 +20,8 @@ fn example_basic_arithmetics() {
     // ANCHOR_END: basic_arithmetics_01
 
     // ANCHOR: basic_arithmetics_02
-    let mat = rt::arange(12).into_shape([3, 4]).into_owned();
-    let vec = rt::arange(4).into_shape([4]).into_owned();
+    let mat = rt::arange(12).into_shape([3, 4]);
+    let vec = rt::arange(4).into_shape([4]);
 
     // matrix multiplication
     let res = &mat % mat.t();
@@ -69,7 +69,7 @@ fn example_basic_arithmetics() {
 #[test]
 fn example_op_percent() {
     // ANCHOR: star_as_elem_mult
-    let mat = rt::arange(12).into_shape([3, 4]).into_owned();
+    let mat = rt::arange(12).into_shape([3, 4]);
     let vec = rt::arange(4);
 
     // element-wise matrix multiplication
@@ -135,9 +135,7 @@ fn example_lt_os_mp2() {
     // ANCHOR: lt_os_mp2_01
     // task definition
     let (naux, nocc, nvir) = (8, 2, 4); // subscripts (P, i, a)
-    let y = rt::arange(naux * nocc * nvir)
-        .into_shape([naux, nocc, nvir])
-        .into_owned();
+    let y = rt::arange(naux * nocc * nvir).into_shape([naux, nocc, nvir]);
     let ei = rt::arange(nocc);
     let ea = rt::arange(nvir);
     // ANCHOR_END: lt_os_mp2_01
@@ -167,11 +165,9 @@ fn example_ao2mo_vo() {
     // ANCHOR: ao2mo_vo_01
     // task definition
     let (naux, nocc, nvir, nao, _) = (8, 2, 4, 6, 6); // subscripts (P, i, a, μ, ν)
-    let y_ao = rt::arange(naux * nao * nao)
-        .into_shape([naux, nao, nao])
-        .into_owned();
-    let c_occ = rt::arange(nao * nocc).into_shape([nao, nocc]).into_owned();
-    let c_vir = rt::arange(nao * nvir).into_shape([nao, nvir]).into_owned();
+    let y_ao = rt::arange(naux * nao * nao).into_shape([naux, nao, nao]);
+    let c_occ = rt::arange(nao * nocc).into_shape([nao, nocc]);
+    let c_vir = rt::arange(nao * nvir).into_shape([nao, nvir]);
     // ANCHOR_END: ao2mo_vo_01
 
     // ANCHOR: ao2mo_vo_02

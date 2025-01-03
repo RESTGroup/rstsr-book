@@ -43,7 +43,7 @@ fn example_03() {
 
     // if you feel function `into_shape_assume_contig` ugly, following code also works
     let vec = vec![1, 2, 3, 4, 5, 6];
-    let tensor = rt::asarray(vec).into_shape([2, 3]).into_owned();
+    let tensor = rt::asarray(vec).into_shape([2, 3]);
     println!("{:}", tensor);
 
     // and even more concise
@@ -183,7 +183,7 @@ fn example_diag() {
     //  [ 0 2 0]
     //  [ 0 0 3]]
 
-    let tensor = rt::arange(9).into_shape([3, 3]).into_owned();
+    let tensor = rt::arange(9).into_shape([3, 3]);
     let diag = tensor.diag();
     println!("{:}", diag);
     // output: [ 0 4 8]

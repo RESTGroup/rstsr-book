@@ -7,12 +7,9 @@ fn example_tensor_ownership() {
     let tensor = rt::arange(12);
     let ptr_1 = tensor.rawvec().as_ptr();
 
-    // this will give cow tensor with 2-D shape
+    // this will give owned tensor with 2-D shape
     // since previous tensor is contiguous, this will not copy memory
-    let tensor = tensor.into_shape([3, 4]);
-
-    // convert cow tensor to owned tensor
-    let mut tensor = tensor.into_owned();
+    let mut tensor = tensor.into_shape([3, 4]);
     tensor += 1; // inplace operation
     let ptr_2 = tensor.rawvec().as_ptr();
 
@@ -83,7 +80,7 @@ fn example_to_scalar() {
 fn example_dim_conversion() {
     // ANCHOR: dim_conversion
     // fixed dimension
-    let a = rt::arange(12).into_shape([3, 4]).into_owned();
+    let a = rt::arange(12).into_shape([3, 4]);
     println!("{:?}", a);
     // output: 2-Dim, contiguous: Cc
 
@@ -99,7 +96,7 @@ fn example_dim_conversion() {
     // ANCHOR_END: dim_conversion
 
     // ANCHOR: dyn_dim_construct
-    let a = rt::arange(12).into_shape(vec![3, 4]).into_owned();
+    let a = rt::arange(12).into_shape(vec![3, 4]);
     println!("{:?}", a);
     // output: 2-Dim (dyn), contiguous: Cc
     // ANCHOR_END: dyn_dim_construct

@@ -4,7 +4,7 @@ use rstsr_core::prelude::*;
 fn example_index_by_num() {
     // ANCHOR: example_index_by_num_01
     // generate 3-D tensor A_ijk
-    let a = rt::arange(24).into_shape([4, 3, 2]).into_owned();
+    let a = rt::arange(24).into_shape([4, 3, 2]);
     println!("{:}", a);
 
     // B_jk = A_ijk where i = 2
@@ -39,7 +39,7 @@ fn example_index_by_num() {
 fn example_index_by_range() {
     // ANCHOR: example_index_by_range_01
     // generate 3-D tensor A_ijk
-    let a = rt::arange(24).into_shape([4, 3, 2]).into_owned();
+    let a = rt::arange(24).into_shape([4, 3, 2]);
     println!("{:}", a);
 
     // B_ijk = A_ijk where 1 <= i < 3
@@ -84,7 +84,7 @@ fn example_index_by_range() {
     // ANCHOR_END: example_index_by_range_04
 
     // ANCHOR: example_index_by_range_05
-    let a = rt::arange(24).into_shape([4, 3, 2]).into_owned();
+    let a = rt::arange(24).into_shape([4, 3, 2]);
     let b = a.slice((.., 1..3, ..2)); // equivalently `a.slice(s![.., 1..3, ..2])`
     println!("{:}", b);
     // output:
@@ -138,7 +138,7 @@ fn example_slice_with_strides() {
 #[test]
 fn example_insert_axes() {
     // ANCHOR: example_insert_axes_01
-    let a = rt::arange(24).into_shape([4, 3, 2]).into_owned();
+    let a = rt::arange(24).into_shape([4, 3, 2]);
 
     // insert new axis at the beginning
     let b = a.slice(NewAxis);
@@ -161,7 +161,7 @@ fn example_insert_axes() {
 #[should_panic]
 fn example_insert_axes_panic() {
     // ANCHOR: example_insert_axes_02
-    let a = rt::arange(24).into_shape([4, 3, 2]).into_owned();
+    let a = rt::arange(24).into_shape([4, 3, 2]);
 
     // insert new axis at the beginning
     let b = a.slice(Some(2));
@@ -173,7 +173,7 @@ fn example_insert_axes_panic() {
 #[test]
 fn example_ellipsis() {
     // ANCHOR: example_ellipsis_01
-    let a = rt::arange(24).into_shape([4, 3, 2]).into_owned();
+    let a = rt::arange(24).into_shape([4, 3, 2]);
 
     // using ellipsis to select index from last dimension
     // equivallently to `a.slice((.., .., 0))` for 3-D tensor
@@ -203,7 +203,7 @@ fn example_mixed_indexing() {
 #[test]
 fn example_elementwise_safe() {
     // ANCHOR: example_elementwise_safe
-    let a = rt::arange(24).into_shape([4, 3, 2]).into_owned();
+    let a = rt::arange(24).into_shape([4, 3, 2]);
 
     let val = a[[2, 2, 1]];
     println!("{:}", val);
@@ -234,7 +234,7 @@ fn example_elementwise_safe() {
 #[should_panic]
 fn example_elementwise_safe_panic() {
     // ANCHOR: example_elementwise_safe_panic
-    let a = rt::arange(24).into_shape([4, 3, 2]).into_owned();
+    let a = rt::arange(24).into_shape([4, 3, 2]);
 
     let val = a[[2, 2, 3]];
     println!("{:}", val);
@@ -245,7 +245,7 @@ fn example_elementwise_safe_panic() {
 #[test]
 fn example_elementwise_unchecked() {
     // ANCHOR: example_elementwise_unchecked
-    let a = rt::arange(24).into_shape([4, 3, 2]).into_owned();
+    let a = rt::arange(24).into_shape([4, 3, 2]);
 
     let val = unsafe { a.index_uncheck([2, 2, 1]) };
     println!("{:}", val);
@@ -256,7 +256,7 @@ fn example_elementwise_unchecked() {
 #[test]
 fn example_elementwise_unchecked_not_desired() {
     // ANCHOR: example_elementwise_unchecked_not_desired
-    let a = rt::arange(24).into_shape([4, 3, 2]).into_owned();
+    let a = rt::arange(24).into_shape([4, 3, 2]);
 
     let val = unsafe { a.index_uncheck([2, 2, 3]) };
     println!("{:}", val);
