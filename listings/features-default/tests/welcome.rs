@@ -14,7 +14,7 @@ fn welcome() {
     // print layout of the result
     println!("{:?}", c.layout());
     // output:
-    // 3-Dim, contiguous: Cc
+    // 3-Dim (dyn), contiguous: Cc
     // shape: [2, 4, 2], stride: [8, 2, 1], offset: 0
 
     // print the result

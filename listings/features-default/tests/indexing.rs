@@ -191,7 +191,7 @@ fn example_ellipsis() {
 #[test]
 fn example_mixed_indexing() {
     // ANCHOR: example_mixed_indexing
-    let a: Tensor<f64, _> = rt::zeros([6, 7, 5, 9, 8]);
+    let a: Tensor<f64> = rt::zeros([6, 7, 5, 9, 8]);
 
     // mixed indexing
     let b = a.slice((slice!(-2, 1, -1), None, None, Ellipsis, 1, ..-2));

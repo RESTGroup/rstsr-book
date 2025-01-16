@@ -27,7 +27,7 @@ fn example_02() {
     // === Debug Tensor Print ===
     // [ 1 2 3 4 5]
     // DeviceFaer { base: DeviceCpuRayon { num_threads: 4 } }
-    // 1-Dim, contiguous: CcFf
+    // 1-Dim (dyn), contiguous: CcFf
     // shape: [5], stride: [1], offset: 0
     // Type: rstsr_core::tensorbase::TensorBase<rstsr_core::tensor::data::DataOwned<rstsr_core::storage::device::Storage<i32, rstsr_core::device_faer::device::DeviceFaer>>, [usize; 1]>
     // ANCHOR_END: example_02
@@ -87,13 +87,13 @@ fn example_05() {
     println!("{:?}", tensor);
 
     // check if pointer of vec and tensor's storage are the same
-    assert_eq!(vec.as_ptr(), tensor.storage().rawvec().as_ptr());
+    assert_eq!(vec.as_ptr(), tensor.storage().raw().as_ptr());
 
     // output:
     // === Debug Tensor Print ===
     // [ 1 2 3 4 5 6]
     // DeviceFaer { base: DeviceCpuRayon { num_threads: 0 } }
-    // 1-Dim, contiguous: CcFf
+    // 1-Dim (dyn), contiguous: CcFf
     // shape: [6], stride: [1], offset: 0
     // Type: rstsr_core::tensorbase::TensorBase<rstsr_core::tensor::data::DataRef<rstsr_core::storage::device::Storage<i32, rstsr_core::device_faer::device::DeviceFaer>>, [usize; 1]>
     // ANCHOR_END: example_05
@@ -156,14 +156,14 @@ fn example_linspace() {
 fn example_eye() {
     // ANCHOR: example_eye
     let device = DeviceFaer::new(4);
-    let tensor: Tensor<f64, _> = rt::eye((3, &device));
+    let tensor: Tensor<f64> = rt::eye((3, &device));
     println!("{:}", tensor);
     // output:
     // [[ 1 0 0]
     //  [ 0 1 0]
     //  [ 0 0 1]]
 
-    let tensor: Tensor<f64, _> = rt::eye((3, 4, -1));
+    let tensor: Tensor<f64> = rt::eye((3, 4, -1));
     println!("{:}", tensor);
     // output:
     // [[ 0 0 0 0]
@@ -194,7 +194,7 @@ fn example_diag() {
 fn example_zeros_01() {
     // ANCHOR: example_zeros_01
     // generate tensor with default device
-    let tensor: Tensor<f64, _> = rt::zeros([2, 2, 3]); // Tensor<f64, Ix3>
+    let tensor: Tensor<f64> = rt::zeros([2, 2, 3]); // Tensor<f64, Ix3>
     println!("{:}", tensor);
     // output:
     // [[[ 0 0 0]
@@ -206,7 +206,7 @@ fn example_zeros_01() {
     // generate tensor with custom device
     // note: the third type annotation refers to device type, hence is required if not default device
     // Tensor<f64, Ix2, DeviceCpuSerial>
-    let tensor: Tensor<f64, _, _> = rt::zeros(([3, 4], &DeviceCpuSerial));
+    let tensor: Tensor<f64, _> = rt::zeros(([3, 4], &DeviceCpuSerial));
     println!("{:}", tensor);
     // output:
     // [[ 0 0 0 0]
@@ -219,12 +219,12 @@ fn example_zeros_01() {
 fn example_zeros_02() {
     // ANCHOR: example_zeros_02
     // generate tensor with c-contiguous
-    let tensor: Tensor<f64, _> = rt::zeros([2, 2, 3].c());
+    let tensor: Tensor<f64> = rt::zeros([2, 2, 3].c());
     println!("shape: {:?}, stride: {:?}", tensor.shape(), tensor.stride());
     // output: shape: [2, 2, 3], stride: [6, 3, 1]
 
     // generate tensor with f-contiguous
-    let tensor: Tensor<f64, _> = rt::zeros([2, 2, 3].f());
+    let tensor: Tensor<f64> = rt::zeros([2, 2, 3].f());
     println!("shape: {:?}, stride: {:?}", tensor.shape(), tensor.stride());
     // output: shape: [2, 2, 3], stride: [1, 2, 4]
     // ANCHOR_END: example_zeros_02
@@ -234,7 +234,7 @@ fn example_zeros_02() {
 fn example_zeros_03() {
     // ANCHOR: example_zeros_03
     // generate 0-D tensor
-    let mut a: Tensor<f64, _> = rt::zeros([]);
+    let mut a: Tensor<f64> = rt::zeros([]);
     println!("{:}", a);
     // output: 0
 
@@ -254,7 +254,7 @@ fn example_zeros_03() {
 fn example_empty() {
     // ANCHOR: example_empty
     // generate empty tensor with default device
-    let tensor: Tensor<i32, _> = unsafe { rt::empty([10, 10]) };
+    let tensor: Tensor<i32> = unsafe { rt::empty([10, 10]) };
     println!("{:?}", tensor);
     // ANCHOR_END: example_empty
 }

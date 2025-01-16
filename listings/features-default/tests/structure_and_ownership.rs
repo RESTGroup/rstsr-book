@@ -5,13 +5,13 @@ fn example_tensor_ownership() {
     // ANCHOR: tensor_ownership
     // generate 1-D owned tensor
     let tensor = rt::arange(12);
-    let ptr_1 = tensor.rawvec().as_ptr();
+    let ptr_1 = tensor.raw().as_ptr();
 
     // this will give owned tensor with 2-D shape
     // since previous tensor is contiguous, this will not copy memory
     let mut tensor = tensor.into_shape([3, 4]);
     tensor += 1; // inplace operation
-    let ptr_2 = tensor.rawvec().as_ptr();
+    let ptr_2 = tensor.raw().as_ptr();
 
     // until now, memory has not been copied
     assert_eq!(ptr_1, ptr_2);
@@ -21,7 +21,7 @@ fn example_tensor_ownership() {
 
     // from view to owned tensor
     let tensor = tensor_view.into_owned();
-    let ptr_3 = tensor.rawvec().as_ptr();
+    let ptr_3 = tensor.raw().as_ptr();
 
     // now memory has been copied
     assert_ne!(ptr_2, ptr_3);
@@ -38,7 +38,7 @@ fn example_to_vec() {
     // matrix multiplication (gemv 2-D x 1-D case)
     let c = a % b;
     println!("{:?}", c);
-    let ptr_1 = c.rawvec().as_ptr();
+    let ptr_1 = c.raw().as_ptr();
 
     // convert to Vec<f64>
     let c = c.into_vec();
@@ -82,7 +82,7 @@ fn example_dim_conversion() {
     // fixed dimension
     let a = rt::arange(12).into_shape([3, 4]);
     println!("{:?}", a);
-    // output: 2-Dim, contiguous: Cc
+    // output: 2-Dim (dyn), contiguous: Cc
 
     // convert to dynamic dimension
     let a = a.into_dim::<IxD>(); // or a.into_dyn();

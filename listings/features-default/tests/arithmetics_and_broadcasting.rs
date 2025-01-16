@@ -191,7 +191,7 @@ fn example_memory_aspects() {
     // view clone is cheap, given tensor is large
     let a_view = a.view();
     let b_view = b.view();
-    let e = a_view.clone() * b_view.clone();
+    let e = a_view * b_view;
     // ANCHOR_END: memory_aspects_01
     println!("{:}", c);
     println!("{:}", d);
@@ -200,10 +200,10 @@ fn example_memory_aspects() {
     // ANCHOR: memory_aspects_02
     let a = rt::arange(5.0);
     let b = rt::arange(5.0) + 1.0;
-    let ptr_a = a.rawvec().as_ptr();
+    let ptr_a = a.raw().as_ptr();
     // if sure that `a` is not used anymore, pass `a` by value instead of reference
     let c = a + &b;
-    let ptr_c = c.rawvec().as_ptr();
+    let ptr_c = c.raw().as_ptr();
     // raw data of `a` is reused in `c`
     // similar to `a += &b; let c = a;`
     assert_eq!(ptr_a, ptr_c);
