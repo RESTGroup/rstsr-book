@@ -1,3 +1,7 @@
+---
+description: ""
+---
+
 # Arithmetics and Broadcasting
 
 As a tensor toolkit, many basic arithmetics are available in RSTSR.
@@ -8,20 +12,17 @@ We will touch arithmetics only in this section, and will mention computations ba
 
 RSTSR can handle `+`, `-`, `*`, `/` operations:
 
-```rust
-{{#include ../../listings/features-default/tests/arithmetics_and_broadcasting.rs:basic_arithmetics_01}}
+```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=basic_arithmetics_01
 ```
 
 RSTSR can handle matmul operations by operator `%` (matrix-matrix, matrix-vector or vector-vector inner dot, and has been optimized in some devices such as `DeviceFaer`):
 
-```rust
-{{#include ../../listings/features-default/tests/arithmetics_and_broadcasting.rs:basic_arithmetics_02}}
+```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=basic_arithmetics_02
 ```
 
 For some special cases, bit operations and shift are also available:
 
-```rust
-{{#include ../../listings/features-default/tests/arithmetics_and_broadcasting.rs:basic_arithmetics_03}}
+```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=basic_arithmetics_03
 ```
 
 The aforementioned examples should have coverd most usages of tensor arithmetics.
@@ -34,8 +35,7 @@ This may cause some confusion, and we will discuss this topic.
 
 Firstly, we follow convention of numpy that `*` will always be elementwise multiply, similar to `+`, and it does not give matrix multiplication or vector inner dot.
 
-```rust
-{{#include ../../listings/features-default/tests/arithmetics_and_broadcasting.rs:star_as_elem_mult}}
+```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=star_as_elem_mult
 ```
 
 Numpy introduces `@` notation for matrix multiplication by version 1.10 with [PEP 465](https://peps.python.org/pep-0465/).
@@ -50,31 +50,28 @@ However, we consider that though `%` has been commonly used as remainder, it is 
 Thus, we decided to apply `%` as matrix multiplication notation if proper.
 
 We reserve name of function `rem` for remainder computation, and name `matmul` for matrix multiplication.
-```rust
-{{#include ../../listings/features-default/tests/arithmetics_and_broadcasting.rs:true_rem}}
+```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=true_rem
 ```
 
-<div class="warning">
-
-**Do not use `rem` as associated (struct member) function**
+:::warning Do not use `rem` as associated (struct member) function
 
 We have shown that `rt::rem` is a valid function for evaluating tensor remainder:
 
-```rust
-{{#include ../../listings/features-default/tests/arithmetics_and_broadcasting.rs:confusing_percent_01}}
+```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=confusing_percent_01
 ```
 
 However, function `tensor.rem(other)` is not `rt::rem` by definition.
 It is defined as rust's associated function, by trait `core::ops::Rem`.
 Since we overrided this trait by matmul, `tensor.rem(other)` will also call matmul operation.
 
-```rust,not_desired_behavior
-{{#include ../../listings/features-default/tests/arithmetics_and_broadcasting.rs:confusing_percent_02}}
+<div className="ferris-overlay">
+```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=confusing_percent_02
 ```
+<img src="/img/ferris/not_desired_behavior.svg" alt="not_desired_behavior" title="Not desired behavior!" /> </div>
 
 Since this kind of code will cause confusion, we advice API users not using `rem` as associated function.
 
-</div>
+:::
 
 ## 3. Broadcasting
 
@@ -91,8 +88,7 @@ $$
 \mathcal{Y}_{Pia} = Y_{Pia} \epsilon_{i} \epsilon_{a}
 $$
 
-```rust
-{{#include ../../listings/features-default/tests/arithmetics_and_broadcasting.rs:lt_os_mp2_01}}
+```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=lt_os_mp2_01
 ```
 
 This is elementwise multiplication of 3-D tensor with 1-D tensors. In usual cases, the 1-D tensors $\epsilon_{i}$ and $\epsilon_{a}$ should be expanded and repeated to 3-D counterpart $E^\mathrm{occ}_{Pia} = \epsilon_i (\forall P, a)$ and $E^\mathrm{vir}_{Pia} = \epsilon_a (\forall P, i)$, then perform multiplication
@@ -104,8 +100,7 @@ $$
 \mathcal{Y}_{Pia} = Y_{Pia} \epsilon_{\cdot i \cdot} \epsilon_{\cdot \cdot a}
 $$
 
-```rust
-{{#include ../../listings/features-default/tests/arithmetics_and_broadcasting.rs:lt_os_mp2_02}}
+```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=lt_os_mp2_02
 ```
 
 This multiplication can still be simplified.
@@ -115,8 +110,7 @@ $$
 \mathcal{Y}_{Pia} = Y_{Pia} \epsilon_{i \cdot} \epsilon_{a}
 $$
 
-```rust
-{{#include ../../listings/features-default/tests/arithmetics_and_broadcasting.rs:lt_os_mp2_03}}
+```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=lt_os_mp2_03
 ```
 
 Finally, for memory and efficiency concern, it is preferred to perform tensor elementwise multiplication of $\epsilon_{i \cdot} \epsilon_{a}$ first:
@@ -124,8 +118,7 @@ $$
 \mathcal{Y}_{Pia} = Y_{Pia} (\epsilon_{i \cdot} \epsilon_{a})
 $$
 
-```rust
-{{#include ../../listings/features-default/tests/arithmetics_and_broadcasting.rs:lt_os_mp2_04}}
+```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=lt_os_mp2_04
 ```
 
 ### 3.2 Example of matrix multiplication
@@ -136,20 +129,16 @@ Y_{P ai} = \sum_{\mu \nu} Y_{P \mu \nu} C_{\mu i} C_{\nu a}
 $$
 This operation involves five indices, $P, \mu, \nu, a, i$, where number of indices $a, i$ are smaller than $\mu, \nu$.
 
-```rust
-{{#include ../../listings/features-default/tests/arithmetics_and_broadcasting.rs:ao2mo_vo_01}}
+```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=ao2mo_vo_01
 ```
 
 The [broadcasting rule](https://data-apis.org/array-api/2023.12/API_specification/generated/array_api.matmul.html) is slightly complicated for matrix multiplication.
 However, if you are familiar to broadcasting rule, this task can be realized with very simple code:
 
-```rust
-{{#include ../../listings/features-default/tests/arithmetics_and_broadcasting.rs:ao2mo_vo_02}}
+```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=ao2mo_vo_02
 ```
 
-<div class="warning">
-
-**This operation can be further optimized in efficiency.**
+:::warning This operation can be further optimized in efficiency
 
 This code is simple and elegant. It will properly handle multi-threading in devices with rayon support.
 
@@ -160,7 +149,7 @@ To resolve memory inefficiency problem, this computation can be performed with p
 However, RSTSR has not finished this part currently.
 We will touch this topic in a later time.
 
-</div>
+:::
 
 ## 4. Memory Aspects
 
@@ -170,13 +159,15 @@ This is related to how value is passed to arithmetic operations.
 
 In rust, variable ownership and lifetime rule is strict. The following code will give compiler error:
 
+<div className="ferris-overlay">
 ```rust,does_not_compile
-    let a = rt::arange(5.0);
-    let b = rt::arange(5.0) + 1.0;
+let a = rt::arange(5.0);
+let b = rt::arange(5.0) + 1.0;
 
-    let c = a + b;
-    let d = a * b;
+let c = a + b;
+let d = a * b;
 ```
+<img src="/img/ferris/does_not_compile.svg" alt="does_not_compile" title="Does Not Compile!" /> </div>
 
 ```console
     |     let c = a + b;
@@ -196,8 +187,7 @@ So it is more preferred to perform computation by the following ways, to avoid m
 - use view of tensor,
 - use clone of view of tensor,
 
-```rust
-{{#include ../../listings/features-default/tests/arithmetics_and_broadcasting.rs:memory_aspects_01}}
+```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=memory_aspects_01
 ```
 
 It should be noted that, except for lifetime limitation, owned tensor is still able to be passed to arithmetic operations.
@@ -205,8 +195,7 @@ Moreover, inplace arithmetics will be applied when possible (type constraint and
 For example of 1-D tensor addition, memory of variable `c` is not allocated, but instead reused from variable `a`.
 So if you are sure that `a` will not be used anymore, you can pass `a` by value, and that will be more efficient.
 
-```rust
-{{#include ../../listings/features-default/tests/arithmetics_and_broadcasting.rs:memory_aspects_02}}
+```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=memory_aspects_02
 ```
 
 ### 4.2 Computation by associated functions
@@ -219,7 +208,8 @@ In RSTSR, there are three ways to perform arithmetic operations:
 You may found that code of usage of associated function is somehow weird.
 In fact, `a.add(&b)` is also valid in rust, but this will consumes variable `a`.
 The following code will not compile due to this problem:
-```rust,ignore,does_not_compile
+<div className="ferris-overlay">
+```rust
     let a = rt::arange(5.0);
     let b = rt::arange(5.0) + 1.0;
 
@@ -231,3 +221,4 @@ The following code will not compile due to this problem:
     //      ^ value used here after move
     // note: `std::ops::Add::add` takes ownership of the receiver `self`, which moves `a`
 ```
+<img src="/img/ferris/does_not_compile.svg" alt="does_not_compile" title="Does Not Compile!" /> </div>

@@ -1,3 +1,7 @@
+---
+description: ""
+---
+
 # Tensor Structure and Ownership
 
 In rust, strict rules are applied to ownership and lifetime (related to concept of view).
@@ -29,10 +33,10 @@ Structure and usage of RSTSR's `TensorBase` is similar to `ndarray`'s `ArrayBase
 
 Default generic types is applied to some structs or alias. For example, if `DeviceFaer` is the default device (which is enabled by crate feature `faer_as_default`), then
 ```rust
-    let a: Tensor<f64> = rt::zeros([3, 4]);
-    // this refers to Tensor<f64, DeviceFaer, IxD>
-    // default device: DeviceFaer (rayon parallel with Faer matmul)
-    // default dimensionality: IxD (dynamic dimension)
+let a: Tensor<f64> = rt::zeros([3, 4]);
+// this refers to Tensor<f64, DeviceFaer, IxD>
+// default device: DeviceFaer (rayon parallel with Faer matmul)
+// default dimensionality: IxD (dynamic dimension)
 ```
 
 [^1]: RSTSR is different to `ndarray` in struct construction.
@@ -80,13 +84,12 @@ Different ownerships can be converted to each other. However, some conversion fu
 
 An example for tensor ownership conversion follows:
 
-```rust
-{{#include ../../listings/features-default/tests/structure_and_ownership.rs:tensor_ownership}}
+```rust file=../../listings/features-default/tests/structure_and_ownership.rs anchor=tensor_ownership
 ```
 
 ### 2.2 Tensor and `Vec<T>` conversion
 
-We have already touched some array creation functions in [previous section](01-tensor_creation.md#2-converting-rust-slices-to-rstsr-tensorview). 
+We have already touched some array creation functions in [previous section](tensor_creation#2-converting-rust-slices-to-rstsr-tensorview). 
 Here we will cover more on this topic.
 
 Converting between Tensor and `Vec<T>` or `&[T]` can be useful if
@@ -106,8 +109,7 @@ For other devices (will implemented in future), you may wish to first convert te
 
 As an example, we compute matrix-vector multiplication and report `Vec<f64>`:
 
-```rust
-{{#include ../../listings/features-default/tests/structure_and_ownership.rs:to_vec}}
+```rust file=../../listings/features-default/tests/structure_and_ownership.rs anchor=to_vec
 ```
 
 ### 2.3 Tensor and scalar conversion
@@ -117,22 +119,19 @@ For convertion of 0-D tensor `Tensor<T, Ix0, B>` to `T`, we provide `to_scalar` 
 
 As an example, we compute innerdot and report float result:
 
-```rust
-{{#include ../../listings/features-default/tests/structure_and_ownership.rs:to_scalar}}
+```rust file=../../listings/features-default/tests/structure_and_ownership.rs anchor=to_scalar
 ```
 
 ## 3. Dimension Conversion
 
 RSTSR provides fixed dimension and dynamic dimension tensors. Dimensions can be converted by `into_dim::<D>()` or `into_dyn`.
 
-```rust
-{{#include ../../listings/features-default/tests/structure_and_ownership.rs:dim_conversion}}
+```rust file=../../listings/features-default/tests/structure_and_ownership.rs anchor=dim_conversion
 ```
 
 We only touched array creation with fixed dimension. To create array with dynamic dimension, use `Vec<T>` instead of `[T; N]`:
 
-```rust
-{{#include ../../listings/features-default/tests/structure_and_ownership.rs:dyn_dim_construct}}
+```rust file=../../listings/features-default/tests/structure_and_ownership.rs anchor=dyn_dim_construct
 ```
 
 Fixed dimension will be more efficient than dynamic dimension. However, in many arithmetic computations, depneding on contiguous of tensors, the efficiency difference will not be very notable.

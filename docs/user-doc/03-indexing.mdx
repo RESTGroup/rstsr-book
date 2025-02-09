@@ -1,3 +1,7 @@
+---
+description: ""
+---
+
 # Basic Slicing and Indexing
 
 It is a very common usage to extract sub-matrix from matrix, or indexing tensor to lower dimension sub-tensor, to perform future computation.
@@ -16,9 +20,7 @@ The most important functions and macros to perform slicing are
 - `slice!((start, ) stop (, slice))`: generate slice configuration, which should be similar to python's intrinsic `slice` function.
 - `s![]`: generate slice parameters (useful when different types of slicing and indexing occurs in the same time); in most scenarios this macro can be substituted by tuple of different types;
 
-<div class="warning">
-
-**Macro `slice!` is different to function `slice`**.
+:::warning **Macro `slice!` is different to function `slice`**
 
 If you are not feeling good using both function `slice` and macro `slice!` (such as `tensor.slice(slice!(1, 5, 2))`), you can still use the equilvant function `i` to perform tensor indexing and slicing (such as `tensor.i(slice!(1, 5, 2))`).
 
@@ -27,7 +29,7 @@ Clashed naming of these functions may be terrible, but it actually binds to some
 - function `i` comes from rust crate `candle`;
 - macro `slice!` comes from python's intrinsic function.
 
-</div>
+:::
 
 Note that we have not implemented advanced indexing.
 Advanced indexing is mainly about indexing by integer tensor, by boolean tensor, or by index list.
@@ -35,14 +37,12 @@ These are well covered in numpy, but will be difficult for RSTSR.
 In most cases, advanced indexing requires (or more efficient when there is) explicitly memory copy.
 We will persuit to realize some of advanced indexing features in future.
 
-<div class="warning">
-
-**Slicing in RSTSR always generate dynamic dimension.**
+:::warning Slicing in RSTSR always generate dynamic dimension
 
 Please note that by slicing, RSTSR will always generate dynamic dimension (`IxD`) tensor, instead of generating fixed dimension (`Ix1` for 1-D, `Ix2` for 2-D, etc.).
 This is a fallback compared to `ndarray`, where `ndarray` have a more sophisticated macro system to handle fixed dimension slicing.
 
-</div>
+:::
 
 ## Terminology
 
@@ -58,20 +58,17 @@ RSTSR follows rust, C and python convention of 0-based indexing, which is differ
 
 For example, a 3-D tensor $A_{ijk}$ can be indexed into 2-D tensor $B_{jk} = A_{2jk}$:
 
-```rust
-{{#include ../../listings/features-default/tests/indexing.rs:example_index_by_num_01}}
+```rust file=../../listings/features-default/tests/indexing.rs anchor=example_index_by_num_01
 ```
 
 Further more, if you wish to perform indexing to both $i = 2, j = 0$, or say $C_k = A_{20k}$, then you can pass `[2, 0]` into `slice` function:
 
-```rust
-{{#include ../../listings/features-default/tests/indexing.rs:example_index_by_num_02}}
+```rust file=../../listings/features-default/tests/indexing.rs anchor=example_index_by_num_02
 ```
 
 RSTSR also accepts negative indices for indexing from the end of the array:
 
-```rust
-{{#include ../../listings/features-default/tests/indexing.rs:example_index_by_num_03}}
+```rust file=../../listings/features-default/tests/indexing.rs anchor=example_index_by_num_03
 ```
 
 ## 2. Basic Slicing
@@ -80,47 +77,44 @@ RSTSR also accepts negative indices for indexing from the end of the array:
 
 For example, we want to extract $1 \leq i < 3$ from tensor $A_{ijk}$:
 
-```rust
-{{#include ../../listings/features-default/tests/indexing.rs:example_index_by_range_01}}
+```rust file=../../listings/features-default/tests/indexing.rs anchor=example_index_by_range_01
 ```
 
 First two dimensions slicing are also available by the following way:
 
-```rust
-{{#include ../../listings/features-default/tests/indexing.rs:example_index_by_range_02}}
+```rust file=../../listings/features-default/tests/indexing.rs anchor=example_index_by_range_02
 ```
 
 Negative indices are also applicable for this case:
 
-```rust
-{{#include ../../listings/features-default/tests/indexing.rs:example_index_by_range_03}}
+```rust file=../../listings/features-default/tests/indexing.rs anchor=example_index_by_range_03
 ```
 
 ### 2.2 Slicing by ranges
 
 Not only range types (like `1..3`) is accepted in RSTSR, but also range to (`..3`) or range from (`1..`).
 
-```rust
-{{#include ../../listings/features-default/tests/indexing.rs:example_index_by_range_04}}
+```rust file=../../listings/features-default/tests/indexing.rs anchor=example_index_by_range_04
 ```
 
 But as a remainder, rust does not allow two different types to be merged as rust array `[T]`:
 
-```rust,ignore,does_not_compile
-    // generate 3-D tensor A_ijk
-    let a = rt::arange(24).into_shape([4, 3, 2]).into_owned();
+<div className="ferris-overlay">
+```rust
+// generate 3-D tensor A_ijk
+let a = rt::arange(24).into_shape([4, 3, 2]).into_owned();
 
-    // different types can't be merged into rust array
-    // - `..` is RangeFull
-    // - `1..3` is Range
-    // - `..2` is RangeTo
-    let b = a.slice([.., 1..3, ..2]);
+// different types can't be merged into rust array
+// - `..` is RangeFull
+// - `1..3` is Range
+// - `..2` is RangeTo
+let b = a.slice([.., 1..3, ..2]);
 ```
+<img src="/img/ferris/does_not_compile.svg" alt="does_not_compile" title="Does Not Compile!" /> </div>
 
 To resolve this problem, you may use `s!` macro, or either just pass tuple `(T1, T2)` instead of rust array `[T]`:
 
-```rust
-{{#include ../../listings/features-default/tests/indexing.rs:example_index_by_range_05}}
+```rust file=../../listings/features-default/tests/indexing.rs anchor=example_index_by_range_05
 ```
 
 We just implemented tuple up to 10 elements; if your tensor is extremely high in number of dimensions, you may wish to use `s!`.
@@ -137,37 +131,33 @@ The usage of `slice!` macro is similar to python's intrinsic function `slice`[^1
 
 [^1]: In `ndarray`, this is done by `s![start..stop;step]`. `ndarray`'s resolution is more concise. However, we stick to use the seemingly verbose `slice!` macro to generate strided slice.
 
-```rust
-{{#include ../../listings/features-default/tests/indexing.rs:example_slice_with_strides_01}}
+```rust file=../../listings/features-default/tests/indexing.rs anchor=example_slice_with_strides_01
 ```
 
 In many cases, `None` is also valid input for `slice!`. In fact, `slice!` is realized by mechanics of `Option<T>`, so using `Some(val)` is also valid.
 
-```rust
-{{#include ../../listings/features-default/tests/indexing.rs:example_slice_with_strides_02}}
+```rust file=../../listings/features-default/tests/indexing.rs anchor=example_slice_with_strides_02
 ```
 
 ### 3.2 Inserting axes
 
 You can insert axes by `None` or `NewAxis` (by definition `Indexer::Insert`). This is similar to numpy's `None` or `np.newaxis`.
 
-```rust
-{{#include ../../listings/features-default/tests/indexing.rs:example_insert_axes_01}}
+```rust file=../../listings/features-default/tests/indexing.rs anchor=example_insert_axes_01
 ```
 
 Using `None` can be elegent, however, we do not accept `Some(val)` for indexing. So although the following code compiles, it simply does not work.
 
-
-```rust,panics
-{{#include ../../listings/features-default/tests/indexing.rs:example_insert_axes_02}}
+<div className="ferris-overlay">
+```rust file=../../listings/features-default/tests/indexing.rs anchor=example_insert_axes_02
 ```
+<img src="/img/ferris/panics.svg" alt="panics" title="This code panics!" /> </div>
 
 ### 3.3 Ellipsis
 
 In RSTSR, you may use `Ellipsis` (by definition `Indexer::Ellipsis`) to skip some indexes:
 
-```rust
-{{#include ../../listings/features-default/tests/indexing.rs:example_ellipsis_01}}
+```rust file=../../listings/features-default/tests/indexing.rs anchor=example_ellipsis_01
 ```
 
 ### 3.4 Mixed indexing and slicing
@@ -177,15 +167,12 @@ However, you may use macro `s!` or tuple to perform this task[^2].
 
 [^2]: In most cases, macro `s!` and tuple works in the same way; however, they have different definitions in program. `s!` should work in more scenarios.
 
-```rust
-{{#include ../../listings/features-default/tests/indexing.rs:example_mixed_indexing}}
+```rust file=../../listings/features-default/tests/indexing.rs anchor=example_mixed_indexing
 ```
 
 ## 4. Elementwise Indexing
 
-<div class="warning">
-
-**Elementwise indexing is not efficient.**
+:::warning Elementwise indexing is not efficien
 
 We also offer elementwise indexing in RSTSR.
 But please note that, in most cases, elementwise indexing is not efficient.
@@ -195,26 +182,25 @@ But please note that, in most cases, elementwise indexing is not efficient.
 Thus, for computationally intensive tasks, you are encouraged to use RSTSR internal arithmetic functions or mapping functions, to avoid direct elementwise indexing.
 Only use elementwise indexing when efficiency is not of concern, or RSTSR internal functions could not fulfill your demands.
 
-</div>
+:::
 
 ### 4.1 Safe elementwise indexing
 
 To perform indexing, you may use rust's bracket `[]`:
 
-```rust
-{{#include ../../listings/features-default/tests/indexing.rs:example_elementwise_safe}}
+```rust file=../../listings/features-default/tests/indexing.rs anchor=example_elementwise_safe
 ```
 
 If you provides index out-of-bound, RSTSR will panic:
 
-```rust,panics
-{{#include ../../listings/features-default/tests/indexing.rs:example_elementwise_safe_panic}}
+<div className="ferris-overlay">
+```rust file=../../listings/features-default/tests/indexing.rs anchor=example_elementwise_safe_panic
 ```
+<img src="/img/ferris/panics.svg" alt="panics" title="This code panics!" /> </div>
 
 It is different in RSTSR in indexing (to tensor view) and elementwise indexing (to reference of value).
 
-```rust
-{{#include ../../listings/features-default/tests/indexing.rs:example_elementwise_by_tensor_index}}
+```rust file=../../listings/features-default/tests/indexing.rs anchor=example_elementwise_by_tensor_index
 ```
 
 ### 4.2 Unchecked elementwise indexing
@@ -222,15 +208,15 @@ It is different in RSTSR in indexing (to tensor view) and elementwise indexing (
 Unchecked elemtwise indexing will be slightly faster than safe elementwise indexing.
 To perform indexing, you may use unsafe function `index_uncheck`:
 
-```rust
-{{#include ../../listings/features-default/tests/indexing.rs:example_elementwise_unchecked}}
+```rust file=../../listings/features-default/tests/indexing.rs anchor=example_elementwise_unchecked
 ```
 
 If you provides index out-of-bound, if the index is still smaller than the underlying memory size, RSTSR will not panic and give wrong value:
 
-```rust,not_desired_behavior
-{{#include ../../listings/features-default/tests/indexing.rs:example_elementwise_unchecked_not_desired}}
+<div className="ferris-overlay">
+```rust file=../../listings/features-default/tests/indexing.rs anchor=example_elementwise_unchecked_not_desired
 ```
+<img src="/img/ferris/not_desired_behavior.svg" alt="not_desired_behavior" title="Not desired behavior!" /> </div>
 
 This function is marked `unsafe` in order to avoid such kind of out-of-bound (but not out-of-memory).
 In most cases it is still memory safe, in that out-of-memory accessing `Vec<T>` will gracefully panics.
