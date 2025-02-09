@@ -33,12 +33,6 @@ Except for relatively small overhead (generating layout of tensor), **no explici
 ```rust file=../../listings/features-default/tests/tensor_creation.rs anchor=example_01
 ```
 
-<!-- <div className="ferris-overlay">
-```rust file=../../listings/features-default/tests/tensor_creation.rs start=ANCHOR:example_01 end=ANCHOR_END:example_01
-```
-<img src="/img/ferris/panics.svg" alt="panic" />
-</div> -->
-
 [^1]:
     This will generate tensor object for default CPU device.
     Without further configuration, RSTSR chooses `DeviceFaer` as the default tensor device, with all threads visible to rayon.
