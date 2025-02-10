@@ -1,0 +1,23 @@
+version: 2
+
+build:
+  os: ubuntu-24.04
+  tools:
+    nodejs: "22"
+  jobs:
+    change-url:
+      - python script-readthedocs.py
+    install:
+      # "docs/" directory was created using the command to create the site:
+      # npx create-docusaurus@latest docs classic
+      #
+      # Install Docusaurus dependencies
+      - npm install
+    build:
+      html:
+        # Build the site
+        - npm run build
+    post_build:
+      # Copy generated files into Read the Docs directory
+      - mkdir --parents $READTHEDOCS_OUTPUT/html/
+      - cp --recursive build/* $READTHEDOCS_OUTPUT/html/
