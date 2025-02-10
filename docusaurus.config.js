@@ -13,8 +13,8 @@ import parseArgs from './src/remark-code-spinnets';
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
-  title: 'RSTSR Document',
-  // tagline: 'Dinosaurs are cool',
+  title: 'RSTSR: An n-Dimension Rust Tensor Toolkit',
+  tagline: 'Try to be Fast, Intuitive, Extensible for scientific computation in native Rust.',
   // favicon: 'img/favicon.ico',
 
   // Set the production url of your site here
@@ -137,18 +137,24 @@ const config = {
           },
           */
           {
-            title: 'More',
+            title: 'Github Links',
             items: [
               /* {
                 label: 'Blog',
                 to: '/blog',
               }, */
-              {
-                label: 'GitHub',
-                href: 'https://github.com/ajz34/rstsr',
-              },
+              { label: 'RSTSR', href: 'https://github.com/ajz34/rstsr' },
+              { label: 'RSTSR Document', href: 'https://github.com/ajz34/rstsr-book' },
             ],
           },
+          {
+            title: 'API Document',
+            items: [
+              { label: 'rstsr', href: 'https://docs.rs/rstsr' },
+              { label: 'rstsr-core', href: 'https://docs.rs/rstsr-core' },
+              { label: 'rstsr-openblas', href: 'https://docs.rs/rstsr-openblas' },
+            ]
+          }
         ],
         copyright: `Copyright © ${new Date().getFullYear()} RSTSR developer(s). Built with Docusaurus.`,
       },

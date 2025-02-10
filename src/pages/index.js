@@ -6,6 +6,8 @@ import HomepageFeatures from '@site/src/components/HomepageFeatures';
 
 import Heading from '@theme/Heading';
 import styles from './index.module.css';
+import MainMarkdown from "./main-markdown.mdx";
+import MDXContent from "@theme/MDXContent";
 
 function HomepageHeader() {
   const {siteConfig} = useDocusaurusContext();
@@ -28,6 +30,21 @@ function HomepageHeader() {
   );
 }
 
+function QuickStartSection() {
+  return (
+    <div className={clsx(styles.section, styles.sectionAlt)}>
+      <div className="container">
+        {/* <Heading as="h2" className={clsx("margin-bottom--lg", "text--center")}>
+          It works locally, too 👩‍💻
+        </Heading> */}
+        <MDXContent>
+          <MainMarkdown />
+        </MDXContent>
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const {siteConfig} = useDocusaurusContext();
   return (
@@ -38,6 +55,7 @@ export default function Home() {
       <main>
         <HomepageFeatures />
       </main>
+      <QuickStartSection/>
     </Layout>
   );
 }
