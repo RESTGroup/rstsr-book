@@ -4,6 +4,7 @@ build:
   os: ubuntu-24.04
   tools:
     nodejs: "22"
+    python: "3.10"
   jobs:
     install:
       # "docs/" directory was created using the command to create the site:
