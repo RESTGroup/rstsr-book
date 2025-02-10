@@ -5,13 +5,12 @@ build:
   tools:
     nodejs: "22"
   jobs:
-    change-url:
-      - python script-readthedocs.py
     install:
       # "docs/" directory was created using the command to create the site:
       # npx create-docusaurus@latest docs classic
       #
       # Install Docusaurus dependencies
+      - python script-readthedocs.py
       - npm install
     build:
       html:
