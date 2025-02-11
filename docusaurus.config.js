@@ -144,7 +144,7 @@ const config = {
                 to: '/blog',
               }, */
               { label: 'RSTSR', href: 'https://github.com/ajz34/rstsr' },
-              { label: 'RSTSR Document', href: 'https://github.com/ajz34/rstsr-book' },
+              { label: 'RSTSR Document', href: 'https://github.com/RESTGroup/rstsr-book' },
             ],
           },
           {
