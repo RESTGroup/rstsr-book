@@ -1,6 +1,6 @@
 # Book for RSTSR project
 
-This is the user document for [RSTSR](https://github.com/ajz34/rstsr) project, a rust tensor toolkit.
+This is the user document for [RSTSR](https://github.com/RESTGroup/rstsr) project, a rust tensor toolkit.
 
 RSTSR has still not reached version 0.1, thus, this book is also in early development. Frequent changes will occur.
 

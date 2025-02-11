@@ -18,7 +18,7 @@ const config = {
   // favicon: 'img/favicon.ico',
 
   // Set the production url of your site here
-  url: 'https://ajz34.github.io',
+  url: 'https://rstsr-book.readthedocs.io',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: '/rstsr-book/',
@@ -100,7 +100,7 @@ const config = {
           },
           // {to: '/blog', label: 'Blog', position: 'left'},
           {
-            href: 'https://github.com/ajz34/rstsr',
+            href: 'https://github.com/RESTGroup/rstsr',
             label: 'GitHub',
             position: 'right',
           },
@@ -143,7 +143,7 @@ const config = {
                 label: 'Blog',
                 to: '/blog',
               }, */
-              { label: 'RSTSR', href: 'https://github.com/ajz34/rstsr' },
+              { label: 'RSTSR', href: 'https://github.com/RESTGroup/rstsr' },
               { label: 'RSTSR Document', href: 'https://github.com/RESTGroup/rstsr-book' },
             ],
           },
