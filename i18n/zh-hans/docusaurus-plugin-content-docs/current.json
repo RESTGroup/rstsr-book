@@ -1,0 +1,10 @@
+{
+  "version.label": {
+    "message": "Next",
+    "description": "The label for version current"
+  },
+  "sidebar.userDocSidebar.category.Fundamentals": {
+    "message": "Fundamentals",
+    "description": "The label for category Fundamentals in sidebar userDocSidebar"
+  }
+}

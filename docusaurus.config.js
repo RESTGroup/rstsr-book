@@ -4,7 +4,7 @@
 // There are various equivalent ways to declare your Docusaurus config.
 // See: https://docusaurus.io/docs/api/docusaurus-config
 
-import {themes as prismThemes} from 'prism-react-renderer';
+import { themes as prismThemes } from 'prism-react-renderer';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import parseArgs from './src/remark-code-spinnets';
@@ -37,7 +37,7 @@ const config = {
   // may want to replace "en" with "zh-Hans".
   i18n: {
     defaultLocale: 'en',
-    locales: ['en'],
+    locales: ['en', 'zh-hans'],
   },
 
   presets: [
@@ -99,6 +99,10 @@ const config = {
             label: 'User Document',
           },
           // {to: '/blog', label: 'Blog', position: 'left'},
+          {
+            type: 'localeDropdown',
+            position: 'right',
+          },
           {
             href: 'https://github.com/RESTGroup/rstsr',
             label: 'GitHub',
