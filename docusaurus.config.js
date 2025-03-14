@@ -46,6 +46,7 @@ const config = {
       /** @type {import('@docusaurus/preset-classic').Options} */
       ({
         docs: {
+          path: 'docs',
           sidebarPath: './sidebars.js',
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
@@ -73,6 +74,17 @@ const config = {
       }),
     ],
   ],
+  plugins: [
+    [
+      '@docusaurus/plugin-content-docs',
+      {
+        id: 'dev',
+        path: 'dev',
+        routeBasePath: 'dev',
+        sidebarPath: require.resolve('./sidebars-dev.js'),
+      },
+    ],
+  ],
   stylesheets: [
     {
       href: 'https://cdn.jsdelivr.net/npm/katex@0.13.24/dist/katex.min.css',
@@ -97,6 +109,13 @@ const config = {
             sidebarId: 'userDocSidebar',
             position: 'left',
             label: 'User Document',
+          },
+          {
+            type: 'docSidebar',
+            sidebarId: 'devDocSidebar',
+            docsPluginId: 'dev',
+            position: 'left',
+            label: 'Development Document',
           },
           // {to: '/blog', label: 'Blog', position: 'left'},
           {
