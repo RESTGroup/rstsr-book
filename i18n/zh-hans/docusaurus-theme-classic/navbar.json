@@ -12,7 +12,7 @@
     "description": "Navbar item with label GitHub"
   },
   "item.label.Development Document": {
-    "message": "Development Document",
+    "message": "开发文档",
     "description": "Navbar item with label Development Document"
   }
 }

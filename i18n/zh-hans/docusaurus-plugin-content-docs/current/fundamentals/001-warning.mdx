@@ -1,0 +1,62 @@
+---
+description: ""
+---
+
+# 请谨慎使用 RSTSR
+
+我们开发 RSTSR 的目的，是为了在 Rust 原生语言下，对于科学计算
+- 更友好的编程体验、更高的代码可读性，
+- 保证运行的高效率，
+- 可以在独立的外部 crate 中扩展张量计算功能、或扩展后端。
+
+我们现在还在发展早期，但有信心在半年到一年左右的时间内 (2026 年前)，达到在功能上达到可以覆盖 ndarray 的程度 (现在已经实现了 ndarray 的大多数功能，并且有所超越)；在未来实现多后端 (GPU、硬盘交互等)，为当代与下一代高性能计算作准备。
+
+但我们也认为，不使用 RSTSR 的理由也有很多。您如果有幸发现了 RSTSR 库，并认为它的功能可以令您满意，这对我们是莫大的鼓励；但在您上手使用前，我们建议您问一下自己，RSTSR 是否真的满足您的需求？是否就没有其他库可以替代？
+
+:::warning **RSTSR 目前仍然在快速迭代，许多功能尚未稳定**
+
+RSTSR 库许多功能没有稳定下来。这包括
+
+- 可能会更改的高级 API (对用户体验有影响)；
+- 可能会重构的底层 API (对开发体验有影响)；
+- 在安装方式与 Rust features 上会有较大改动；
+- 以 OpenBLAS 为代表的 BLAS 后端目前积极发展，其他后端的优先级较低。
+
+:::
+
+:::warning **RSTSR 从设计上有一定的限制**
+
+- **RSTSR 不支持自动导数**。RSTSR 从设计上，遵循 ndarray 的策略，即对不同的所有权 (占有 Owned、视窗 View、可变视窗 Mut、不可变 Cow、原子计数 Arc、引用类型 Reference 等) 作不同的实现。大多数运算返回的是占有 (Owned) 的张量。这种做法并不适合自动导数程序：一般自动导数需要记录反向传播信息，更适合用 Arc 或 RwLock 实现。出于此设计模式，RSTSR 决定不支持自动导数。**这不意味着 RSTSR 未来无法实现机器学习推理计算，但机器学习算子目前也并非首要的支持功能**。RSTSR 的重心将更偏向于线性代数与数值代数。
+
+- **RSTSR 不支持惰性求值**。以 [Eigen](https://eigen.tuxfamily.org/) 与 [xtensor](https://xtensor.readthedocs.io/) 为代表的 C++ 数值库，惰性求值 (lazy evaluation) 是其重要的特色。但一方面，惰性求值一般基于模板表达式 (expression template)，实现并不轻松；另一方面，Rust 中赋值 (运算符 `=`) 是不能重载的。出于 Rust 的特性，我们认为惰性求值难以实现。
+
+- **RSTSR 开发者并非专业程序员**。
+
+:::
+
+:::info **Rust 目前主流的 n-D 张量库仍然是 ndarray**
+
+由于历史原因，我们认为 [ndarray](https://github.com/rust-ndarray/ndarray/) 作为 n-D 张量库的功能仍有缺憾。但这不影响 ndarray 仍然是目前主流的 n-D 张量库。许多有重要价值的库基于 ndarray 开发或将其作为 CPU 后端，包括 [candle](https://github.com/huggingface/candle)、[burn](https://github.com/tracel-ai/burn)、[hdf5-metno](https://github.com/metno/hdf5-rust) 等等。
+
+RSTSR 开发者目前是主攻电子结构的；ndarray 并不能满足我们的需求。但这不意味着其他用户也是如此。您在使用 RSTSR 前，建议先评估一下，ndarray 以及它的衍生库，是否真的不满足您的需求。
+
+:::
+
+:::info **是否真的没有其他可替代的库？**
+
+首先，**NumPy、PyTorch、JAX 等基于 Python 语言的、经历了数年洗礼的库，是否能满足您的需求**？我们相信接触到 RSTSR 的用户，几乎一定对上述三个库中其中一个有所了解。只有当它们都无法满足您的需求时，或者您确实需要一个二进制可执行文件或库，您才应该考虑使用非脚本语言进行张量运算的程序编写。
+
+从语言选择上，您需要考虑 Julia、Mojo 等新兴的、为科学计算或人工智能发展的语言是否满足您的需求。Rust 是先进的、高效的、具有良好工程规范的现代语言，这一点没有疑问；但您也需要考虑您是否确实不适应 Fortran、C、C++ 等传统在科学计算上有卓著成果的语言。
+
+其次，在 Rust 语言下，目前也有许多您也许会感兴趣的库。
+- [ndarray](https://github.com/rust-ndarray/ndarray/)：CPU 下基本的 n-D 张量库，具有随机数、线性代数等外部扩展功能的库。
+- [candle](https://github.com/huggingface/candle)：支持自动导数的机器学习库；类型与后端受限，但可以在实用场景下，应对 LLM 等大模型的编译与部署。
+- [burn](https://github.com/tracel-ai/burn)：允许扩展后端的自动导数与机器学习框架；类型受限，但可能在嵌入式系统上进行开发。
+- [faer](https://github.com/sarah-quinones/faer-rs)：纯 Rust 一维与二维矩阵高性能乘法与线性代数库。
+- [nalgebra](https://nalgebra.org/)：可接入 BLAS、对小矩阵有一定优化的线性代数库。
+- [Peroxide](https://github.com/Axect/Peroxide)：可接入 BLAS 的二维矩阵线性代数、数值分析与可视化库。
+- [Hpt](https://github.com/Jianqoq/Hpt)：正在发展中的、具有较高推理性能的机器学习库。
+- [argmin](https://github.com/argmin-rs/argmin)：数值优化库；其本身不实现张量或矩阵结构。
+- 等等。
+
+:::

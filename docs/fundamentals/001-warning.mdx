@@ -1,0 +1,64 @@
+---
+description: ""
+---
+
+# Think Before Using RSTSR
+
+We developed RSTSR with the aim of
+- providing a more programmer-friendly experience
+- higher code readability for scientific computing in the Rust programming language
+- ensuring high runtime efficiency.
+
+It allows for the extension of tensor computation functionalities or backends in independent external crates.
+
+We are still in the early stages of development but are confident that within about six months to a year (before 2026), we will achieve functionality that can cover [ndarray](https://github.com/rust-ndarray/ndarray/) (we have already implemented most of ndarray's features and have gone beyond in some areas). In the future, we plan to support multiple backends (GPU, disk interaction, etc.) to prepare for contemporary and next-generation high-performance computing.
+
+However, we also believe there are many reasons not to use RSTSR. If you are fortunate enough to discover the RSTSR library and find its functionalities satisfactory, it would be a great encouragement to us. But before you start using it, we suggest you ask yourself whether RSTSR truly meets your needs and whether there are no other libraries that could serve as alternatives.
+
+:::warning **RSTSR is still undergoing rapid iteration, many features are not yet stable**
+
+Many features of the RSTSR library have not stabilized. This includes:
+
+- High-level APIs that may change (affecting user experience);
+- Low-level APIs that may be refactored (affecting developer experience);
+- Significant changes in installation methods and Rust features;
+- The BLAS backend, represented by OpenBLAS, is currently under active development, with other backends having lower priority.
+
+:::
+
+:::warning **RSTSR has certain design limitations**
+
+- **RSTSR does not support automatic differentiation**. By design, RSTSR follows ndarray's strategy, implementing different ownerships (Owned, View, Mut, Cow, Arc, Reference types, etc.) differently. Most operations return Owned tensors. This approach is not suitable for automatic differentiation programs, which generally need to record backpropagation information and are better implemented with Arc or RwLock. Due to this design pattern, RSTSR has decided not to support automatic differentiation. **This does not mean that RSTSR cannot implement machine learning inference computations in the future, but machine learning operators are currently not a primary supported feature**. RSTSR's focus will lean more towards linear algebra and numerical algebra.
+
+- **RSTSR does not support lazy evaluation**. Libraries like [Eigen](https://eigen.tuxfamily.org/) and [xtensor](https://xtensor.readthedocs.io/) in C++ have made lazy evaluation a significant feature. However, lazy evaluation typically relies on expression templates, which are not easy to implement. Moreover, in Rust, the assignment operator (`=`) cannot be overloaded. Given Rust's characteristics, we believe lazy evaluation is difficult to achieve.
+
+- **RSTSR developers are not professional programmers**.
+
+:::
+
+:::info **The mainstream n-D tensor library in Rust is still ndarray**
+
+Due to historical reasons, we believe that [ndarray](https://github.com/rust-ndarray/ndarray/) as an n-D tensor library still has some shortcomings. However, this does not affect the fact that ndarray remains the mainstream n-D tensor library. Many valuable libraries have been developed based on ndarray or use it as a CPU backend, including [candle](https://github.com/huggingface/candle), [burn](https://github.com/tracel-ai/burn), [hdf5-metno](https://github.com/metno/hdf5-rust), and others.
+
+The developers of RSTSR are currently focused on electronic structure; ndarray does not meet our needs. But this does not mean that other users are in the same situation. Before using RSTSR, we recommend evaluating whether ndarray and its derivative libraries truly do not meet your needs.
+
+:::
+
+:::info **Are there really no other alternative libraries?**
+
+First, **can NumPy, PyTorch, JAX, and other Python-based libraries, which have been tested over the years, meet your needs?** We believe that users who come across RSTSR are almost certainly familiar with at least one of these three libraries. Only when none of them can meet your needs, or when you indeed need a binary executable or library, should you consider using a non-scripting language for tensor computation programming.
+
+In terms of language choice, you need to consider whether emerging languages like Julia and Mojo, developed for scientific computing or artificial intelligence, meet your needs. Rust is an advanced, efficient, modern language with good engineering practices, there's no doubt about that; but you also need to consider whether you are truly not suited to traditional languages like Fortran, C, and C++, which have notable achievements in scientific computing.
+
+Secondly, in the Rust language, there are also many libraries that you might interest.
+- [ndarray](https://github.com/rust-ndarray/ndarray/): A basic n-D tensor library for CPU, with libraries for random numbers, linear algebra, and other external functionalities.
+- [candle](https://github.com/huggingface/candle): A machine learning library supporting automatic differentiation; types and backends are limited, but it can handle the compilation and deployment of large models like LLM in practical scenarios.
+- [burn](https://github.com/tracel-ai/burn): A framework allowing for backend extension for automatic differentiation and machine learning; types are limited, but it can be developed on embedded systems.
+- [faer](https://github.com/sarah-quinones/faer-rs): A pure Rust library for high-performance multiplication and linear algebra with one-dimensional and two-dimensional matrices.
+- [nalgebra](https://nalgebra.org/): A linear algebra library that can interface with BLAS, with certain optimizations for small matrices.
+- [Peroxide](https://github.com/Axect/Peroxide): A two-dimensional matrix linear algebra, numerical analysis, and visualization library that can interface with BLAS.
+- [Hpt](https://github.com/Jianqoq/Hpt): A machine learning library under development with high inference performance.
+- [argmin](https://github.com/argmin-rs/argmin): A numerical optimization library; it does not implement tensor or matrix structures itself.
+- And more.
+
+:::
