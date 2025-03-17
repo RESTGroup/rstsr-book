@@ -1,0 +1,88 @@
+---
+sidebar_label: 为何选择 RSTSR
+sidebar_position: 1
+---
+
+# 为何选择 RSTSR
+
+## 主要纲领
+
+我们开发 RSTSR 的目的，是为了在 Rust 原生语言下，对于科学计算
+- Fast：保证运行的高效率；
+- Intutive：更友好的编程体验、更高的代码可读性；
+- Extensible：可以在独立的外部 crate 中扩展张量计算功能、或扩展后端。
+
+## 基本功能
+
+这里张量 (tensor) 等同于 n-D 向量 (n-dimensional array)。以 [Python Array API 标准](https://data-apis.org/array-api/latest/) 作为参考，我们实现了与 [NumPy](https://numpy.org/) 或 [ndarray](https://github.com/rust-ndarray/ndarray/) 最重要的功能；这包括
+
+- 张量本身的数据结构 (data (底层数据)、shape (维度)、stride (间隔) 等信息)；
+- 张量计算：四则运算、矩阵乘法、求和等约化操作、部分线性代数支持 (本征值、矩阵分解、向量求解) 等。
+- 张量操作：转置、维度变化、广播等。
+
+RSTSR **允许在索引、reshape 等操作中使用负值，并且支持 broadcast (广播)**。这些功能与 NumPy 相同。在当前的 Rust 社群中，具有这些功能的张量工具屈指可数。
+
+RSTSR 内部实现算子时，**考虑到了对并行的引入，运行效率高**。对于 CPU 设备下的并行后端，如果您的计算设备是 8 核或以上的 CPU，那么 RSTSR 绝大多数运算效率与 NumPy 至少一致，部分运算 (例如涉及到矩阵转置的运算) 可以快 2-10 倍。
+
+## 特色功能
+
+### 1. 矩阵乘法的语法糖
+
+我们允许以 `%` 符号实现矩阵 (或广播为张量的矩阵) 乘法；`*` 符号用作依元素数乘的乘法。
+
+```rust
+let c = &b % &a; // matrix multiplication (矩阵乘法)
+let d = &b * &a; // elementwise multiplication (依元素数乘)
+```
+尽管取余运算的实现相对来说不便利 (`rt::rem(&b, &a)`)，但对于以矩阵乘法为主的程序，使用 `%` 将会提升便利性与代码可读性。
+
+### 2. 重载
+
+接口的形式与 NumPy 相似，是 RSTSR 编写的目标之一。Python 函数允许重载，Rust 函数非常严格地不允许直接重载；然而，基于 Trait 的重载仍然是可行的。以 `rt::asarray` 函数为例，我们可以用多种方式给出张量：
+
+```rust file=../listings/features-default/tests/why_rstsr.rs anchor=asarray_override
+```
+
+不仅是 `rt::asarray`，RSTSR 中其他不少函数也具有重载实现。
+
+:::info 基于 Trait 的 Rust 重载与其他语言有编写风格差异
+
+请注意到，上述示例代码中，
+- 只传入一个参数的变量，只需要一个括号；
+- 传入两个或多个参数的变量，需要通过 tuple (元组) 传入参数，因此需要两个括号。
+
+两个括号的写法可能会同时对 Rust 与从其他语言而来的用户感到困惑，但我们认为目前没有其他更好的解决方法。我们认为，当 [rust#29625](https://github.com/rust-lang/rust/issues/29625) 稳定后，Rust 语言下真正的重载有希望能达成。
+
+:::
+
+### 3. 多后端设备支持
+
+我们目前支持单线程 CPU 后端 (`DeviceCpuSerial`，基本运算与矩阵乘法)，Faer CPU 后端 (`DeviceFaer`，基本运算与矩阵乘法)、OpenBLAS CPU 后端 (`DeviceOpenBLAS`，基本运算、矩阵乘法与线性代数)。从设计上，我们尽量留出了给其他后端的接口，从而在未来我们有希望在统一的框架下，实现 GPU 后端、硬盘存读后端等。
+
+### 4. 并行调用矩阵乘法或 BLAS
+
+在我们支持的 CPU 后端中 (Faer, OpenBLAS)，运算时会识别其所在环境是否在 Rayon 线程池内，并对 BLAS 需要调用的核数作合适的分配。这意味着，像下述方式调用并行区域内或区域外的矩阵乘法，都可以在指定的 CPU 核数下高效率并行运算：
+```rust
+// parallel matmul or BLAS outside rayon
+let c = &a % &b;
+
+// parallel matmul or BLAS inside rayon
+(0..100).into_par_iter().for_each(|i| {
+    let d = &a % &b;
+});
+```
+
+:::info
+
+RSTSR 目前的编写者主要由计算化学工作者。我们会优先实现电子结构方法对数学库所要求的功能。
+
+RSTSR 仍然有不少待实现的目标。我们也希望未来在不增加使用复杂程度的前提下，特色的功能会越来越多。
+
+:::
+
+:::warning
+
+我们必须要指明，RSTSR 固然有缺点，并且它未必是没有替代方案的。请参考文档 [为什么不使用 RSTSR](warning.mdx)。
+
+:::
+

@@ -4,7 +4,7 @@
     "description": "The label for version current"
   },
   "sidebar.userDocSidebar.category.Fundamentals": {
-    "message": "基本使用",
+    "message": "基本使用文档",
     "description": "The label for category Fundamentals in sidebar userDocSidebar"
   }
 }

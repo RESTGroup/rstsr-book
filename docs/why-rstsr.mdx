@@ -1,0 +1,86 @@
+---
+sidebar_label: Why RSTSR
+sidebar_position: 1
+---
+
+# Why RSTSR
+
+## Core Principles
+
+We developed RSTSR to provide a scientific computing solution in the native Rust language, focusing on:
+- **Fast**: Ensuring high operational efficiency.
+- **Intuitive**: Offering a more user-friendly programming experience and higher code readability.
+- **Extensible**: Allowing the extension of tensor computation capabilities or backends in independent external crates.
+
+## Basic Features
+
+Here, a tensor is equivalent to an n-dimensional array. Referencing the [Python Array API standard](https://data-apis.org/array-api/latest/), we have implemented the most crucial features found in [NumPy](https://numpy.org/) or [ndarray](https://github.com/rust-ndarray/ndarray/), including:
+- The data structure of tensors (such as underlying data, shape, stride, etc.).
+- Tensor computations: arithmetic operations, matrix multiplication, reduction operations like summation, and some linear algebra support (eigenvalues, matrix decomposition, vector solving).
+- Tensor manipulations: transposition, reshaping, broadcasting, etc.
+
+RSTSR **allows the use of negative values in indexing and reshape operations and supports broadcasting**, similar to NumPy. Currently, there are very few tensor tools in the Rust community that offer these features.
+
+RSTSR's internal implementation of operators **considers parallelism, ensuring high operational efficiency**. For parallel backends on CPU devices, if your computing device has an 8-core or higher CPU, RSTSR's operational efficiency is at least on par with NumPy, with some operations (such as those involving matrix transposition) being 2-10 times faster.
+
+## Special Features
+
+### 1. Syntactic Sugar for Matrix Multiplication
+
+We allow the use of the `%` symbol for matrix (or tensor broadcasting) multiplication, while the `*` symbol is used for element-wise multiplication.
+
+```rust
+let c = &b % &a; // matrix multiplication
+let d = &b * &a; // element-wise multiplication
+```
+Although implementing the remainder operation is relatively inconvenient (`rt::rem(&b, &a)`), using `%` for programs primarily involving matrix multiplication enhances convenience and code readability.
+
+### 2. Overloading
+
+One of RSTSR's goals is to have an interface form similar to NumPy. While Python functions allow overloading, Rust functions strictly do not allow direct overloading; however, overloading based on Traits is still feasible. Taking the `rt::asarray` function as an example, we can provide tensors in various ways:
+
+```rust file=../listings/features-default/tests/why_rstsr.rs anchor=asarray_override
+```
+
+Not only `rt::asarray`, but many other functions in RSTSR also have overloaded implementations.
+
+:::info Rust Overloading Based on Traits Differs in Writing Style from Other Languages
+
+Please note that in the example code above:
+- Variables passed with a single argument require only one set of parentheses.
+- Variables passed with two or more arguments need to pass parameters through a tuple, hence requiring two sets of parentheses.
+
+The double parentheses notation might confuse both Rust users and those coming from other languages, but we believe there is currently no better solution. We hope that true overloading in Rust can be achieved once [rust#29625](https://github.com/rust-lang/rust/issues/29625) stabilizes.
+
+:::
+
+### 3. Multi-Backend Device Support
+
+We currently support a single-threaded CPU backend (`DeviceCpuSerial`, basic operations and matrix multiplication), a Faer CPU backend (`DeviceFaer`, basic operations and matrix multiplication), and an OpenBLAS CPU backend (`DeviceOpenBLAS`, basic operations, matrix multiplication, and linear algebra). Design-wise, we have left interfaces for other backends, hoping to implement GPU backends, disk read/write backends, etc., under a unified framework in the future.
+
+### 4. Parallel Invocation of Matrix Multiplication or BLAS
+
+In our supported CPU backends (Faer, OpenBLAS), operations recognize whether they are within a Rayon thread pool and appropriately allocate the number of cores BLAS needs to call. This means that invoking matrix multiplication inside or outside parallel regions can efficiently parallelize operations on the specified number of CPU cores:
+```rust
+// parallel matmul or BLAS outside rayon
+let c = &a % &b;
+
+// parallel matmul or BLAS inside rayon
+(0..100).into_par_iter().for_each(|i| {
+    let d = &a % &b;
+});
+```
+
+:::info
+
+The current developers of RSTSR are primarily computational chemists. We prioritize implementing the mathematical library functionalities required by electronic structure methods.
+
+RSTSR still has many goals to achieve. We also hope to introduce more distinctive features in the future without increasing usage complexity.
+
+:::
+
+:::warning
+
+We must point out that RSTSR has its shortcomings and may not be without alternatives. Please refer to the document [Why Not Use RSTSR](warning.mdx).
+
+:::
