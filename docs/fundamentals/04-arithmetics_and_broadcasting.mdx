@@ -17,7 +17,7 @@ RSTSR can handle `+`, `-`, `*`, `/` operations:
 ```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=basic_arithmetics_01
 ```
 
-RSTSR can handle matmul operations by operator `%` (matrix-matrix, matrix-vector or vector-vector inner dot, and has been optimized in some devices such as `DeviceFaer`):
+RSTSR can handle matmul operations by operator `%` (matrix-matrix, matrix-vector or vector-vector inner dot, and has been optimized in some devices such as `DeviceFaer` and `DeviceOpenBLAS`):
 
 ```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=basic_arithmetics_02
 ```
@@ -148,8 +148,12 @@ However, it requires multiple times of accessing 3-D tensors, and will generate 
 This is both inefficient in memory access and memory cost.
 
 To resolve memory inefficiency problem, this computation can be performed with parallel axis iterator.
-However, RSTSR has not finished this part currently.
-We will touch this topic in a later time.
+However, writing code in this way is somehow difficult.
+
+Another way to resolve this problem, is using limited unsafe code, and iterate for index $P$:
+
+```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=ao2mo_vo_03
+```
 
 :::
 
@@ -162,7 +166,7 @@ This is related to how value is passed to arithmetic operations.
 In rust, variable ownership and lifetime rule is strict. The following code will give compiler error:
 
 <div className="ferris-overlay">
-```rust,does_not_compile
+```rust
 let a = rt::arange(5.0);
 let b = rt::arange(5.0) + 1.0;
 
@@ -187,7 +191,6 @@ However, in many cases, performance and memory cost of cloning the tensor is not
 So it is more preferred to perform computation by the following ways, to avoid memory copy and lifetime limitations:
 - use reference of tensor,
 - use view of tensor,
-- use clone of view of tensor,
 
 ```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=memory_aspects_01
 ```
@@ -208,19 +211,19 @@ In RSTSR, there are three ways to perform arithmetic operations:
 - by associated function: `(&a).add(&b)` or `a.view().add(&b)`.
 
 You may found that code of usage of associated function is somehow weird.
-In fact, `a.add(&b)` is also valid in rust, but this will consumes variable `a`.
+In fact, `a.add(&b)` is also valid in RSTSR, but this will consumes variable `a`.
 The following code will not compile due to this problem:
 <div className="ferris-overlay">
 ```rust
-    let a = rt::arange(5.0);
-    let b = rt::arange(5.0) + 1.0;
+let a = rt::arange(5.0);
+let b = rt::arange(5.0) + 1.0;
 
-    // below is valid, however `a` is moved
-    let c = a.add(&b);
+// below is valid, however `a` is moved
+let c = a.add(&b);
 
-    // below is invalid
-    let d = a.div(&b);
-    //      ^ value used here after move
-    // note: `std::ops::Add::add` takes ownership of the receiver `self`, which moves `a`
+// below is invalid
+let d = a.div(&b);
+//      ^ value used here after move
+// note: `std::ops::Add::add` takes ownership of the receiver `self`, which moves `a`
 ```
 <img src={useBaseUrl("/img/ferris/does_not_compile.svg")} alt="does_not_compile" title="Does Not Compile!" /> </div>

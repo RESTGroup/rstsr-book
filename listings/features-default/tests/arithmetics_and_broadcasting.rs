@@ -174,6 +174,15 @@ fn example_ao2mo_vo() {
     let y_mo = &c_occ.t() % &y_ao % &c_vir;
     println!("{:?}", y_mo.layout());
     // ANCHOR_END: ao2mo_vo_02
+
+    // ANCHOR: ao2mo_vo_03
+    use rayon::prelude::*;
+    let y_mo = unsafe { rt::empty([naux, nocc, nvir]) };
+    (0..naux).into_par_iter().for_each(|p| {
+        let mut y_mo = unsafe { y_mo.force_mut() };
+        y_mo.i_mut(p).assign(&c_occ.t() % &y_ao.i(p) % &c_vir);
+    });
+    // ANCHOR_END: ao2mo_vo_03
 }
 
 #[test]
@@ -188,7 +197,7 @@ fn example_memory_aspects() {
     // arithmetic by view
     let d = a.view() * b.view();
 
-    // view clone is cheap, given tensor is large
+    // generating a view is cheap, given tensor is large
     let a_view = a.view();
     let b_view = b.view();
     let e = a_view * b_view;
@@ -200,10 +209,10 @@ fn example_memory_aspects() {
     // ANCHOR: memory_aspects_02
     let a = rt::arange(5.0);
     let b = rt::arange(5.0) + 1.0;
-    let ptr_a = a.raw().as_ptr();
+    let ptr_a = a.as_ptr();
     // if sure that `a` is not used anymore, pass `a` by value instead of reference
     let c = a + &b;
-    let ptr_c = c.raw().as_ptr();
+    let ptr_c = c.as_ptr();
     // raw data of `a` is reused in `c`
     // similar to `a += &b; let c = a;`
     assert_eq!(ptr_a, ptr_c);

@@ -14,8 +14,8 @@ In this section, we will try to show how RSTSR constructs tensor struct and diff
 
 ## 1. Tensor Structure
 
-RSTSR tensor learns a lot from rust crate `ndarray`.
-Structure and usage of RSTSR's `TensorBase` is similar to `ndarray`'s `ArrayBase`; however, they are different in many key points.
+RSTSR tensor learns a lot from rust crate ndarray.
+Structure and usage of RSTSR's `TensorBase` is similar to ndarray's `ArrayBase`; however, they are different in many key points.
 
 ![rstsr-basic-structure](../assets/rstsr-basic-structure.png)
 
@@ -29,32 +29,32 @@ Structure and usage of RSTSR's `TensorBase` is similar to `ndarray`'s `ArrayBase
     - Mutablly referenced (`TensorViewMut<'l, T, B, D>` or `TensorMut<'l, T, B, D>`)
     - Clone on write (not mutable enum of owned and referenced, `TensorCow<'l, T, B, D>`)
     - Atomic reference counted (safe in threading, `TensorArc<T, B, D>`)
-- The actual memory bulk will be stored as `Vec<T>` in CPU, and this can be configured by trait type `DeviceRawAPI<T>::Raw`[^4].
+- The actual memory bulk will be stored as `Vec<T>` if CPU device. For other devices, this can be configured by trait type `DeviceRawAPI<T>::Raw`[^4].
 
 Default generic types is applied to some structs or alias. For example, if `DeviceFaer` is the default device (which is enabled by crate feature `faer_as_default`), then
 ```rust
 let a: Tensor<f64> = rt::zeros([3, 4]);
 // this refers to Tensor<f64, DeviceFaer, IxD>
-// default device: DeviceFaer (rayon parallel with Faer matmul)
+// default device: DeviceFaer (rayon parallel with Faer matmul, requires feature `faer_as_default`)
 // default dimensionality: IxD (dynamic dimension)
 ```
 
-[^1]: RSTSR is different to `ndarray` in struct construction.
-      While `ndarray` stores shape and stride directly in `ArrayBase`, in RSTSR shape, stride and offset are stored in `Layout<D>`.
+[^1]: RSTSR is different to ndarray in struct construction.
+      While ndarray stores shape and stride directly in `ArrayBase`, in RSTSR shape, stride and offset are stored in `Layout<D>`.
       Layout of tensor is meta data of tensor, and it can be detached from data of tensor.
 
-[^2]: This distinguishes RSTSR and `ndarray`.
+[^2]: This distinguishes RSTSR and ndarray.
       We hope that RSTSR will become multi-backend framework in future.
       Currently, we have implemented serial CPU device (`DeviceCpuSerial`) and parallel CPU device with Faer matmul (`DeviceFaer`),
       showing the possiblity of more demanding heterogeneous programming within framework of RSTSR.
 
 [^3]: In RSTSR, data is stored as variable or its reference, in safe rust.
-      This is different to `ndarray`, which stores pointer (with offset) and memory data (if owned) or phantom lifetime annotation (if referenced).
+      This is different to ndarray, which stores pointer (with offset) and memory data (if owned) or phantom lifetime annotation (if referenced).
 
-[^4]: This distinguishes RSTSR and `candle`.
-      RSTSR allows external implementation of backends, hopefully allowing easy extending to other kind of devices, similar to `burn`.
-      RSTSR also allows virtaully all kinds of element types (you can take `rug` or even `Vec<T>` as tensor element, as they implemented `Clone`), similar to `ndarray`.
-      However, RSTSR will probably not implement autodiff in future, which is drawback compared to `candle` and `burn`.
+[^4]: This distinguishes RSTSR and candle.
+      RSTSR allows external implementation of backends, hopefully allowing easy extending to other kind of devices, similar to burn.
+      RSTSR also allows virtaully all kinds of element types (you can take `rug` or even `Vec<T>` as tensor element, as they implemented `Clone`), similar to ndarray.
+      However, RSTSR will probably not implement autodiff in future, which is drawback compared to candle and burn.
 
 ## 2. Ownership Conversion
 
@@ -93,7 +93,7 @@ We have already touched some array creation functions in [previous section](tens
 Here we will cover more on this topic.
 
 Converting between Tensor and `Vec<T>` or `&[T]` can be useful if
-- transfer data to other objects (such as `candle`, `ndarray`, `nalgebra`),
+- transfer data to other objects (such as candle, ndarray, nalgebra),
 - need pointer to perform FFI operations (such as BLAS, Lapack),
 - export data to be further serialized.
 
@@ -104,13 +104,26 @@ There are some useful functions to perform Tensor to `Vec<T>`:
 We do not provide functions that give `&[T]` or `&mut [T]`.
 However, we provide function `as_ptr()` and `as_mut_ptr()`, giving the pointer of the first element.
 
+:::info
+
 Please note the above mentioned utilities only works in CPU.
 For other devices (will implemented in future), you may wish to first convert tensor into CPU, then perform Tensor to `Vec<T>` conversion.
+
+:::
 
 As an example, we compute matrix-vector multiplication and report `Vec<f64>`:
 
 ```rust file=../../listings/features-default/tests/structure_and_ownership.rs anchor=to_vec
 ```
+
+:::warning
+
+The functions `as_ptr()` and `as_mut_ptr()` return pointers to the first element of the tensor's memory; however, it should be noted that the tensor pointed to by these pointers is not necessarily contiguous. RSTSR does not check whether the tensor is contiguous when providing these pointers.
+
+```rust file=../../listings/features-default/tests/structure_and_ownership.rs anchor=as_ptr_additional
+```
+
+:::
 
 ### 2.3 Tensor and scalar conversion
 
@@ -134,16 +147,16 @@ We only touched array creation with fixed dimension. To create array with dynami
 ```rust file=../../listings/features-default/tests/structure_and_ownership.rs anchor=dyn_dim_construct
 ```
 
-Fixed dimension will be more efficient than dynamic dimension. However, in many arithmetic computations, depneding on contiguous of tensors, the efficiency difference will not be very notable.
+Fixed dimension will be more efficient than dynamic dimension. However, in many arithmetic computations, depneding on contiguous of tensors, the efficiency difference will not be very notable. Meanwhile, RSTSR provides the `dispatch_dim_layout_iter` Cargo feature; this ensures that the computational efficiency of dynamic dimensions is comparable to that of fixed dimensions when performing calculations on larger tensors.
 
-<div class="warning">
+Considering that the computational efficiency of dynamic dimensions is generally not significantly lower than that of fixed dimensions, we recommend RSTSR users to actively utilize dynamic dimensions.
 
-**Fixed dimension is not equilvalent to fixed shape/strides.**
+:::warning Fixed dimension is not equilvalent to fixed shape/strides.
 
-For dimensionality, RSTSR uses similar workarounds to rust crate `ndarray`, which provides only fixed dimension.
+For dimensionality, RSTSR uses similar workarounds to rust crate ndarray, which provides only fixed dimension.
 Fixed dimension means $n$ is fixed at compile time for $n$-D tensor. This is different to numpy, which dimension is always dynamic.
 
-RSTSR is very different to rust crates `nalgebra` and `dfdx`; these rust crates supports fixed shape and strides.
+RSTSR is very different to rust crates nalgebra and dfdx; these rust crates supports fixed shape and strides.
 That is to say, not only dimension $n$ is fixed, but also shape and strides are known at compile time.
 For small vectors or matrices, fixing shape and strides can usually be compiled to much more efficient assembly code.
 For large vectors or matrices, that will depends on types of arithmetic computations;
@@ -155,4 +168,4 @@ By concerning benefits and difficulties, we choose not introducing fixed shape a
 This leaves RSTSR not suitable for tasks that handling small matrices (such as gaming and shading).
 For some tasks that are sensitive to certain shapes (such as filter shape of CNN in deep learning), RSTSR is suitable for tensor storage, and user may wish to use custom computation functions instead of RSTSR's to perform computation intensive parts.
 
-</div>
+:::

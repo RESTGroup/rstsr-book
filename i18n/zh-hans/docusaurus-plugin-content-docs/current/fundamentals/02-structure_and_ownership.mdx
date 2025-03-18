@@ -1,0 +1,143 @@
+---
+description: ""
+---
+
+# 张量结构与所有权
+
+在 Rust 中，所有权和生命周期 (与视图的概念相关) 有严格的规则。了解数据 (譬如大量浮点数的内存) 是如何存储和处理的，以及一个变量是拥有还是引用这些数据，是非常重要的。
+
+作为一个张量库，我们也希望有一些统一的 API 函数或操作，能够同时处理拥有数据本体、和引用数据的张量的计算。通俗地说，NumPy 非常方便，我们可能希望在 Rust 中以类似 Python 的方式编写代码。
+
+在本节中，我们将尝试展示 RSTSR 如何构建张量结构，以及不同所有权的张量是如何工作的。
+
+## 1. 张量结构
+
+RSTSR 张量从 Rust 库 ndarray 中学到了很多。RSTSR 的 `TensorBase` 的结构和使用方式与 ndarray 的 `ArrayBase` 类似；然而，它们在许多关键点上有所不同。
+
+![rstsr-basic-structure](../assets/rstsr-basic-structure.png)
+
+- 张量由 `storage` (数据在内存块中的存储方式) 和 `layout` (张量的表示方式) 组成。
+- Layout 由 `shape` (张量的形状) 、`stride` (如何从内存块中访问每个值) 和 `offset` (张量的起始位置) 组成[^1]。
+- Storage 由 `data` (带有生命周期的数据) 和 `device` (计算和存储后端) 组成[^2]。
+- Data 是实际内存存储与生命周期注解的组合。目前支持 5 种所有权类型。前两种 (拥有和引用) 是最重要的[^3]。
+    - 拥有 (`Tensor<T, B, D>`)
+    - 引用 (`TensorView<'l, T, B, D>` 或 `TensorRef<'l, T, B, D>`)
+    - 可变引用 (`TensorViewMut<'l, T, B, D>` 或 `TensorMut<'l, T, B, D>`)
+    - 写时克隆 (不可变枚举，表示拥有或引用的状态，`TensorCow<'l, T, B, D>`) 
+    - 原子引用计数 (线程安全，`TensorArc<T, B, D>`) 
+- 如果后端是 CPU 设备，那么实际的内存块将作为 `Vec<T>`；对于其他后端设备，这可以通过 trait 类型 `DeviceRawAPI<T>::Raw` 进行配置[^4]。
+
+默认的泛型类型应用于某些结构体或别名。例如，如果 `DeviceFaer` 是默认设备 (通过 crate 特性 `faer_as_default` 启用)，那么：
+```rust
+let a: Tensor<f64> = rt::zeros([3, 4]);
+// 这指的是 Tensor<f64, DeviceFaer, IxD>
+// 默认设备：DeviceFaer (使用 Faer 矩阵乘法的 rayon 并行，需要 feature `faer_as_default`)
+// 默认维度：IxD (动态维度)
+```
+
+[^1]: RSTSR 在结构构造上与 ndarray 不同。虽然 ndarray 直接在 `ArrayBase` 中存储 shape 和 stride，但在 RSTSR 中，shape、stride 和 offset 存储在 `Layout<D>` 中。张量的 layout 是张量的元数据，它可以与张量的数据分离。
+
+[^2]: 这是 RSTSR 与 ndarray 的区别之一。我们希望 RSTSR 在未来成为一个多后端的框架。目前，我们已经实现了串行 CPU 设备 (`DeviceCpuSerial`) 和带有 Faer 矩阵乘法的并行 CPU 设备 (`DeviceFaer`)，展示了在 RSTSR 框架内进行更复杂的异构编程的可能性。
+
+[^3]: 在 RSTSR 中，数据以变量或其引用的形式存储，符合 Rust 的安全规则。这与 ndarray 不同，后者存储指针 (带有 offset) 和内存数据 (如果拥有) 或虚拟生命周期注解 (如果引用) 。
+
+[^4]: 这是 RSTSR 与 candle 的区别之一。RSTSR 允许外部实现后端，希望可以轻松扩展到其他类型的设备，类似于 burn。RSTSR 还允许几乎所有类型的元素类型 (您可以将 `rug` 甚至 `Vec<T>` 作为张量元素，只要它们实现了 `Clone`)，类似于 ndarray。然而，RSTSR 可能不会在未来实现自动微分，这是与 candle 和 burn 相比的缺点。
+
+## 2. 所有权转换
+
+### 2.1 张量所有权之间的转换
+
+不同的所有权可以相互转换。然而，某些转换函数可能会有一些成本 (显式的内存复制) 。
+
+- `view` 生成 `TensorView<'l, T, B, D>`。
+    - 此函数在任何情况下都不会执行张量数据的内存复制。在这方面，它几乎是零成本的。
+    - 它仍然会执行张量 layout 的克隆，因此仍有一些开销。对于大型张量来说，这是廉价的。
+- `view_mut` 生成 `TensorMut<'l, T, B, D>`。
+    - 在 Rust 中，要么允许多个不可变引用，要么只允许一个可变引用。对于 `TensorView` 作为不可变引用和 `TensorMut` 作为可变引用也是如此。
+- `into_owned_keep_layout` 生成 `Tensor<T, B, D>`。
+    - 对于 `Tensor`，这不会进行内存复制；
+    - 对于 `TensorView` 和 `TensorMut`，这需要显式的内存复制。请注意，在这种情况下通常更适合使用 `into_owned`。
+    - 对于 `TensorArc`，这不会进行内存复制，但请注意，当强引用计数不恰好为 1 时，它可能会 panic。您可以使用 `tensor.data().strong_count()` 来检查强引用计数。
+    - 对于 `TensorCow`，如果它是拥有的 (`DataCow::Owned`)，则不会进行内存复制；如果它是引用的 (`DataCow::Ref`)，则需要显式的内存复制。
+- `into_owned` 也生成 `Tensor<T, B, D>`。
+    - 此函数与 `into_owned_keep_layout` 不同，因为 `into_owned` 仅在张量的 layout 覆盖所有内存 (内存块的大小与张量 layout 的大小相同) 时不会复制内存。对任何非平凡的张量切片调用 `into_owned` 都会导致内存复制。
+    - 还要注意，如果您只想将内存缩小到张量的一个切片，使用 `into_owned` 更合适。
+    - 对于 `TensorView` 和 `TensorMut`，使用 `into_owned` 会比 `into_owned_keep_layout` 复制更少的内存。因此，对于张量视图，`into_owned` 更可取。
+- `into_cow` 生成 `TensorCow<'l, T, B, D>`。
+    - 此函数没有任何成本。
+- `into_shared_keep_layout` 和 `into_shared` 生成 `TensorArc<'l, T, B, D>`。这与 `into_owned_keep_layout` 和 `into_owned` 类似。
+
+以下是一个张量所有权转换的示例：
+
+```rust file=../../listings/features-default/tests/structure_and_ownership.rs anchor=tensor_ownership
+```
+
+### 2.2 张量与 `Vec<T>` 的转换
+
+我们已经在 [上一节](tensor_creation#2-converting-rust-slices-to-rstsr-tensorview) 中介绍了一些通过数组创建函数的方法。这里我们将进一步讨论这个话题。
+
+在以下情况下，张量与 `Vec<T>` 或 `&[T]` 之间的转换可能很有用：
+- 将数据传输到其他对象 (如 candle、ndarray、nalgebra)；
+- 需要指针来执行 FFI 操作 (如 BLAS、Lapack)；
+- 导出数据以进行进一步的序列化。
+
+有一些有用的函数可以执行张量到 `Vec<T>` 的转换：
+- `to_vec()`：将 1-D 张量复制到向量，需要内存复制；
+- `into_vec()`：如果张量在内存上是连续的，则将 1-D 张量移动到向量；否则将 1-D 张量复制到向量。
+
+我们不提供直接返回 `&[T]` 或 `&mut [T]` 的函数。然而，我们提供了 `as_ptr()` 和 `as_mut_ptr()` 函数，返回内部内存中的第一个元素的指针。
+
+:::info 
+
+请注意，上述提到的实用程序仅在 CPU 上有效。对于其他设备 (将在未来实现)，您可能希望首先将张量转换为 CPU，然后执行张量到 `Vec<T>` 的转换。
+
+:::
+
+作为一个示例，我们计算矩阵-向量乘法并返回 `Vec<f64>`：
+
+```rust file=../../listings/features-default/tests/structure_and_ownership.rs anchor=to_vec
+```
+
+:::warning
+
+函数 `as_ptr()` 与 `as_mut_ptr()` 会返回张量的内存的第一个元素的指针；但需要注意到，该指针指向的张量未必是连续的。RSTSR 在给出指针时，不会检查张量是否连续。
+
+```rust file=../../listings/features-default/tests/structure_and_ownership.rs anchor=as_ptr_additional
+```
+
+:::
+
+### 2.3 张量与标量的转换
+
+RSTSR 不提供直接将 `T` 转换为 0-D 张量 `Tensor<T, Ix0, B>` 的方法。对于将 0-D 张量 `Tensor<T, Ix0, B>` 转换为 `T`，我们提供了 `to_scalar` 函数。
+
+作为一个示例，我们计算内积并返回浮点数结果：
+
+```rust file=../../listings/features-default/tests/structure_and_ownership.rs anchor=to_scalar
+```
+
+## 3. 维度转换
+
+RSTSR 提供了固定维度和动态维度的张量。维度可以通过 `into_dim::<D>()` 或 `into_dyn` 进行转换。
+
+```rust file=../../listings/features-default/tests/structure_and_ownership.rs anchor=dim_conversion
+```
+
+我们只讨论了固定维度的数组创建。要创建动态维度的数组，请使用 `Vec<T>` 而不是 `[T; N]`：
+
+```rust file=../../listings/features-default/tests/structure_and_ownership.rs anchor=dyn_dim_construct
+```
+
+固定维度比动态维度更高效。然而，在许多算术计算中，取决于张量的连续性，效率差异不会非常显著。同时，rstsr 提供了 `dispatch_dim_layout_iter` cargo 选项；这使得在较大张量的计算中，动态维度的计算效率与固定维度相当。
+
+考虑到动态维度的计算效率一般并不显著低于固定维度，我们推荐 RSTSR 用户积极使用动态维度。
+
+:::warning 固定维度不等同于固定 shape/strides。
+
+对于维度，RSTSR 使用了与 Rust 库 ndarray 类似的解决方案，即提供固定维度与动态维度两种选择。固定维度意味着 $n$-D 张量的 $n$ 在编译时是固定的。这与 numpy 不同，后者的维度始终是动态的。
+
+RSTSR 与 Rust 库 nalgebra 和 dfdx 非常不同；这些 Rust 库支持固定的 shape 和 strides。也就是说，不仅维度 $n$ 是固定的，而且 shape 和 strides 在编译时也是已知的。对于小向量或矩阵，固定 shape 和 strides 通常可以编译为更高效的汇编代码。对于大向量或矩阵，这将取决于算术计算的类型；带有 `-O3` 的编译器并不是全知全能的，在大多数情况下，固定 shape 和 strides 不会比动态维度下利用多级缓存、流水线和多线程优化带来更多的好处。编写一个更高效的函数比告诉编译器张量的维度更可取。
+
+RSTSR 的设计和动机是用于中等或大型张量的科学计算。考虑到好处和困难，我们选择不引入固定的 shape 和 strides。这使得 RSTSR 不适合处理小矩阵的任务 (如游戏和着色)。对于某些对特定任务 (如深度学习中 CNN 涉及滤波器的计算)，RSTSR 适合用于张量存储，用户可能希望使用自定义的计算函数而不是 RSTSR 的函数来执行计算密集型部分。
+
+:::

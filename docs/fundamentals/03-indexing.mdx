@@ -20,15 +20,14 @@ The most important functions and macros to perform slicing are
 - `slice` (equivalntly `i`): return tensor view by feeding slice parameters;
 - `slice_mut` (equivalntly `i`): return mutable tensor view by feeding slice parameters;
 - `slice!((start, ) stop (, slice))`: generate slice configuration, which should be similar to python's intrinsic `slice` function.
-- `s![]`: generate slice parameters (useful when different types of slicing and indexing occurs in the same time); in most scenarios this macro can be substituted by tuple of different types;
 
 :::warning **Macro `slice!` is different to function `slice`**
 
 If you are not feeling good using both function `slice` and macro `slice!` (such as `tensor.slice(slice!(1, 5, 2))`), you can still use the equilvant function `i` to perform tensor indexing and slicing (such as `tensor.i(slice!(1, 5, 2))`).
 
 Clashed naming of these functions may be terrible, but it actually binds to some conventions:
-- function `slice` comes from rust crate `ndarray`;
-- function `i` comes from rust crate `candle`;
+- function `slice` comes from rust crate ndarray;
+- function `i` comes from rust crate candle;
 - macro `slice!` comes from python's intrinsic function.
 
 :::
@@ -42,7 +41,7 @@ We will persuit to realize some of advanced indexing features in future.
 :::warning Slicing in RSTSR always generate dynamic dimension
 
 Please note that by slicing, RSTSR will always generate dynamic dimension (`IxD`) tensor, instead of generating fixed dimension (`Ix1` for 1-D, `Ix2` for 2-D, etc.).
-This is a fallback compared to `ndarray`, where `ndarray` have a more sophisticated macro system to handle fixed dimension slicing.
+This is a fallback compared to ndarray, where ndarray have a more sophisticated macro system to handle fixed dimension slicing.
 
 :::
 
@@ -114,7 +113,7 @@ let b = a.slice([.., 1..3, ..2]);
 ```
 <img src={useBaseUrl('/img/ferris/does_not_compile.svg')} alt="does_not_compile" title="Does Not Compile!" /> </div>
 
-To resolve this problem, you may use `s!` macro, or either just pass tuple `(T1, T2)` instead of rust array `[T]`:
+To resolve this problem, you may pass tuple `(T1, T2)` instead of rust array `[T]`:
 
 ```rust file=../../listings/features-default/tests/indexing.rs anchor=example_index_by_range_05
 ```
@@ -131,7 +130,7 @@ The usage of `slice!` macro is similar to python's intrinsic function `slice`[^1
 - `slice!(start, stop)`: similar to range `start..stop`;
 - `slice!(start, stop, step)`: this is similar to fortran's or numpy's slicing `start:stop:step`.
 
-[^1]: In `ndarray`, this is done by `s![start..stop;step]`. `ndarray`'s resolution is more concise. However, we stick to use the seemingly verbose `slice!` macro to generate strided slice.
+[^1]: In ndarray, this is done by `s![start..stop;step]`. ndarray's resolution is more concise. However, we stick to use the seemingly verbose `slice!` macro to generate strided slice.
 
 ```rust file=../../listings/features-default/tests/indexing.rs anchor=example_slice_with_strides_01
 ```
@@ -181,7 +180,7 @@ But please note that, in most cases, elementwise indexing is not efficient.
 - for "unchecked" elementwise indexing, it have more chance to prevent compiler's internal vectorize and SIMD optimization;
 - for "safe" elementwise indexing, additional out-of-bound check is performed, further hampering optimizations.
 
-Thus, for computationally intensive tasks, you are encouraged to use RSTSR internal arithmetic functions or mapping functions, to avoid direct elementwise indexing.
+Thus, for computationally intensive tasks, you are encouraged to use RSTSR internal arithmetic functions or mapping functions, or write efficient functions on your own, to avoid direct elementwise indexing.
 Only use elementwise indexing when efficiency is not of concern, or RSTSR internal functions could not fulfill your demands.
 
 :::
@@ -200,7 +199,7 @@ If you provides index out-of-bound, RSTSR will panic:
 ```
 <img src={useBaseUrl("/img/ferris/panics.svg")} alt="panics" title="This code panics!" /> </div>
 
-It is different in RSTSR in indexing (to tensor view) and elementwise indexing (to reference of value).
+It is different in RSTSR in slicing (to tensor view) and elementwise indexing (to reference of value). If you wish to obtain a scalar value instead of scalar tensor, then please do not use `slice`.
 
 ```rust file=../../listings/features-default/tests/indexing.rs anchor=example_elementwise_by_tensor_index
 ```
@@ -213,7 +212,7 @@ To perform indexing, you may use unsafe function `index_uncheck`:
 ```rust file=../../listings/features-default/tests/indexing.rs anchor=example_elementwise_unchecked
 ```
 
-If you provides index out-of-bound, if the index is still smaller than the underlying memory size, RSTSR will not panic and give wrong value:
+If you provides index out-of-bound, and the pointer to that index is still valid in underlying memory, RSTSR will not panic and give wrong value:
 
 <div className="ferris-overlay">
 ```rust file=../../listings/features-default/tests/indexing.rs anchor=example_elementwise_unchecked_not_desired

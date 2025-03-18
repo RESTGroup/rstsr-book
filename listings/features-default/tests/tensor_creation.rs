@@ -67,7 +67,8 @@ fn example_04() {
     let (nrow, ncol) = (vec.len(), vec[0].len());
     let vec = vec.into_iter().flatten().collect::<Vec<_>>();
 
-    // please also note that nested vec is always row-major, so using `.c()` is more appropriate
+    // please also note that nested vec is always row-major,
+    // so using `.c()` to give row-major layout is more appropriate
     let tensor = rt::asarray((vec, [nrow, ncol].c()));
     println!("{:}", tensor);
     // output:

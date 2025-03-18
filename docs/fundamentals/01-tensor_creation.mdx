@@ -4,23 +4,6 @@ description: ""
 
 # Tensor creation
 
-In many cases, we import RSTSR by following code:
-```rust
-use rstsr_core::prelude::*;
-```
-
-It may be possible that names of RSTSR structs or functions clash with other crates.
-You may wish to import RSTSR by following code if that happens:
-```rust
-use rstsr_core::prelude::rt;
-use rt::rstsr_traits::*;
-```
-
-In this mean time, you can also directly call use `rstsr` crate, which is a wrapper to `rstsr_core`:
-```rust
-use rstsr::prelude::*;
-```
-
 ## 1. Converting Rust Vector to RSTSR Tensor
 
 ### 1.1 1-D tensor from rust vector

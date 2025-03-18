@@ -1,0 +1,119 @@
+---
+description: ""
+---
+
+# 张量创建
+
+## 1. 将 Rust 向量转换为 RSTSR 张量
+
+### 1.1 从 Rust 向量创建 1-D 张量
+
+RSTSR 张量可以通过 (拥有所有权的) 向量对象创建。
+
+在以下情况下，向量对象 `vec` 的内存将转移到张量对象 `tensor`[^1]。除了相对较小的开销 (生成张量的 layout) 外，**不会发生显式的数据复制**。
+
+```rust file=../../listings/features-default/tests/tensor_creation.rs anchor=example_01
+```
+
+[^1]:
+    这将为默认的 CPU 设备生成张量对象。
+    在没有进一步配置的情况下，RSTSR 选择 `DeviceFaer` 作为默认的张量设备，并使用所有对 rayon 可见的线程。
+    如果您对其他设备感兴趣 (例如单线程的 `DeviceCpuSerial`)，或者您希望限制 `DeviceFaer` 的线程数，则可以使用另一个版本的 `asarray`。
+    例如，要限制计算时使用 4 个线程，您可以通过以下代码初始化张量：
+    ```rust file=../../listings/features-default/tests/tensor_creation.rs anchor=example_02
+    ```
+
+### 1.2 从 Rust 向量创建 $n$-D 张量
+
+对于 $n$-D 张量，推荐从现有向量创建而不进行显式内存复制的方法是：
+- 首先，从连续的内存创建 1-D 张量；
+- 其次，将其重塑为您所需的 $n$-D 张量；
+
+```rust file=../../listings/features-default/tests/tensor_creation.rs anchor=example_03
+```
+
+我们不推荐从嵌套向量 (即 `Vec<Vec<T>>`) 生成 $n$-D 张量。在这种情况下，无论如何都会发生显式的内存复制。因此，对于嵌套向量，您可能希望首先生成一个扁平的 `Vec<T>`，然后对其进行重塑：
+```rust file=../../listings/features-default/tests/tensor_creation.rs anchor=example_04
+```
+
+## 2. 将 Rust 切片转换为 RSTSR TensorView
+
+Rust 语言对变量的所有权非常敏感，这与 Python 不同。在 Rust 中，数据的连续内存引用通常表示为切片 `&[T]`。对于 RSTSR，这由 `TensorView` 存储[^2]。
+
+```rust file=../../listings/features-default/tests/tensor_creation.rs anchor=example_05
+```
+
+您还可以将可变切片 `&mut [T]` 转换为张量。对于 RSTSR，这由 `TensorMut` 存储：
+
+```rust file=../../listings/features-default/tests/tensor_creation.rs anchor=example_06
+```
+
+[^2]: 通过 Rust 切片 `&[T]` 初始化 `TensorView` 是通过 `ManuallyDrop` 内部实现的。对于科学计算通常关注的数据类型 `T` (例如 `f64`、`Complex<f64>`)，它不会导致内存泄漏。然而，如果类型 `T` 有自己的析构函数 (`drop` 函数)，您可能需要仔细检查内存泄漏的安全性。这也适用于通过可变 Rust 切片 `&mut [T]` 初始化的 `TensorMut`。
+
+## 3. 内置的 RSTSR 张量创建函数
+
+### 3.1 1-D 张量创建函数
+
+最常用的 1-D 张量创建函数是 `arange` 和 `linspace`。
+
+`arange` 创建具有规则递增值的张量。以下代码展示了生成张量的多种方式[^3]。
+
+```rust file=../../listings/features-default/tests/tensor_creation.rs anchor=example_arange
+```
+
+[^3]: 许多 RSTSR 函数，尤其是张量创建函数，是签名重载的。输入应通过元组传递多个函数参数。
+
+`linspace` 将创建一个具有指定数量元素的张量，并在指定的起始值和结束值之间均匀分布。
+
+```rust file=../../listings/features-default/tests/tensor_creation.rs anchor=example_linspace
+```
+
+### 3.2 2-D 张量创建函数
+
+最常用的 2-D 张量创建函数是 `eye` 和 `diag`。
+
+`eye` 生成单位矩阵。在许多情况下，您只需提供行数，`eye(n_row)` 将返回一个方阵单位矩阵，或者如果设备是关注点，则使用 `eye((n_row, &device))`。如果您希望生成具有偏移的矩形单位矩阵，可以调用 `eye((n_row, n_col, offset))`。
+
+```rust file=../../listings/features-default/tests/tensor_creation.rs anchor=example_eye
+```
+
+`diag` 从 1-D 张量生成对角 2-D 张量，或从 2-D 张量的对角线生成 1-D 张量。`diag` 被定义为重载函数；如果关注对角线的偏移，您可以调用 `diag((&tensor, offset))`。
+
+```rust file=../../listings/features-default/tests/tensor_creation.rs anchor=example_diag
+```
+
+### 3.3 通用的 $n$-D 张量创建函数
+
+最常用的 $n$-D 张量创建函数是 `zeros`、`ones` 和 `empty`。这些函数可以构建具有任何所需 shape (或 layout) 的张量。
+
+- `zeros` 用零值填充张量；
+- `ones` 用一值填充张量；
+- 不安全的 `empty` 提供未初始化的张量；
+- `fill` 用用户提供的相同值填充张量；
+
+我们将主要使用 `zeros` 作为示例。对于常见用法，您可能希望生成具有指定 shape (或额外绑定设备的张量)：
+
+```rust file=../../listings/features-default/tests/tensor_creation.rs anchor=example_zeros_01
+```
+
+您还可以指定 layout：是 C 连续 (行优先) 还是 Fortran 连续 (列优先)[^4]。在 RSTSR 中，属性函数 `c` 和 `f` 用于生成 C/Fortran 连续 layout：
+
+```rust file=../../listings/features-default/tests/tensor_creation.rs anchor=example_zeros_02
+```
+
+[^4]: https://en.wikipedia.org/wiki/Row-_and_column-major_order
+
+一个特殊的 $n$-D 情况是 0-D 张量 (标量)。您也可以通过 `zeros` 生成 0-D 张量：
+
+```rust file=../../listings/features-default/tests/tensor_creation.rs anchor=example_zeros_03
+```
+
+您还可以初始化一个不填充特定值的张量。这是不安全的。
+
+```rust file=../../listings/features-default/tests/tensor_creation.rs anchor=example_empty
+```
+
+该库尚未实现随机初始化的 API。但是，您仍然可以通过 `asarray` 执行此类任务。
+
+```rust file=../../listings/features-default/tests/tensor_creation.rs anchor=example_random
+```
