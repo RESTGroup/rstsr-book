@@ -9,4 +9,7 @@ version = "0.0.0"
 edition = "2021"
 
 [workspace.dependencies]
-rstsr-core = { path = "../rstsr/rstsr-core" }
+rstsr = { version = "0.2", features = ["linalg"] }
+rstsr-openblas = { version = "0.2", features = ["linalg"] }
+rstsr-linalg-traits = { version = "0.2" }
+rstsr-core = { version = "0.2" }

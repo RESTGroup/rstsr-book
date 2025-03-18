@@ -20,11 +20,131 @@ use rstsr::prelude::*;
 
 这就可以了！依这个流程，您可以试试 [欢迎页面](index.mdx) 的示例代码！
 
-You may wish to know how to use traits and functions in RSTSR, and we refer to [prelude guides](#prelude-guides) for this part.
+## 库导入 (prelude) 指南
 
-You may also wish to use some advanced features in RSTSR, such as 
+### 1. prelude 结构
 
-## Prelude Guides
+在主库 rstsr 及一些重要子库 (譬如 rstsr-core)，其 prelude 主要分为四个模块：
+- 函数 `prelude::rstsr_funcs`；
+    - 如 `abs`, `zeros`, `asarray`, `sum` 等；
+- 接口 `prelude::rstsr_traits`；
+    - 如 `DimAPI`, `ArangeAPI`, `ZerosAPI` 等；
+- 结构体 `prelude::rstsr_structs`，它包含 struct、enum、或重要的 type alias；
+    - 如 `TensorBase`, `TensorView`, `DeviceCpuSerial`, `FlagOrder` 等；
+- 宏 `prelude::rstsr_macros`；
+    - 如 `slice!`, `s!`, `rstsr_invalid!` 等；
+    - 一般来说，用户很少会在 RSTSR 中必须用到宏。
 
+除此之外，`prelude::rt` 是特殊的导入模块。它包含所有上述四个模块、并且导入所有四个模块里面的内容。
 
+RSTSR 的 prelude 默认情况下会直接导入接口、结构体、宏的所有内容，但不导入函数。因此，我们建议在使用 RSTSR 函数时，需要通过模块 `prelude::rt` 间接地使用。以 `sin` 函数举例而言，
 
+```rust
+use rstsr::prelude::*;
+
+// after tensor `a` be defined
+let b: Tensor<f64, _> = rt::sin(&a);
+```
+
+### 2. 命名冲突的解决方案
+
+在一些情况下，您可能因为命名冲突，不希望导入所有 `rstsr::prelude` 里的内容：
+- 您需要使用多个张量库，而其他张量库占用了 `Tensor` 等常见的类型名称；
+- 您需要使用标准库的一些功能 (譬如 `std::alloc::Layout`)，但该名称被 RSTSR 占用。
+
+在这些情况下，您可以
+- 在导入代码时使用 `use rstsr::prelude::*`，而后指定有命名冲突的类型的具体来源；
+- 仅导入 `use rstsr::prelude::rt`，而后通过 `rt::Tensor`、`rt::Layout` 等代码调用 RSTSR 内置的类型。
+
+## RSTSR 库结构
+
+RSTSR 框架由许多子库构成。
+
+### 1. 整合库 rstsr
+
+rstsr 库作为整合其他子库的项目，它的代码仅仅是 `prelude.rs`。该库提供了一些 cargo features，以在 rstsr 中也可以设置一些子库 (如 rstsr-core、rstsr-openblas 等) 的编译选项。
+
+由于 rstsr 库本身没有实际的代码，因此通过整合库 rstsr 调用代码与从子库 rstsr-core、rstsr-linalg-traits 调用代码是等价的。譬如
+
+```rust file=../../listings/features-default/tests/installation.rs anchor=rstsr_1
+```
+
+使用子库也可以得到等价的结果：
+
+```rust file=../../listings/features-default/tests/installation.rs anchor=rstsr_2
+```
+
+### 2. 核心库 rstsr-core
+
+rstsr-core 的主要功能是
+- 定义基本的张量数据结构；
+- 定义重要的后端 (device) 接口，以要求不同的后端需要遵守类似的运算规则；
+- 基于这些后端接口，实现张量基本操作与运算；
+- 实现单线程 CPU 与多线程 Faer 后端。
+
+rstsr-core 从设计上，预期需要实现 Python array API standard 中大部分的功能，相当于 NumPy 的基本功能 (不涉及线性代数、稀疏等高级功能)。
+
+### 3. 拓展库
+
+拓展库是在核心库 rstsr-core 的基础上，进行功能的补充。目前的拓展库包括
+- rstsr-linalg-traits：接近于 NumPy 或 SciPy 风格的线性代数接口、以及对 BLAS 后端的部分实现；
+- rstsr-blas-traits：BLAS 后端接口与部分实现。
+
+### 4. 后端库
+
+后端库具体实现了核心库 rstsr-core 与拓展库接口。目前的后端库包括
+- rstsr-openblas：实现 OpenBLAS 后端，该后端将是 RSTSR 现在主要发展的后端；
+- rstsr-hdf5：目前尚未完成实现；该后端将仅支持读写功能，不支持运算。
+
+### 5. 其他支持库
+
+上述四类是 RSTSR 主要的分类。其余在 RSTSR 框架下的库包括
+- rstsr-dtype-traits：用于 [num](https://docs.rs/num/latest/num/) crate 无法或难以处理的数据类型接口。
+- rstsr-openblas-ffi：OpenBLAS 后端所需要的 FFI。
+
+## Cargo.toml 与 build.rs 设置指南
+
+:::info 设置方式可能在未来会有改动
+
+目前 RSTSR 的 Cargo.toml 设置还有待完善。这包括
+- 目前没有将所有子库的 feature 完全整合到 rstsr 库的 feature；
+- OpenBLAS 后端目前没有整合到 rstsr 库的 prelude。
+
+随着 RSTSR 版本迭代，我们会更深入地对 RSTSR 的 feature 作改进。这也可能会影响用户如何编写 Cargo.toml 和 build.rs 文件。
+
+:::
+
+### 1. rstsr
+
+整合库 rstsr 与核心库 rstsr-core 都具有的 feature 包括
+
+- `std`：是否使用 Rust 标准库。整合库 rstsr 与核心库 rstsr-core 没有使用 Rust 标准库编写，但要求使用 Rust 核心库 [core](https://doc.rust-lang.org/stable/core/) 堆管理库 [alloc](https://doc.rust-lang.org/stable/alloc/)。这意味着 RSTSR 有可能应用于具有内存分配功能的嵌入式系统。
+- `rayon`：是否启用 rayon 并行功能。如果使用 Faer 或 OpenBLAS 等高性能后端，该选项会默认设置为开启。对于科学计算而言，为了高效地处理内存瓶颈计算问题，该选项强烈建议开启。
+- `faer`：是否在核心库 rstsr-core 中编译 Faer 库。该选项默认开启。但出于需求、运行效率或编译时间上的考虑，如果用户的主要使用 BLAS 后端、而不考虑其他 CPU 后端，那么该选项可以关闭。
+- `faer_as_default`：是否将 Faer 设置为默认后端。
+- `dispatch_dim_layout_iter`：在内部的算子实现中，启用动态维度到静态维度的 dispatch。该过程尽管不是零开销的，但仍可大幅改善因动态维度对张量索引的低效性导致的效率问题。该选项会导致核心库 rstsr-core 编译耗时陡增，建议在调试 (debug) 时关闭、发布 (release) 时开启。
+
+仅整合库 rstsr 具有的 feature 包括
+
+- `linalg`：是否编译 `rstsr-linalg-traits` 以开启 `rt::linalg` 的线性代数功能。
+
+rstsr-core 默认支持的后端，都是以纯 Rust 实现；这种情况下不需要特别设置 build.rs。
+
+### 2. rstsr-openblas
+
+该库并不是用户必须选择的。当用户对 BLAS 后端有需求时，才需要将 rstsr-openblas 纳入 Cargo.toml 作为依赖。
+
+- `linalg`：是否编译 `rstsr-linalg-traits` 以对线性代数的接口作实现。
+- `ilp64`：BLAS 中的整数类型是 `int32_t` 还是 `int64_t`。举例而言，在 Linux 系统下默认选项编译的 OpenBLAS 一般是 `int32_t`；在这种情况下不需要开启该选项。
+- `openmp`：是否增加对 OpenMP 编译的 OpenBLAS 的支持。该编译选项要求用户在 build.rs 或 `RUSTFLAGS` 中引入 OpenMP 库。一般来说建议开启该选项。如果用户确定链接的 OpenBLAS 的并行模式是 pthread，那么该选项可以不用开启；但同时需要注意，OpenBLAS 一般来说在 OpenMP 并行模式下有更高的运行效率。
+
+为了能让 OpenBLAS 后端可以工作，用户需要手动在自己项目中的 build.rs 中引入如下的语句：
+```rust
+// in build.rs
+// if your library is named `libopenblas.so`
+println!("cargo:rustc-link-lib=openblas");
+// if your openblas is compiled with OpenMP (but not pthread)
+//    and your openmp is GNU's distribution
+println!("cargo:rustc-link-lib=gomp");
+```
+或者编译的环境变量 `RUSTFLAGS` 中引入这两个库。

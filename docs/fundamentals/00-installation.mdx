@@ -2,30 +2,152 @@
 description: ""
 ---
 
-# Installation and Prelude
+# Installation and Prelude Import
 
-## For General Users
+## Getting Started
 
-To use RSTSR, you may wish to install directly from cargo.
-Simply add a line to your `Cargo.toml` file:
+If you just want to try out the RSTSR library and perform some simple operations, add the following line to your project's `Cargo.toml` file:
 
 ```toml
-rstsr = { version = "0.1" }  # may change if RSTSR updates
+# The version number of RSTSR may update; this value may not be the latest version.
+rstsr = { version = "0.2" }
 ```
 
-And the common prelude usage is
+Then, include the following line in your program to import the library:
 
 ```rust
 use rstsr::prelude::*;
 ```
 
-That's it! Then you can try the example code in [welcome page](index.mdx)!
+That's it! Following this process, you can try out the example code on the [Welcome Page](index.mdx)!
 
-You may wish to know how to use traits and functions in RSTSR, and we refer to [prelude guides](#prelude-guides) for this part.
+## Prelude Import Guide
 
-You may also wish to use some advanced features in RSTSR, such as 
+### 1. Prelude Structure
 
-## Prelude Guides
+The main library `rstsr` and some important sub-libraries (such as `rstsr-core`) have their prelude divided into four modules:
+- **Functions** (`prelude::rstsr_funcs`):
+  - Examples: `abs`, `zeros`, `asarray`, `sum`, etc.
+- **Traits** (`prelude::rstsr_traits`):
+  - Examples: `DimAPI`, `ArangeAPI`, `ZerosAPI`, etc.
+- **Structs** (`prelude::rstsr_structs`), which includes structs, enums, or important type aliases:
+  - Examples: `TensorBase`, `TensorView`, `DeviceCpuSerial`, `FlagOrder`, etc.
+- **Macros** (`prelude::rstsr_macros`):
+  - Examples: `slice!`, `s!`, `rstsr_invalid!`, etc.
+  - Generally, users rarely need to use macros in RSTSR.
 
+Additionally, `prelude::rt` is a special import module. It includes all four modules and imports their contents.
 
+By default, RSTSR's prelude directly imports all contents of traits, structs, and macros but does not import functions. Therefore, we recommend using functions through the `prelude::rt` module. For example, using the `sin` function:
 
+```rust
+use rstsr::prelude::*;
+
+// After defining tensor `a`
+let b: Tensor<f64, _> = rt::sin(&a);
+```
+
+### 2. Resolving Naming Conflicts
+
+In some cases, you might want to avoid importing everything from `rstsr::prelude` due to naming conflicts:
+- You are using multiple tensor libraries, and another library uses common type names like `Tensor`.
+- You need to use some functionalities from the standard library (e.g., `std::alloc::Layout`), but the name is already used by RSTSR.
+
+In these cases, you can:
+- Use `use rstsr::prelude::*` and then specify the source of conflicting types explicitly.
+- Only import `use rstsr::prelude::rt` and call RSTSR's built-in types through `rt::Tensor`, `rt::Layout`, etc.
+
+## RSTSR Library Structure
+
+The RSTSR framework consists of many sub-libraries.
+
+### 1. Integration Library: rstsr
+
+The `rstsr` library serves as an integration of other sub-libraries. Its code is primarily in `prelude.rs`. This library provides some Cargo features to set compilation options for sub-libraries (e.g., `rstsr-core`, `rstsr-openblas`, etc.) within `rstsr`.
+
+Since the `rstsr` library itself contains no actual code, calling code through the integration library `rstsr` is equivalent to calling it from sub-libraries like `rstsr-core` or `rstsr-linalg-traits`. For example:
+
+```rust file=../../listings/features-default/tests/installation.rs anchor=rstsr_1
+```
+
+Using sub-libraries yields equivalent results:
+
+```rust file=../../listings/features-default/tests/installation.rs anchor=rstsr_2
+```
+
+### 2. Core Library: rstsr-core
+
+The main functionalities of `rstsr-core` include:
+- Defining the basic tensor data structure.
+- Defining important backend (device) interfaces to ensure different backends follow similar computation rules.
+- Implementing basic tensor operations and computations based on these backend interfaces.
+- Implementing single-threaded CPU and multi-threaded Faer backends.
+
+Design-wise, `rstsr-core` aims to implement most of the Python Array API standard, equivalent to NumPy's basic functionalities (excluding advanced features like linear algebra or sparse matrices).
+
+### 3. Extension Libraries
+
+Extension libraries supplement the functionalities of the core library `rstsr-core`. Current extension libraries include:
+- `rstsr-linalg-traits`: Linear algebra interfaces similar to NumPy or SciPy, along with partial implementations of BLAS backends.
+- `rstsr-blas-traits`: BLAS backend interfaces and partial implementations.
+
+### 4. Backend Libraries
+
+Backend libraries implement the interfaces of the core library `rstsr-core` and extension libraries. Current backend libraries include:
+- `rstsr-openblas`: Implements the OpenBLAS backend, which is the primary backend under development for RSTSR.
+- `rstsr-hdf5`: Currently not fully implemented; this backend will only support read/write functionalities, not computations.
+
+### 5. Other Support Libraries
+
+The above four categories are the main classifications of RSTSR. Other libraries within the RSTSR framework include:
+- `rstsr-dtype-traits`: For handling data type interfaces that the [num](https://docs.rs/num/latest/num/) crate cannot or struggles to handle.
+- `rstsr-openblas-ffi`: FFI required for the OpenBLAS backend.
+
+## Cargo.toml and build.rs Configuration Guide
+
+:::info Configuration Methods May Change in the Future
+
+Currently, the Cargo.toml configuration for RSTSR is still being refined. This includes:
+- Not all sub-library features are fully integrated into the `rstsr` library's features.
+- The OpenBLAS backend is not yet integrated into the `rstsr` library's prelude.
+
+As RSTSR evolves, we will further improve its features, which may affect how users write their Cargo.toml and build.rs files.
+
+:::
+
+### 1. rstsr
+
+The integration library `rstsr` and the core library `rstsr-core` share the following features:
+
+- `std`: Whether to use the Rust standard library. The `rstsr` and `rstsr-core` libraries are not written using the Rust standard library but require the Rust core library [core](https://doc.rust-lang.org/stable/core/) and the heap management library [alloc](https://doc.rust-lang.org/stable/alloc/). This means RSTSR could potentially be used in embedded systems with memory allocation capabilities.
+- `rayon`: Whether to enable Rayon parallel functionality. If using high-performance backends like Faer or OpenBLAS, this option is enabled by default. For scientific computing, enabling this option is strongly recommended to efficiently handle memory-bound computations.
+- `faer`: Whether to compile the Faer library in the core library `rstsr-core`. This option is enabled by default. However, for efficiency or compilation time considerations, if the user primarily uses the BLAS backend and does not require other CPU backends, this option can be disabled.
+- `faer_as_default`: Whether to set Faer as the default backend.
+- `dispatch_dim_layout_iter`: Enables dynamic-to-static dimension dispatching in internal operator implementations. Although not zero-cost, this significantly improves inefficiencies caused by dynamic dimension tensor indexing. This option increases the compilation time of `rstsr-core` and is recommended to be disabled during debugging (debug) and enabled during release.
+
+Features exclusive to the integration library `rstsr` include:
+
+- `linalg`: Whether to compile `rstsr-linalg-traits` to enable linear algebra functionalities in `rt::linalg`.
+
+The default backends supported by `rstsr-core` are implemented purely in Rust, so no special build.rs setup is required.
+
+### 2. rstsr-openblas
+
+This library is not mandatory for users. It is only required if the user needs a BLAS backend.
+
+- `linalg`: Whether to compile `rstsr-linalg-traits` to implement linear algebra interfaces.
+- `ilp64`: Whether the integer type in BLAS is `int32_t` or `int64_t`. For example, OpenBLAS compiled with default options on Linux systems typically uses `int32_t`; in such cases, this option does not need to be enabled.
+- `openmp`: Whether to add support for OpenMP-compiled OpenBLAS. This compilation option requires users to include the OpenMP library in build.rs or `RUSTFLAGS`. Generally, this option is recommended. If the user is certain that the linked OpenBLAS uses pthread for parallelism, this option can be skipped; however, note that OpenBLAS generally performs better with OpenMP parallelism.
+
+To make the OpenBLAS backend work, users need to manually include the following lines in their project's build.rs:
+
+```rust
+// in build.rs
+// if your library is named `libopenblas.so`
+println!("cargo:rustc-link-lib=openblas");
+// if your openblas is compiled with OpenMP (but not pthread)
+//    and your openmp is GNU's distribution
+println!("cargo:rustc-link-lib=gomp");
+```
+
+Alternatively, include these libraries in the `RUSTFLAGS` environment variable.
