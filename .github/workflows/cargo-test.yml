@@ -3,7 +3,7 @@ name: rstsr-openblas tests
 on:
   push:
     branches:
-    - master
+    - main
   pull_request:
 
 jobs:
@@ -11,12 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - uses: conda-incubator/setup-miniconda@v2
     - name: install dependencies
       run: sudo apt-get install -y libopenblas-openmp-dev
-    - name: conda environment setup
-      run: |
-        conda init; source $HOME/.bashrc; conda activate
-        conda install -y numpy scipy
     - name: test
       run: RSTSR_DEV=1 cargo test
