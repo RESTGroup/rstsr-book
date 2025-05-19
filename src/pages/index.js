@@ -14,6 +14,11 @@ function HomepageHeader() {
   return (
     <header className={clsx('hero hero--primary', styles.heroBanner)}>
       <div className="container">
+        <img
+          alt="RSTSR logo"
+          src="img/logo-3-white.png"
+          style={{ maxHeight: '200px' }}
+        ></img>
         <Heading as="h1" className="hero__title">
           {siteConfig.title}
         </Heading>
