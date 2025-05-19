@@ -1,0 +1,177 @@
+---
+description: ""
+---
+
+import useBaseUrl from '@docusaurus/useBaseUrl';
+
+# 张量与 Rust 类型相互转换
+
+该文档的一部分内容已经在前面两节 ([张量创建](01-tensor_creation) 与 [张量解构与所有权](02-structure_and_ownership)) 中有所说明。特别是 [张量结构与所有权](02-structure_and_ownership)，其内容倾向于通过一些代码，解释 RSTSR 的特性。
+
+用户在使用张量库时，很多时候需要与其他类型 (包括 `Vec<T>`, `&[T]` 或 Faer 等其他线性代数库) 作交互。这一节从程序使用的角度，尽可能系统阐述 RSTSR 张量与其他 Rust 类型的相互转换可以怎样实现。
+
+该文档仅针对 CPU 后端成立。目前尚未实现其他类型后端；对于未来的 RSTSR，下述文档不一定适用于其他类型后端。
+
+## 1. 与 `Vec<T>` 的相互转换
+
+### 1.1 From `Vec<T>`：asarray
+
+RSTSR 的张量 `Tensor<T, B, D>` 可以通过 `rt::asarray` 函数，读入向量原始数据、维度、设备等信息给出。`rt::asarray` 函数具有多种重载，我们未来会在 API 文档中作详细说明。
+
+下述程序可以将原始数据储存为 (2, 3) 维度的、在 16 核并行的 OpenBLAS 设备下的张量；需要注意，该程序在 row-major 与 col-major 下有不同的行为：
+```rust file=../../listings/features-default/tests/tensor_rust_conversion.rs anchor=example_from_vec_by_asarray
+```
+
+### 1.2 From `Vec<T>`：从头构建
+
+如前一节所述，RSTSR 的张量实际上具有多层结构。`rt::asarray` 函数尽管非常直观，但它掩盖了构造 RSTSR 张量的具体过程。
+
+下述程序展示了 RSTSR 实际上是如何一步一步地，从基础的 `Vec<T>` 数据存储单元，构建完整的张量的具体过程。
+```rust file=../../listings/features-default/tests/tensor_rust_conversion.rs anchor=example_from_vec_by_scratch
+```
+
+### 1.3 Into `Vec<T>`：into_vec 函数
+
+对于 CPU 后端，该函数可以将 1-D 张量存储为 `Vec<T>` 向量。
+
+请留意，该函数有如下**副作用**：
+
+- 该函数禁止处理 2-D 等高维张量转为向量：
+
+    <div className="ferris-overlay">
+    ```rust file=../../listings/features-default/tests/tensor_rust_conversion.rs anchor=example_into_vec_by_into_vec_failed
+    ```
+    <img src={useBaseUrl("/img/ferris/does_not_compile.svg")} alt="does_not_compile" title="无法编译！" /> </div>
+
+    如果您确实希望将 2-D 等高维张量转为向量，您首先需要先进行 `into_shape` 或 `into_contig` 以转为 1-D 张量。
+
+- 对于 `Tensor<T, B, D>` 类型，即占有数据的张量类型，该函数通常不会复制数据，即几乎没有运行代价；
+
+    ```rust file=../../listings/features-default/tests/tensor_rust_conversion.rs anchor=example_into_vec_by_into_vec
+    ```
+
+    但如果 offset 非零、stride 非一、底层数据长度与维度信息不相等，那么仍然会复制数据：
+
+    ```rust file=../../listings/features-default/tests/tensor_rust_conversion.rs anchor=example_into_vec_by_into_vec_cloned
+    ```
+
+- 对于引用类型 (如 `TensorView<'_, T, B, D>`)，该函数会复制数据。
+
+### 1.4 Into `Vec<T>`：自顶解构
+
+这部分讨论仅针对 `Tensor<T, B, D>` 即占有数据的张量类型。
+
+RSTSR 的张量可以以 `Vec<T>` 为起点从头构建，也可以从 `Tensor<T, B, D>` 自顶解构。解构张量需要运行两次 `into_raw_parts` 与一次 `into_raw`：
+
+```rust file=../../listings/features-default/tests/tensor_rust_conversion.rs anchor=example_into_vec_destruct
+```
+
+但需要指出，该函数也有**副作用**。该函数仅仅返回其底层储存数据所用的向量，而不关心向量是以怎样的 layout 储存的。对于任意维度的 (包括 2-D 等高维度的) 张量，这种 `into_raw_parts` 也可以分解出 `Vec<T>` 的数据；但这段数据与 `into_vec` 函数所给出的数据未必是一致的。这可以通过 stride 不为 1 的张量作为例子展示：
+
+```rust file=../../listings/features-default/tests/tensor_rust_conversion.rs anchor=example_into_vec_destruct_warn
+```
+
+因此，如果要通过自顶解构的方式得到 `Vec<T>`，用户需要自行保证该张量或向量的 layout 也是符合预期的。
+
+### 1.5 To `Vec<T>`：to_vec 函数
+
+该函数与 `into_vec` 函数基本一致，包括其使用方式与副作用。该函数不破坏传入的张量，但必然会复制内存。
+
+## 2. 与 `&[T]`/`&mut [T]` 或指针类型的相互转换
+
+在 Rust 中，`&[T]` (或 `&mut [T]`) 与指针类型是非常相似的：`&[T]` 相对于指针多一个长度的保证。因此，在具有 Rust 下 `*const T` 与 `usize` 的长度的信息的情况下，其处理的思路与 `&[T]` 是完全一致的。
+
+### 2.1 From `&[T]`：asarray
+
+与 `Vec<T>` 类似地，RSTSR 的张量视窗 `TensorView<'_, T, B, D>` 可以通过 `rt::asarray` 函数给出。但与 `Vec<T>` 不同地，它返回的是张量视窗 `TensorView<'_, T, B, D>` 而非占有数据的张量本身 `Tensor<'_, T, B, D>`。需要注意，该程序在 row-major 与 col-major 下有不同的行为：
+
+```rust file=../../listings/features-default/tests/tensor_rust_conversion.rs anchor=example_from_ref_by_asarray
+```
+
+同样地，`&mut [T]` 通过类似程序可以给出可变视窗 `TensorMut<'_, T, B, D>`。
+
+### 2.2 From `&[T]`：从头构建
+
+这里的思路与 `Vec<T>` 从头构建是一致的。但需要注意，RSTSR 的 CPU 后端在面对引用类型时，始终是 `&Vec<T>` 而非 `&[T]` 进行处理[^1]。因此，在 RSTSR 中，我们要求首先自 `&[T]` 类型构建 `Vec<T>`；该向量将不自动进行析构、且有声明周期标注。具体来说，
+
+```rust file=../../listings/features-default/tests/tensor_rust_conversion.rs anchor=example_from_ref_by_scratch
+```
+
+同样地，`&mut [T]` 通过类似过程可以给出可变视窗 `TensorMut<'_, T, B, D>`。
+
+[^1]: RSTSR 对引用类型的存储，与目前绝大多数矩阵或张量库不同。高级用户可能会对下述讨论感兴趣。
+
+    :::info **关于张量视窗类型的底层存储**
+
+    RSTSR 采用比较简单的方式对占有与引用类型作储存：
+    ```rust
+    pub struct DataOwned<C> {
+        pub(crate) raw: C,
+    }
+
+    pub enum DataRef<'a, C> {
+        TrueRef(&'a C),
+        ManuallyDropOwned(ManuallyDrop<C>),
+    }
+    ```
+    其中，对于 CPU 后端，上述泛型参数 `C` 一般指代 `Vec<T>`。这么做的方便之处，在于生命周期的定义清晰，所有一切都可以用 `Vec<T>` 描述，对于库开发非常便利。
+
+    但从定义上，引用类型不应该是 `&Vec<T>`，而应该是 `&[T]` (同时参考 clippy [`ptr_arg`](https://rust-lang.github.io/rust-clippy/master/index.html#ptr_arg))。指针 `*const T`、长度、生命周期也可以共同表示对一段内存的引用 `&[T]`。包括 ndarray、Faer、nalgebra 在内的绝大多数矩阵与张量库是通过这种方式定义引用类型的。
+
+    很难说对于这两种方法，哪一种更好。但考虑到 RSTSR 的后端未必是 CPU，底层数据可能是硬盘或 GPU 中储存；而硬盘或 GPU 的引用类型未必可以用 `&[T]` 或指针描述。因此，RSTSR 目前采用 `&Vec<T>` 表示引用类型。这么做的副作用是当用户只有 `&[T]` 而没有对应的 `Vec<T>` 的数据时，用户必须要先将 `&[T]` 通过 ManuallyDrop 的方式手动泄漏内存 (以避免 double free)，构建不会析构的 `Vec<T>` 类型，随后再对其引用。
+
+    `rt::asarray` 作为高级函数，将 `&[T]` 通过 ManuallyDrop 转为 `Vec<T>` 的过程封装了起来。这对一般的数据类型 (如 `f64`, `Complex<f64>`) 一般不会有什么影响；但对于具有析构过程的类型，用户在使用 RSTSR 时可能需要多作留意。
+
+    :::
+
+### 2.3 To `&Vec<T>`：raw 函数
+
+我们可以返回底层数据所对应的引用：
+
+```rust file=../../listings/features-default/tests/tensor_rust_conversion.rs anchor=example_to_ref_by_raw
+```
+
+这实际上与自顶解构得到 `Vec<T>` 是一样的，只是我们只需要获得引用而不需要解构张量，因此可以有一个更为简单的函数 `raw` 来实现这一点。
+
+同样地，对于占有数据的张量 `Tensor<T, B, D>`、或可变视窗 `TensorMut<'_, T, B, D>`，通过函数 `raw_mut` 可以得到可变引用 `&mut Vec<T>`。
+
+同时，该函数也具有**副作用**。
+
+:::warning **RSTSR 不检查 `raw` 函数导出的 `&Vec<T>` 是否符合 layout**
+
+这一点与自顶解构得到 `Vec<T>` 是一样的。RSTSR 仅仅返回数据的引用；至于它是否符合 layout 的规则 (譬如 c/f-contiguous)，其引用的第一个元素是否就指代了张量对应的第一个元素，则需要由用户去保证。
+
+从这个角度出发，使用 `raw` 函数是有风险的；但它不涉及内存安全，因此该函数没有被视为 unsafe。但用户在使用 `raw` 函数时，仍然需要格外仔细。
+
+一种非常典型的调用错误 (库开发者自己出现过的失误) 是，用户没有合理地在指针上增加 offset。我们从下述 Cholesky 分解问题作为例子，解释这一情况。假设我们有如下 $3 \times 3$ f-contiguous 矩阵：
+
+```rust file=../../listings/features-default/tests/tensor_rust_conversion.rs anchor=example_raw_error_usage_1
+```
+
+如果我们想对右下角 $2 \times 2$ 部分，给出其下三角 Cholesky 分解，则在 RSTSR 中的标准做法是
+
+```rust file=../../listings/features-default/tests/tensor_rust_conversion.rs anchor=example_raw_error_usage_2
+```
+
+假设我们出于其他原因，需要通过其他 Rust 类型，传到 crate `lapack` 中作 Cholesky 分解。这件事在 RSTSR 中，通过 `raw_mut` 函数也是容易做到的；但**由于没有向 `raw_mut` 生成的切片增加合理的 offset，下述调用过程是错误的！**
+
+<div className="ferris-overlay">
+```rust file=../../listings/features-default/tests/tensor_rust_conversion.rs anchor=example_raw_error_usage_3
+```
+<img src={useBaseUrl("/img/ferris/not_desired_behavior.svg")} alt="not_desired_behavior" title="非预期行为！" /> </div>
+
+正确的做法需要向 `raw_mut` 后增加 offset，以保证传入 FFI 的指针指向了 `sub_mat` 的第一个元素：
+
+```rust file=../../listings/features-default/tests/tensor_rust_conversion.rs anchor=example_raw_error_usage_4
+```
+
+:::
+
+## 3. 与 Faer 类型的相互转换
+
+目前，RSTSR 也支持与少部分其他 Rust 类型作相互转换。
+
+对于 Faer 的 `MatRef` 与 `MatMut`，RSTSR 支持相互转换。以 `MatRef` 为例，由于其是引用类型，因此整个过程不涉及内存复制：
+
+```rust file=../../listings/features-default/tests/tensor_rust_conversion.rs anchor=example_rstsr_faer_conversion
+```

@@ -4,7 +4,7 @@ description: ""
 
 # 张量结构与所有权
 
-在 Rust 中，所有权和生命周期 (与视图的概念相关) 有严格的规则。了解数据 (譬如大量浮点数的内存) 是如何存储和处理的，以及一个变量是拥有还是引用这些数据，是非常重要的。
+在 Rust 中，所有权和生命周期 (与视窗的概念相关) 有严格的规则。了解数据 (譬如大量浮点数的内存) 是如何存储和处理的，以及一个变量是拥有还是引用这些数据，是非常重要的。
 
 作为一个张量库，我们也希望有一些统一的 API 函数或操作，能够同时处理拥有数据本体、和引用数据的张量的计算。通俗地说，NumPy 非常方便，我们可能希望在 Rust 中以类似 Python 的方式编写代码。
 
@@ -62,7 +62,7 @@ let a: Tensor<f64> = rt::zeros([3, 4]);
 - `into_owned` 也生成 `Tensor<T, B, D>`。
     - 此函数与 `into_owned_keep_layout` 不同，因为 `into_owned` 仅在张量的 layout 覆盖所有内存 (内存块的大小与张量 layout 的大小相同) 时不会复制内存。对任何非平凡的张量切片调用 `into_owned` 都会导致内存复制。
     - 还要注意，如果您只想将内存缩小到张量的一个切片，使用 `into_owned` 更合适。
-    - 对于 `TensorView` 和 `TensorMut`，使用 `into_owned` 会比 `into_owned_keep_layout` 复制更少的内存。因此，对于张量视图，`into_owned` 更可取。
+    - 对于 `TensorView` 和 `TensorMut`，使用 `into_owned` 会比 `into_owned_keep_layout` 复制更少的内存。因此，对于张量视窗，更建议使用 `into_owned`。
 - `into_cow` 生成 `TensorCow<'l, T, B, D>`。
     - 此函数没有任何成本。
 - `into_shared_keep_layout` 和 `into_shared` 生成 `TensorArc<'l, T, B, D>`。这与 `into_owned_keep_layout` 和 `into_owned` 类似。
