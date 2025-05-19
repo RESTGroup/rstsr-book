@@ -11,8 +11,12 @@
     "message": "GitHub",
     "description": "Navbar item with label GitHub"
   },
-  "item.label.Development Document": {
-    "message": "开发文档",
-    "description": "Navbar item with label Development Document"
+  "logo.alt": {
+    "message": "My Site Logo",
+    "description": "The alt text of navbar logo"
+  },
+  "item.label.Dev Document": {
+    "message": "开发者文档",
+    "description": "Navbar item with label Dev Document"
   }
 }

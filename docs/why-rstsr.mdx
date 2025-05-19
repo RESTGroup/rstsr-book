@@ -56,7 +56,7 @@ The double parentheses notation might confuse both Rust users and those coming f
 
 ### 3. Multi-Backend Device Support
 
-We currently support a single-threaded CPU backend (`DeviceCpuSerial`, basic operations and matrix multiplication), a Faer CPU backend (`DeviceFaer`, basic operations and matrix multiplication), and an OpenBLAS CPU backend (`DeviceOpenBLAS`, basic operations, matrix multiplication, and linear algebra). Design-wise, we have left interfaces for other backends, hoping to implement GPU backends, disk read/write backends, etc., under a unified framework in the future.
+We currently support a single-threaded CPU backend (`DeviceCpuSerial`, basic operations and matrix multiplication), a Faer CPU backend (`DeviceFaer`, basic operations, matrix multiplication, and linear algebra), and an OpenBLAS CPU backend (`DeviceOpenBLAS`, basic operations, matrix multiplication, and linear algebra). Design-wise, we have left interfaces for other backends, hoping to implement GPU backends, disk read/write backends, etc., under a unified framework in the future.
 
 ### 4. Parallel Invocation of Matrix Multiplication or BLAS
 

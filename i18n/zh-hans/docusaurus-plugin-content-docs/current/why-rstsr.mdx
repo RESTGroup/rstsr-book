@@ -57,7 +57,7 @@ let d = &b * &a; // elementwise multiplication (依元素数乘)
 
 ### 3. 多后端设备支持
 
-我们目前支持单线程 CPU 后端 (`DeviceCpuSerial`，基本运算与矩阵乘法)，Faer CPU 后端 (`DeviceFaer`，基本运算与矩阵乘法)、OpenBLAS CPU 后端 (`DeviceOpenBLAS`，基本运算、矩阵乘法与线性代数)。从设计上，我们尽量留出了给其他后端的接口，从而在未来我们有希望在统一的框架下，实现 GPU 后端、硬盘存读后端等。
+我们目前支持单线程 CPU 后端 (`DeviceCpuSerial`，基本运算与矩阵乘法)，Faer CPU 后端 (`DeviceFaer`，基本运算、矩阵乘法与线性代数)、OpenBLAS CPU 后端 (`DeviceOpenBLAS`，基本运算、矩阵乘法与线性代数)。从设计上，我们尽量留出了给其他后端的接口，从而在未来我们有希望在统一的框架下，实现 GPU 后端、硬盘存读后端等。
 
 ### 4. 并行调用矩阵乘法或 BLAS
 

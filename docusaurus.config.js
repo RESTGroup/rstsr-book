@@ -11,11 +11,27 @@ import parseArgs from './src/remark-code-spinnets';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
+// https://docusaurus.io/docs/api/docusaurus-config#using-environment-variables
+// https://github.com/facebook/docusaurus/discussions/4480
+function getSiteTitle() {
+  switch(process.env.DOCUSAURUS_CURRENT_LOCALE) {
+    case "zh-hans": return "RSTSR: n-维 Rust 张量程序库";
+    default: return "RSTSR: An n-Dimensional Rust Tensor Toolkit";
+  }
+}
+
+function getSiteTagline() {
+  switch(process.env.DOCUSAURUS_CURRENT_LOCALE) {
+    case "zh-hans": return "快速、直观、可扩展的原生 Rust 科学计算工具包";
+    default: return "Fast, Intuitive, Extensible for scientific computation in native Rust.";
+  }
+}
+
 /** @type {import('@docusaurus/types').Config} */
 const config = {
-  title: 'RSTSR: An n-Dimension Rust Tensor Toolkit',
-  tagline: 'Try to be Fast, Intuitive, Extensible for scientific computation in native Rust.',
-  // favicon: 'img/favicon.ico',
+  title: getSiteTitle(),
+  tagline: getSiteTagline(),
+  favicon: 'img/logo-64.ico',
 
   // Set the production url of your site here
   url: 'https://rstsr-book.readthedocs.io',
@@ -98,11 +114,11 @@ const config = {
       // Replace with your project's social card
       image: 'img/docusaurus-social-card.jpg',
       navbar: {
-        title: 'RSTSR Document',
-        // logo: {
-        //   alt: 'My Site Logo',
-        //   src: 'img/logo.svg',
-        // },
+        // title: 'Document',
+        logo: {
+          alt: 'My Site Logo',
+          src: 'img/logo-2.png',
+        },
         items: [
           {
             type: 'docSidebar',
@@ -115,7 +131,7 @@ const config = {
             sidebarId: 'devDocSidebar',
             docsPluginId: 'dev',
             position: 'left',
-            label: 'Development Document',
+            label: 'Dev Document',
           },
           // {to: '/blog', label: 'Blog', position: 'left'},
           {
@@ -189,8 +205,10 @@ const config = {
   themes: [
     // ... Your other themes.
     [
+      // @ts-ignore
       require.resolve("@easyops-cn/docusaurus-search-local"),
       /** @type {import("@easyops-cn/docusaurus-search-local").PluginOptions} */
+      // @ts-ignore
       ({
         // ... Your options.
         // `hashed` is recommended as long-term-cache of index file is possible.

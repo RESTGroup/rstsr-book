@@ -6,5 +6,9 @@
   "sidebar.userDocSidebar.category.Fundamentals": {
     "message": "基本使用文档",
     "description": "The label for category Fundamentals in sidebar userDocSidebar"
+  },
+  "sidebar.userDocSidebar.category.基本使用文档": {
+    "message": "基本使用文档",
+    "description": "The label for category 基本使用文档 in sidebar userDocSidebar"
   }
 }
