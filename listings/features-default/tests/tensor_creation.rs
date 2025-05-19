@@ -207,7 +207,7 @@ fn example_zeros_01() {
     // generate tensor with custom device
     // note: the third type annotation refers to device type, hence is required if not default device
     // Tensor<f64, Ix2, DeviceCpuSerial>
-    let tensor: Tensor<f64, _> = rt::zeros(([3, 4], &DeviceCpuSerial));
+    let tensor: Tensor<f64, _> = rt::zeros(([3, 4], &DeviceCpuSerial::default()));
     println!("{:}", tensor);
     // output:
     // [[ 0 0 0 0]

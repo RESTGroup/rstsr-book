@@ -11,7 +11,7 @@ fn rstsr_1() {
     let a = rt::linspace((-1.0, 1.4, 1048576, &device)).into_shape([1024, 1024]).tan();
     let a = &a + &a.t();
     // evaluate the eigenvalues and eigenvectors
-    let (a_eig, a_vec) = rt::linalg::eigh(&a);
+    let (a_eig, a_vec) = rt::linalg::eigh(&a).into();
     println!("eig\n{:10.6}", a_eig);
     println!("vec\n{:10.6}", a_vec);
     // ANCHOR_END: rstsr_1
@@ -32,7 +32,7 @@ fn rstsr_2() {
     let a = rt::linspace((-1.0, 1.4, 1048576, &device)).into_shape([1024, 1024]).tan();
     let a = &a + &a.t();
     // evaluate the eigenvalues and eigenvectors
-    let (a_eig, a_vec) = eigh(&a);
+    let (a_eig, a_vec) = eigh(&a).into();
     println!("eig\n{:10.6}", a_eig);
     println!("vec\n{:10.6}", a_vec);
     // ANCHOR_END: rstsr_2
