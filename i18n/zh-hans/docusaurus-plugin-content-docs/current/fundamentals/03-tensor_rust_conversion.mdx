@@ -6,7 +6,7 @@ import useBaseUrl from '@docusaurus/useBaseUrl';
 
 # 张量与 Rust 类型相互转换
 
-该文档的一部分内容已经在前面两节 ([张量创建](01-tensor_creation) 与 [张量解构与所有权](02-structure_and_ownership)) 中有所说明。特别是 [张量结构与所有权](02-structure_and_ownership)，其内容倾向于通过一些代码，解释 RSTSR 的特性。
+该文档的一部分内容已经在前面两节 ([张量创建](01-tensor_creation.mdx) 与 [张量解构与所有权](02-structure_and_ownership.mdx)) 中有所说明。特别是 [张量结构与所有权](02-structure_and_ownership.mdx)，其内容倾向于通过一些代码，解释 RSTSR 的特性。
 
 用户在使用张量库时，很多时候需要与其他类型 (包括 `Vec<T>`, `&[T]` 或 Faer 等其他线性代数库) 作交互。这一节从程序使用的角度，尽可能系统阐述 RSTSR 张量与其他 Rust 类型的相互转换可以怎样实现。
 
