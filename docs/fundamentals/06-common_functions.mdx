@@ -1,51 +1,155 @@
----
-description: ""
+Here's the translation of the provided mdx documentation:
+
+---  
+description: ""  
 ---
 
 import useBaseUrl from '@docusaurus/useBaseUrl';
 
 # Common Functions
 
-:::warning We will improve further for this part
+## 1. Common Elementwise Functions
 
-Current RSTSR implements many common functions, and that can cover lots of common usage as a tensor algebra library.
-However, there are still many features that has not implemented.
+In RSTSR, most functions required by the [Python Array API](https://data-apis.org/array-api/2023.12/API_specification/elementwise_functions.html) have been implemented. They can mostly be called either as regular Rust functions or as associated methods.
 
-:::
-
-## 1. Elementwise Functions
-
-For RSTSR, most functions declared in [Python Array API](https://data-apis.org/array-api/2023.12/API_specification/elementwise_functions.html) has been implemented.
-Most of them can be called as regular rust function, or as associated methods:
+For example, under row-major ordering, elementwise comparison between two tensors can be performed following broadcasting rules:
 
 ```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_elem_01
 ```
 
-Note that some exceptions that can only called by associated methods `tensor.method(...)`, and cannot be called as regular rust functions `rt::method(tensor, ...)` currently. These exceptions includes
-- unary functions `.abs()`, `.real()`, `.imag()`, `.sign()`;
-- binary function `.pow()`.
-
-Consequently, for example `.abs()`, following code is valid:
+Similarly, sine calculation can be applied to a tensor:
 
 ```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_elem_02
 ```
 
-However, RSTSR does not have `abs` function.
+:::info Some binary elementwise functions have shorthand names
 
-As a take home message, if not sure how to use elementwise functions, use the associated `tensor.method(...)`.
+Common binary functions include exponentiation `pow`, floor division `floor_divide`, greater-than-or-equal `greater_equal`, etc. Among these, comparison binary functions typically have shorthand names; for example, `greater_equal` can be abbreviated as `ge`.
+
+Binary functions with shorthand names generally cannot be called as associated methods (to avoid conflicts with traits like `PartialOrd`), but can be called as regular Rust functions.
+
+```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_elem_03
+```
+
+:::
+
+:::info Some unary functions will consume the input `Tensor`
+
+In RSTSR, almost all functions allow passing `&TensorAny` or `TensorView` as input; in such cases, the original tensor remains unchanged and is not consumed.
+
+However, for certain computations (including arithmetic operations covered in the [previous section](05-arithmetics_and_broadcasting.mdx)), passing owned `Tensor` data is also allowed. Depending on the situation, the underlying data may be modified, making the tensor unusable afterward. This applies to many unary functions in RSTSR as well, so ownership considerations are important when using them.
+
+Take the sine function as an example:
 
 <div className="ferris-overlay">
 ```rust
-    rt::abs(&a) // RSTSR does not have `abs` as function
-
-    // This is due to different implementation for real and complex numbers.
-    // For real types, both `abs(&a)` and `abs(a)` works; latter one is inplace absolute;
-    // - implemented trait TensorRealAbsAPI
-    // For complex types, only `abs(&a)` works.
-    // - implemented trait TensorComplexAbsAPI
+let b = rt::asarray(vec![3., 4.]);
+let c = rt::sin(b);
+let d = rt::cos(b);
 ```
-<img src={useBaseUrl("/img/ferris/does_not_compile.svg")} alt="does_not_compile" title="Does Not Compile!" /> </div>
+<img src={useBaseUrl("/img/ferris/does_not_compile.svg")} alt="does_not_compile" title="Won't compile!" /> </div>
+
+This will trigger an error message, where the compiler's hint is valuable:
+
+```
+error[E0382]: use of moved value: `b`
+   |
+   |     let b = rt::asarray(vec![3., 4.]);
+   |         - move occurs because `b` has type `...`, which does not implement the `Copy` trait
+   |     let c = rt::sin(b);
+   |                     - value moved here
+   |     let d = rt::cos(b);
+   |                     ^ value used here after move
+   |
+help: consider borrowing `b`
+   |
+   |     let c = rt::sin(&b);
+   |                     +
+```
+
+:::
 
 ## 2. Mapping Functions
 
+Although RSTSR implements many elementwise functions, we cannot possibly implement them all. For tensors on CPU devices, we provide mapping functions (with names containing "map") to meet users' customized mapping needs.
 
+### 2.1 Unary Mapping
+
+Here's an example calculating the Gamma function. We use the `mapv` function for mapping. Note that while this function can be chained, RSTSR doesn't support lazy evaluation, so chained functional calls to `mapv` won't be more efficient:
+
+```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_map_01
+```
+
+:::info Correspondence with NumPy
+
+In NumPy, the similar function would be `np.vectorize`. The above code can be equivalently written in NumPy as:
+
+```python
+import numpy as np
+import scipy
+
+a = np.linspace(1.0, 10.0, 4096 * 4096)
+f = np.vectorize(scipy.special.gamma)
+b = f(a)
+```
+
+Although functionally similar, the motivations behind NumPy's and RSTSR's (or crate ndarray's) implementations differ slightly.
+
+RSTSR's map functions are purely for function mapping, not for any instruction-level vectorization (SIMD). However, RSTSR still performs certain optimizations:
+- Mapping is executed along the most contiguous dimension possible;
+- Parallel processing is enabled for large tensors.
+
+Even without RSTSR, users could achieve similar efficiency by manually implementing parallel loops on `Vec<T>`, though with slightly more complex code.
+
+For NumPy, since Python's native for-loops are very slow, when mappings become moderately complex, NumPy's accelerated mapping functions using CPython techniques become necessary to maintain performance. Without using Python dialects (like Numba, JAX) or strategies like CPython/ctypes for acceleration, users have few alternatives beyond `np.vectorize`.
+
+:::
+
+### 2.2 Mutable Unary Mapping
+
+For mutable `Tensor` and `TensorMut` types, RSTSR also provides the `mapvi` function to perform in-place mapping without allocating new memory:
+
+```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_map_02
+```
+
+### 2.3 Binary Mapping
+
+For binary mapping, RSTSR provides the `mapvb` function:
+
+```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_map_03
+```
+
+## 3. Reduction Operations
+
+RSTSR currently supports several reduction operations, including summation, maximum value, standard deviation, etc. Adding the `_axes` suffix allows reduction along specific dimensions.
+
+```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_reduction_01
+```
+
+For higher-dimensional tensors, the `_axes` functions can also accept arrays specifying which dimensions to reduce:
+
+```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_reduction_02
+```
+
+As a special case, `Tensor<bool, B, D>` can also undergo `sum` or `sum_axes` operations, where `true` counts as 1 and `false` as 0:
+
+```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_reduction_03
+```
+
+## 4. Linear Algebra (linalg)
+
+Currently, RSTSR supports some linear algebra functionality from NumPy and SciPy. Typical linear algebra problems include Hermitian matrix eigenvalue problems, SVD decomposition, Cholesky decomposition, etc.
+
+```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_linalg_01
+```
+
+:::info Slight differences in linear algebra capabilities across backends
+
+Currently, RSTSR primarily develops for the `DeviceOpenBLAS` and `DeviceFaer` backends, with focus on the former. `DeviceOpenBLAS` typically implements more functionality, including but not limited to:
+- Generalized eigenvalue problems `rt::linalg::eigh(&a, &b)`;
+- Triangular matrix solving `rt::linalg::solve_triangular(&a, &b)`;
+- Solving eigenvalue problems by reusing memory through mutable references `rt::linalg::eigh(a.view_mut())` (similar to SciPy's `overwrite_a` option).
+
+Although `DeviceFaer` currently lacks some features, as a pure Rust backend, it offers greater portability compared to `DeviceOpenBLAS`.
+
+:::

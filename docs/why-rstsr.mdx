@@ -12,6 +12,8 @@ We developed RSTSR to provide a scientific computing solution in the native Rust
 - **Intuitive**: Offering a more user-friendly programming experience and higher code readability.
 - **Extensible**: Allowing the extension of tensor computation capabilities or backends in independent external crates.
 
+We hope to offer similar using experience of NumPy, in native Rust language.
+
 ## Basic Features
 
 Here, a tensor is equivalent to an n-dimensional array. Referencing the [Python Array API standard](https://data-apis.org/array-api/latest/), we have implemented the most crucial features found in [NumPy](https://numpy.org/) or [ndarray](https://github.com/rust-ndarray/ndarray/), including:
@@ -19,7 +21,7 @@ Here, a tensor is equivalent to an n-dimensional array. Referencing the [Python 
 - Tensor computations: arithmetic operations, matrix multiplication, reduction operations like summation, and some linear algebra support (eigenvalues, matrix decomposition, vector solving).
 - Tensor manipulations: transposition, reshaping, broadcasting, etc.
 
-RSTSR **allows the use of negative values in indexing and reshape operations and supports broadcasting**, similar to NumPy. Currently, there are very few tensor tools in the Rust community that offer these features.
+RSTSR **allows the use of negative values in indexing and reshape operations and supports broadcasting**, similar to NumPy. Currently, there are very few tensor tools in the Rust community that offer these features (currently, crate ndarray does not fully support basic indexing).
 
 RSTSR's internal implementation of operators **considers parallelism, ensuring high operational efficiency**. For parallel backends on CPU devices, if your computing device has an 8-core or higher CPU, RSTSR's operational efficiency is at least on par with NumPy, with some operations (such as those involving matrix transposition) being 2-10 times faster.
 
@@ -70,6 +72,20 @@ let c = &a % &b;
     let d = &a % &b;
 });
 ```
+
+### 5. Support for Row-Major and Column-Major Layouts  
+
+RSTSR supports both **row-major** (C-style) and **column-major** (Fortran-style) memory layouts. The default data arrangement can be configured using the crate features `row_major` or `col_major`. Additionally, the layout can be dynamically set at runtime via `device.set_default_order`.  
+
+:::warning **Different Reshape and Broadcast Rules for Row-Major vs. Column-Major**  
+
+In RSTSR, the rules for **reshape** and **broadcast** differ between layouts:  
+- **Row-major** follows **NumPy** conventions.  
+- **Column-major** follows **Julia** conventions.  
+
+This means that the same code may produce **different results** under row-major and column-major layouts—not just in terms of memory arrangement but also in computational output. We will document these differences in detail in future user guides. **Users must exercise caution when mixing row-major and column-major operations.**  
+
+:::
 
 :::info
 

@@ -12,6 +12,8 @@ sidebar_position: 1
 - Intutive：更友好的编程体验、更高的代码可读性；
 - Extensible：可以在独立的外部 crate 中扩展张量计算功能、或扩展后端。
 
+我们希望在 Rust 原生条件下，提供类似于 NumPy 的使用体验。
+
 ## 基本功能
 
 这里张量 (tensor) 等同于 n-D 向量 (n-dimensional array)。以 [Python Array API 标准](https://data-apis.org/array-api/latest/) 作为参考，我们实现了与 [NumPy](https://numpy.org/) 或 [ndarray](https://github.com/rust-ndarray/ndarray/) 最重要的功能；这包括
@@ -20,7 +22,7 @@ sidebar_position: 1
 - 张量计算：四则运算、矩阵乘法、求和等约化操作、部分线性代数支持 (本征值、矩阵分解、向量求解) 等。
 - 张量操作：转置、维度变化、广播等。
 
-RSTSR **允许在索引、reshape 等操作中使用负值，并且支持 broadcast (广播)**。这些功能与 NumPy 相同。在当前的 Rust 社群中，具有这些功能的张量工具屈指可数。
+RSTSR **允许在索引、reshape 等操作中使用负值，并且支持 broadcast (广播)**。这些功能与 NumPy 相同。在当前的 Rust 生态中，具有这些功能的张量工具屈指可数 (crate ndarray 目前不支持完整的 basic indexing)。
 
 RSTSR 内部实现算子时，**考虑到了对并行的引入，运行效率高**。对于 CPU 设备下的并行后端，如果您的计算设备是 8 核或以上的 CPU，那么 RSTSR 绝大多数运算效率与 NumPy 至少一致，部分运算 (例如涉及到矩阵转置的运算) 可以快 2-10 倍。
 
@@ -72,6 +74,22 @@ let c = &a % &b;
 });
 ```
 
+### 5. 支持行优先与列优先
+
+RSTSR 同时支持行优先 (row-major, C-style) 与列优先 (col-major, Fortran-style)。默认的数据排列规则可以通过 crate feature `row_major` 或 `col_major` 设置。在程序运行过程中，也可以通过 `device.set_default_order` 动态地进行设置。
+
+:::warning 行优先与列优先的 reshape, broadcast 等规则不同
+
+RSTSR 中，关于 reshape 与 broadcast 规则，
+- Row-major 参考 NumPy；
+- Col-major 参考 Julia。
+
+这会导致，对于相同的代码，row-major 与 col-major 的执行结果不仅在输出张量的排列上不同，**在结果上也可能不同**。我们以后将在用户文档中表明这一点。**用户需要对混用 row-major 与 col-major 的情况格外注意**。
+
+:::
+
+## 提示信息
+
 :::info
 
 RSTSR 目前的编写者主要由计算化学工作者。我们会优先实现电子结构方法对数学库所要求的功能。
@@ -85,4 +103,3 @@ RSTSR 仍然有不少待实现的目标。我们也希望未来在不增加使�
 我们必须要指明，RSTSR 固然有缺点，并且它未必是没有替代方案的。请参考文档 [为什么不使用 RSTSR](warning.mdx)。
 
 :::
-

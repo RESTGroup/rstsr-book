@@ -1,0 +1,153 @@
+---
+description: ""
+---
+
+import useBaseUrl from '@docusaurus/useBaseUrl';
+
+# 常用函数
+
+## 1. 常用依元素映射 (Elementwise) 函数
+
+在 RSTSR 中，许多 [Python Array API](https://data-apis.org/array-api/2023.12/API_specification/elementwise_functions.html) 所要求的函数都已经实现。它们大部分可以通过常规的 Rust 函数、或作为 associated methods 可以被调用。
+
+举例而言，在 row-major 前提下，依照 broadcast 规则可以进行两个张量之间的元素比较：
+
+```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_elem_01
+```
+
+也可以对一个张量作正弦值计算：
+
+```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_elem_02
+```
+
+:::info 部分二元 elementwise 函数具有简称
+
+常见的二元函数包括指数 `pow`、地板除法 `floor_divide`、大于等于 `greater_equal` 等等。其中，用于比较用途的二元函数，通常有简称；例如 `greater_equal` 可以简称为 `ge`。
+
+具有简称的二元函数，通常不能通过 associated methods 调用 (为避免与 `PartialOrd` 等 trait 冲突)；但可以通过普通的 Rust 函数调用。
+
+```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_elem_03
+```
+
+:::
+
+:::info 部分一元函数会对传入的 `Tensor` 作解构
+
+RSTSR 中，几乎所有函数都允许传入 `&TensorAny` 或 `TensorView` 作为输入；这种情况下，传入的张量本体不会更改或解构。
+
+但对于部分计算 (包括 [前一节](05-arithmetics_and_broadcasting.mdx) 中的四则运算等)，还同时允许传入占有数据的 `Tensor`；依情况该张量的底层数据会被更改，且用户后续无法再使用该张量。这对于 RSTSR 的不少一元函数也是如此；因此使用这些一元函数时，需要留意所有权的情况。
+
+以正弦函数为例，
+
+<div className="ferris-overlay">
+```rust
+let b = rt::asarray(vec![3., 4.]);
+let c = rt::sin(b);
+let d = rt::cos(b);
+```
+<img src={useBaseUrl("/img/ferris/does_not_compile.svg")} alt="does_not_compile" title="无法编译！" /> </div>
+
+这会跳出报错信息；对于该错误，编译器给出的提示是有价值的：
+
+```
+error[E0382]: use of moved value: `b`
+   |
+   |     let b = rt::asarray(vec![3., 4.]);
+   |         - move occurs because `b` has type `...`, which does not implement the `Copy` trait
+   |     let c = rt::sin(b);
+   |                     - value moved here
+   |     let d = rt::cos(b);
+   |                     ^ value used here after move
+   |
+help: consider borrowing `b`
+   |
+   |     let c = rt::sin(&b);
+   |                     +
+```
+
+:::
+
+## 2. 映射函数
+
+尽管 RSTSR 实现了许多 elementwise 函数；但我们不太可能对所有函数作实现。对于在 CPU 设备上的张量，我们提供了映射函数 (名称中含有 map 的函数)，以满足用户个性化的映射需求。
+
+### 2.1 一元映射
+
+下面是计算 Gamma 函数的例子。我们使用 `mapv` 函数作映射；该函数可以连续地执行，但需要注意，RSTSR 并不具备 lazy evaluation 的功能，因此连续地函数式地调用 `mapv` 迭代映射并不会更高效：
+
+```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_map_01
+```
+
+:::info 与 NumPy 的对应
+
+在 NumPy 中，类似的函数应是 `np.vectorize`。上述代码在 NumPy 中，可以等价地写为
+
+```python
+import numpy as np
+import scipy
+
+a = np.linspace(1.0, 10.0, 4096 * 4096)
+f = np.vectorize(scipy.special.gamma)
+b = f(a)
+```
+
+尽管功能上是相似的，但 NumPy 与 RSTSR (或 crate ndarray) 写出该函数的动机稍有不同。
+
+RSTSR 的 map 系列函数，单纯是进行函数映射，而不是作任何指令集层面的向量化操作 (SIMD)。尽管如此，RSTSR 还是会作部分性能上的优化：
+- 执行映射时会尽可能按最连续的维度进行；
+- 在张量较大时启用并行。
+
+但即使不使用 RSTSR，用户通过手动对 `Vec<T>` 作并行循环，也能达到一样的执行效率；这只会增加少许代码复杂程度。
+
+对于 NumPy，由于 Python 手动的 for 循环非常慢，因此当映射关系稍复杂时，就必须要用 NumPy 使用 CPython 等技术加速的映射函数，才能保证运行效率。用户在不借用 Python 方言 (Numba, JAX 等)、或不使用 CPython/ctypes 等策略加速的情况下，除了 `np.vectorize` 之外很难有其他办法。
+
+:::
+
+### 2.2 一元可变映射
+
+对可变的 `Tensor` 与 `TensorMut` 类型，RSTSR 也提供了 `mapvi` 函数，以在不分配新的内存的前提下，原地映射变更数值：
+
+```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_map_02
+```
+
+### 2.3 二元映射
+
+对于二元映射，RSTSR 也提供了 `mapvb` 函数：
+
+```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_map_03
+```
+
+## 3. 归约运算
+
+RSTSR 目前支持一部分归约运算。这包括求和、最大值、标准差等。增加后缀 `_axes` 可以对特定维度作归约运算。
+
+```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_reduction_01
+```
+
+对于高维张量，`_axes` 后缀函数也可以传入数组，作为被归约的维度：
+
+```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_reduction_02
+```
+
+作为特例，`Tensor<bool, B, D>` 也可以作 `sum` 或 `sum_axes` 运算；对该张量求和时，`true` 当作 1、`false` 当作 0：
+
+```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_reduction_03
+```
+
+## 4. 线性代数 (linalg)
+
+目前，RSTSR 支持一部分 NumPy 与 SciPy 的线性代数功能。典型的线性代数问题包括 Hermite 矩阵的本征值问题、SVD 分解、Cholesky 分解等等。
+
+```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_linalg_01
+```
+
+:::info 不同后端的线性代数功能有少许差异
+
+目前 RSTSR 着力开发的后端是 `DeviceOpenBLAS` 与 `DeviceFaer`，且以前者为主。`DeviceOpenBLAS` 通常所实现的功能更多，这包括但不限于
+- 广义本征值问题 `rt::linalg::eigh(&a, &b)`；
+- 三角矩阵求解 `rt::linalg::solve_triangular(&a, &b)`；
+- 通过可变引用复用内存空间，求解本征值问题 `rt::linalg::eigh(a.view_mut())` (类似于 SciPy 对应函数的 `overwrite_a` 选项)。
+
+尽管 `DeviceFaer` 目前还有一些功能没有实现，但它作为纯 Rust 后端，相对于 `DeviceOpenBLAS` 具有更大的可迁移性。
+
+:::

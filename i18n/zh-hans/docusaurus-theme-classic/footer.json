@@ -1,6 +1,6 @@
 {
   "link.title.Github Links": {
-    "message": "Github 链接",
+    "message": "Git 链接",
     "description": "The title of the footer links column with title=Github Links in the footer"
   },
   "link.title.API Document": {
@@ -30,5 +30,13 @@
   "copyright": {
     "message": "Copyright © 2025 RSTSR developer(s). Built with Docusaurus.",
     "description": "The footer copyright"
+  },
+  "link.title.Git Repo Links": {
+    "message": "Git 仓库链接",
+    "description": "The title of the footer links column with title=Git Repo Links in the footer"
+  },
+  "link.item.label.REST": {
+    "message": "REST 电子结构程序",
+    "description": "The label of footer link with label=REST linking to https://gitee.com/RESTGroup/rest"
   }
 }

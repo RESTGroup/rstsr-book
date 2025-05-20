@@ -176,7 +176,7 @@ const config = {
           },
           */
           {
-            title: 'Github Links',
+            title: 'Git Repo Links',
             items: [
               /* {
                 label: 'Blog',
@@ -184,6 +184,7 @@ const config = {
               }, */
               { label: 'RSTSR', href: 'https://github.com/RESTGroup/rstsr' },
               { label: 'RSTSR Document', href: 'https://github.com/RESTGroup/rstsr-book' },
+              { label: 'REST', href: 'https://gitee.com/RESTGroup/rest' },
             ],
           },
           {
