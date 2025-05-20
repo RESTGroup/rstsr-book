@@ -86,6 +86,8 @@ RSTSR 中，关于 reshape 与 broadcast 规则，
 
 这会导致，对于相同的代码，row-major 与 col-major 的执行结果不仅在输出张量的排列上不同，**在结果上也可能不同**。我们以后将在用户文档中表明这一点。**用户需要对混用 row-major 与 col-major 的情况格外注意**。
 
+同时参考 [行/列优先问题](./order-issue)。
+
 :::
 
 ## 提示信息

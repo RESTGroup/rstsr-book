@@ -83,7 +83,9 @@ In RSTSR, the rules for **reshape** and **broadcast** differ between layouts:
 - **Row-major** follows **NumPy** conventions.  
 - **Column-major** follows **Julia** conventions.  
 
-This means that the same code may produce **different results** under row-major and column-major layouts—not just in terms of memory arrangement but also in computational output. We will document these differences in detail in future user guides. **Users must exercise caution when mixing row-major and column-major operations.**  
+This means that the same code may produce **different results** under row-major and column-major layouts—not just in terms of memory arrangement but also in computational output. We will document these differences in detail in future user guides. **Users must exercise caution when mixing row-major and column-major operations.**
+
+Also refers to [Row/Column Major Order Issues](./order-issue)。
 
 :::
 

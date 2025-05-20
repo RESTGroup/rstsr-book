@@ -4,7 +4,7 @@ description: ""
 
 import useBaseUrl from '@docusaurus/useBaseUrl';
 
-# Basic Slicing and Indexing
+# Basic Indexing and Elementwise Indexing
 
 It is a very common usage to extract sub-matrix from matrix, or indexing tensor to lower dimension sub-tensor, to perform future computation.
 
@@ -12,7 +12,7 @@ RSTSR provides most functionality that NumPy calls "basic indexing", which gives
 By this mechanism, most tensor extraction operation can be performed without memory copy.
 For large tensors, **cost of all basic slicing and indexing operations are cheap**, compared to memory assignment and tensor arithmetics.
 
-Due to language limit, in rust, indexing by brackets `[]` can only return underlying data `&T`, so it is not able to return a tensor view by brackets `[]` technically.
+Due to language limit, in rust, indexing by brackets `[]` can only return underlying data `&T`, so it is not able to return a tensor view by brackets `[]` technically like that of NumPy, Fortran and Julia.
 In RSTSR, elementwise indexing by `[]` will return reference of element `&T`, only if data is stored by `Vec<T>` type. Usage of `[]` indexing is quite limited. 
 
 However, to obtain sub-tensor view `TensorView` (or `TensorMut`) by using function to index and slice is possible.
@@ -175,8 +175,9 @@ However, you may use macro `s!` or tuple to perform this task[^2].
 
 :::warning Elementwise indexing is not efficien
 
-We also offer elementwise indexing in RSTSR.
-But please note that, in most cases, elementwise indexing is not efficient.
+We have also implemented elementwise indexing in RSTSR. However, please note that in most cases, elementwise indexing is not efficient. While both basic indexing and elementwise indexing don't copy actual data, there's a key difference in their efficiency characteristics:
+Basic indexing returns tensor objects and is typically used with fewer indexing operations, whereas elementwise indexing returns individual elements and is generally used in scenarios requiring numerous indexing operations. The inefficiency we mention here doesn't refer to data copying overhead, but rather to the indexing operation's intrinsic efficiency.
+
 - for "unchecked" elementwise indexing, it have more chance to prevent compiler's internal vectorize and SIMD optimization;
 - for "safe" elementwise indexing, additional out-of-bound check is performed, further hampering optimizations.
 

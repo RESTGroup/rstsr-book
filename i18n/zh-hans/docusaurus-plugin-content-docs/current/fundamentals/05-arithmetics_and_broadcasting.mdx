@@ -10,6 +10,14 @@ import useBaseUrl from '@docusaurus/useBaseUrl';
 
 本节我们仅讨论算术运算，下一节将介绍基于映射的计算。
 
+:::warning 本文档仅处理 row-major 情形
+
+本文档涉及到张量的 broadcast；该问题 row-major 与 col-major 有完全不同的行为。
+
+更具体的讨论，参考 [行/列优先问题](../order-issue) 一节。
+
+:::
+
 ## 1. 算术运算示例
 
 RSTSR 可以处理 `+`、`-`、`*`、`/` 运算：

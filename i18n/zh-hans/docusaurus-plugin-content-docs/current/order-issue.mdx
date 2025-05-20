@@ -1,0 +1,217 @@
+---
+sidebar_label: 行/列优先问题
+sidebar_position: 5
+---
+
+import useBaseUrl from '@docusaurus/useBaseUrl';
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# 行/列优先问题
+
+RSTSR 是目前非常罕见的，同时支持行优先 (row-major) 与列优先 (col-major) 的张量库。
+
+RSTSR 在一般情况下使用 row-major。但对于高级用户，他们可能会考虑 col-major、甚至混合使用 row/col-major 的情景。这有可能对刚刚入门 RSTSR 的用户、或从 NumPy 工作流转移到 Rust 的用户产生困扰。
+
+这一节文档将尽量详细地讨论 RSTSR 的 row/col-major 问题。一般来说，RSTSR 所称的 row/col-major 对应了
+- Row-major: NumPy
+- Col-major: Julia (有一定扩展)
+
+:::warning
+
+在 row-major 与 col-major 不同的情况下，**即使相同的输入数据、相同的代码，也可能会给出不同的结果**！
+
+:::
+
+## 1. Cargo feature 决定默认行/列优先
+
+Crate `rstsr` 或 `rstsr-core` 中，其 cargo feature `row_major` 与 `col_major` 将决定整个张量库的默认 row/col-major。但用户可能还需要了解，
+- 若不指定 cargo feature `row_major` 或 `col_major`，则 RSTSR 会默认使用 row-major；
+- 若同时指定 `row_major` 与 `col_major`，则会在编译时报错。
+
+同时，用户需要注意到，cargo features 从设计上是可叠加的；因此，
+- 一方面，若您的程序没有指定 `row_major` 还是 `col_major` (即您本意上是想使用默认的 row-major)，但上下游依赖的库指定了 `col-major`，那么您的程序就会按照 `col-major` 运行。这可能与您的本意有出入。
+- 另一方面，若您的程序指定了 `row_major` 还是 `col_major` 的其中一者，但上下游依赖的库指定了另一者，那么您的程序会在编译时报错。
+
+## 2. 运行时通过修改 device 更改张量的行/列优先
+
+RSTSR 还允许在运行时修改 row/col-major。这是通过 `device.set_default_order` 实现的：
+
+```rust file=../listings/features-default/tests/order_issue.rs anchor=example_device_change
+```
+
+但需要注意，不同的 row/col-major 张量之间是禁止运算的；这不会在编译时报错，而只会在运行时报错：
+
+<div className="ferris-overlay">
+```rust file=../listings/features-default/tests/order_issue.rs anchor=example_device_change_panics
+```
+<img src={useBaseUrl("/img/ferris/panics.svg")} alt="panics" title="此代码会崩溃！" /> </div>
+
+一种解决方案，是活用 device 更换 (在这里可以是 trait 函数 `change_device`)，使得下述计算可以进行。在 CPU 设备下，`change_device` 函数会消耗变量 `b`，但不会对数据明确地复制，因此下述 device 更换没有计算代价。
+
+```rust file=../listings/features-default/tests/order_issue.rs anchor=example_device_change_to_device
+```
+
+## 3. 行/列优先会导致的结果差异
+
+### 3.1 reshape 与 asarray
+
+:::warning
+
+`reshape` 函数在 row-major 与 col-major 下的行为是完全不同的。
+
+:::
+
+上一小节的代码，实际上已经展示了 `asarray` 函数在 row-major 与 col-major 下会给出不同结果的情况了：
+
+$$
+\begin{gathered}
+\text{data} \begin{pmatrix} 0 & 1 & 2 & 3 & 4 & 5 \end{pmatrix}
+\\
+\text{row-major} \begin{pmatrix} 0 & 1 & 2 \\ 3 & 4 & 5 \end{pmatrix},
+\quad
+\text{col-major} \begin{pmatrix} 0 & 2 & 4 \\ 1 & 3 & 5 \end{pmatrix}
+\end{gathered}
+$$
+
+当传入 `asarray` 函数的参数中包含数据与对应的 shape (注意并非是 layout)：
+```rust
+rt::asarray((data_vec, shape, &device))
+```
+那么它与 `reshape` (或类似的 `into_shape`) 的功能是等效的：
+```rust
+rt::asarray((data_vec, &device)).into_shape(shape)
+```
+因此，`asarray` 可以与 `reshape` 所遇到的情景是非常相似的。
+
+:::warning
+
+`reshape` 在面对 c-contiguous 与 f-contiguous 时，从计算角度上结果是相同的，但过程未必一致。
+
+:::
+
+这里容易产生混淆：row/col-major 与 c/f-contiguous 是不同的概念。Row/col-major 讲求的是迭代顺序，而 c/f-contiguous 讲求的是存储顺序。
+
+$$
+\begin{gathered}
+\text{assume row-major}
+\\
+\text{c-contiguous} \begin{pmatrix} 0 & 1 & 2 \\ 3 & 4 & 5 \end{pmatrix} \quad \text{data} \begin{pmatrix} 0 & 1 & 2 & 3 & 4 & 5 \end{pmatrix}
+\\
+\text{f-contiguous} \begin{pmatrix} 0 & 1 & 2 \\ 3 & 4 & 5 \end{pmatrix} \quad \text{data} \begin{pmatrix} 0 & 3 & 1 & 4 & 2 & 5 \end{pmatrix}
+\\ \downarrow \text{reshape to 1-D vector} \\
+\text{contiguous} \begin{pmatrix} 0 & 1 & 2 & 3 & 4 & 5 \end{pmatrix}
+\quad
+\left\{ \begin{matrix} \text{c-contiguous}: & \text{referenced as } \texttt{TensorCow::View} \\ \text{f-contiguous}: & \text{cloned to } \texttt{TensorCow::Owned}  \end{matrix} \right.
+\end{gathered}
+$$
+
+对于两个张量，只要它们的迭代顺序一致，那么不论这两个张量是以何种顺序存储的，在具体的计算问题中，它们是等价的。`reshape` 本身也可以看作是一种计算函数；只要确定了迭代顺序，那么任何顺序存储的张量都一定能给出计算上一致的结果。
+
+但计算结果上一致，不意味着过程也一致。在 row-major 的前提下，如果张量是 c-contiguous 的，那么其 `reshape` 不需要对数据作复制：因为 `reshape` 前后的数据都是 `[0, 1, 2, 3, 4, 5]`。但如果张量是 f-contiguous 的，那么其 `reshape` 需要明确对数据作复制，因为 `reshape` 前的数据是 `[0, 3, 1, 4, 2, 5]`，与 `reshape` 后并不一致。
+
+下述代码即对该例子的具体实现：
+
+```rust file=../listings/features-default/tests/order_issue.rs anchor=example_reshape
+```
+
+### 3.2 broadcast
+
+:::warning
+
+Row-major 与 col-major 有完全相反的 broadcast 规则。
+
+:::
+
+对于 row/col-major，以下两种情况，即使输出张量的 c/f-contiguous 情形不同，但从计算角度而言的结果是一致的：
+- 对于 Elementwise 运算，如果参与运算的张量具有相同的维度大小 (`ndim`)，或二元运算的其中一个张量是 0 维度 (即 scalar 类型)，那么结果上不会有差异 (譬如对维度为 `(3, 1, 4)` 与 `(1, 5, 4)` 的三维张量求和)；
+- 对于矩阵乘法，如果参与的都是矩阵或向量 (即维度都不超过二维)，那么结果也不会有差异。
+
+但除此之外的情况，就很有可能不同。
+
+:::info
+
+对于可能同时处理 row/col-major 的程序，一般建议在进行二元运算前，对需要 broadcast 的情景，先将输入的两个张量的维度大小 (`ndim`) 进行对齐。这可以通过基础索引实现：譬如对于一维张量 `a`，可以通过 `a.i((None, ..))` 扩张为二维 (行) 向量，或通过 `a.i((.., None))` 扩张为二维 (列) 向量。
+
+:::
+
+对于 Elementwise 问题，我们给出下述两个问题：
+
+$$
+\begin{gathered}
+\begin{pmatrix} 1 & 2 & 3 \\ 4 & 5 & 6 \end{pmatrix} \times \begin{pmatrix} 1 & 0 & -1 \end{pmatrix} = ?
+\\
+\begin{pmatrix} 1 & 2 & 3 \\ 4 & 5 & 6 \end{pmatrix} \times \begin{pmatrix} 1 & -1 \end{pmatrix} = ?
+\end{gathered}
+$$
+
+对于第一个问题，row-major 存在定义，但 col-major 会在运行时报错：
+
+<Tabs>
+<TabItem value="prob-setting" label="problem-setting">
+```rust file=../listings/features-default/tests/order_issue.rs anchor=example_broadcast_elementwise_setting_01
+```
+</TabItem>
+<TabItem value="row-major" label="row-major" default>
+```rust file=../listings/features-default/tests/order_issue.rs anchor=example_broadcast_elementwise_01
+```
+</TabItem>
+<TabItem value="col-major" label="col-major">
+<div className="ferris-overlay">
+```rust file=../listings/features-default/tests/order_issue.rs anchor=example_broadcast_elementwise_fail_01
+```
+<img src={useBaseUrl("/img/ferris/panics.svg")} alt="panics" title="此代码会崩溃！" /> </div>
+</TabItem>
+</Tabs>
+
+对于第二个问题，col-major 存在定义，但 row-major 会在运行时报错：
+
+<Tabs>
+<TabItem value="prob-setting" label="problem-setting">
+```rust file=../listings/features-default/tests/order_issue.rs anchor=example_broadcast_elementwise_setting_02
+```
+</TabItem>
+<TabItem value="row-major" label="row-major">
+<div className="ferris-overlay">
+```rust file=../listings/features-default/tests/order_issue.rs anchor=example_broadcast_elementwise_fail_02
+```
+<img src={useBaseUrl("/img/ferris/panics.svg")} alt="panics" title="此代码会崩溃！" /> </div>
+</TabItem>
+<TabItem value="col-major" label="col-major" default>
+```rust file=../listings/features-default/tests/order_issue.rs anchor=example_broadcast_elementwise_02
+```
+</TabItem>
+</Tabs>
+
+对于矩阵乘法是类似的。譬如
+- 维度为 `(2, 3, 4)` 与 `(4, 5)` 的两个张量相乘，row-major 将给出 `(2, 3, 5)` 的张量，col-major 则将报错；
+- 维度为 `(2, 3, 4)` 与 `(5, 2)` 的两个张量相乘，row-major 将报错，col-major 则将给出 `(5, 3, 4)` 的张量。
+
+## 4. 行/列优先是否有效率上的差异？
+
+一句话总结：一般不会。
+
+该论断需要作补充说明。
+
+首先，效率高低取决于对张量以何种顺序作迭代。这并非是 row/col-major 的问题，而是 c/f-contiguous 问题；以及用户具体用怎样的算法、怎样的程序，配合张量的存储顺序，作迭代或计算。
+
+其次，RSTSR 内部在处理四则运算等 elementwise 运算时，会尽可能使用 col-major 作迭代；在此过程中，RSTSR 内部会对 layout 进行转置。这无关乎当前的设备是 row/col-major 的；不过 c/f-contiguous 张量可能会经过不同转置，以最终实现 col-major 迭代。一般来说，如果二元、三元运算参与的张量有相同的连续性，那么不论这种连续性是 c-contiguous 还是 f-contiguous，其内部的 layout 都会转置为相同的结构并作 col-major 迭代，从而 RSTSR 对这两种情况的迭代的效率一般是一致的。
+
+第三，RSTSR 在处理矩阵乘法时，对于 BLAS 类型 `f32`/`f64` 或其复数类型，只要参与矩阵乘法 $\mathbf{C} = \mathbf{A} \mathbf{B}$ 的所有矩阵 $\mathbf{C}, \mathbf{A}, \mathbf{B}$ 是 c-prefer **或** f-prefer 的 (矩阵的其中一个 stride 为 1、另一个 stride 为正整数，不论为 1 的 stride 是行还是列)，那么效率就基本一致。对于 BLAS 设备，这是因为我们可以合理地通过设置转置参数、与矩阵乘法顺序，以达到调用 GEMM 的目的。
+
+第四，对于其他线性代数问题，RSTSR 目前的处理策略是仿照 LAPACKE；这会要求 row-major 的矩阵作一次内存复制与转置，因此会有效率与内存的损耗。但这种损耗一般是可以接受的 (除非内存不够)，因为 LAPACK 线性代数程序通常是 $O(N^3)$ 复杂度的、且计算耗时远大于矩阵复制与转置。关于这一点，以后的 RSTSR 或许会有改进。
+
+第五，如果用户处理的是非常小的张量的运算：不仅张量本身的运算耗时，且 layout 的处理也占有一定时间。在此情形下，col-major 可能会有 layout 处理上的开销，因为 RSTSR 内部在处理 broadcast 规则时，col-major layout 会首先转置为 row-major layout；计算完毕后再转置回到 col-major。但对于普通的科学计算情景，这种耗时几乎是可以忽略的。
+
+RSTSR 目前的开发者认为，在用户使用程序与算法合理的情况下，row/col-major 的差异，更多时候是一种约定俗成与习惯上的不同，而不认同在性能上存在明显差异。
+
+## 5. 动机：为什么要支持行/列优先？
+
+- 以 PySCF、Psi4 为代表的电子结构程序使用 (或部分使用) NumPy，以 TiledArray 为代表的张量库 (作为电子结构程序的支撑库)，以 PyTorch、JAX 为代表的绝大多数机器学习框架，它们通常基于 row-major 开发。
+- GAMESS、Gaussian、FHI-Aims 等 Fortran 电子结构程序，都是基于 col-major 开发的。对于更为一般的科学计算群体，很多人都使用 Matlab 与 Julia；这些语言也是 col-major 的。
+- 以 Eigen 为代表的库，通过泛型参数，同时支持 row/col-major，并以 col-major 为默认；
+- 以 TBLIS 为代表的库，其作为纯粹的张量缩并库，它只读取张量的 layout，不需要对 row/col-major 作特化支持。
+
+很难说到底 row-major 还是 col-major 获得了 majority。
+
+REST 电子结构程序目前是基于 col-major 开发的；这是 RSTSR 需要实现 col-major 的动机。但是 RSTSR 开发的其中一个核心目的是在 Rust 下有 NumPy 的编程体验；很多功能与测试都是对标 NumPy 进行的。这也是 RSTSR 需要实现 row-major 的动机。

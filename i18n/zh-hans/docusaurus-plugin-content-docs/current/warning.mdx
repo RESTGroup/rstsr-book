@@ -26,7 +26,7 @@ RSTSR 库许多功能没有稳定下来。这包括
 
 - **RSTSR 不支持自动导数**。RSTSR 从设计上，遵循 ndarray 的策略，即对不同的所有权 (占有 Owned、视窗 View、可变视窗 Mut、不可变 Cow、原子计数 Arc、引用类型 Reference 等) 作不同的实现。大多数运算返回的是占有 Owned 或视窗 View 的张量。这种做法并不适合自动导数程序：一般自动导数需要记录反向传播信息，更适合用 Arc 或 RwLock 实现。出于此设计模式，RSTSR 决定不支持自动导数。
 
-- **RSTSR 不支持惰性求值**。以 [Eigen](https://eigen.tuxfamily.org/) 与 [xtensor](https://xtensor.readthedocs.io/) 为代表的 C++ 数值库，惰性求值 (lazy evaluation) 是其重要的特色。但一方面，惰性求值一般基于模板表达式 (expression template)，实现并不轻松；另一方面，Rust 中赋值 (运算符 `=`) 是不能重载的。出于 Rust 的特性，我们认为惰性求值难以实现。
+- **RSTSR 不支持惰性求值**。以 [Eigen](https://eigen.tuxfamily.org/) 与 [xtensor](https://xtensor.readthedocs.io/) 为代表的 C++ 数值库，惰性求值 (lazy evaluation) 是其重要的特色。但一方面，惰性求值一般基于模板表达式 (expression template)，实现并不轻松；另一方面，Rust 中赋值 (运算符 `=`) 是不能重载的。出于 Rust 的特性，我们认为惰性求值可能、但难以实现。
 
 - **RSTSR 开发者并非专业程序员**。
 

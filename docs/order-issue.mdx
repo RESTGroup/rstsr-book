@@ -1,0 +1,217 @@
+---
+sidebar_label: Row/Column Major Order Issues
+sidebar_position: 5
+---
+
+import useBaseUrl from '@docusaurus/useBaseUrl';
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Row/Column Major Order Issues
+
+RSTSR is currently one of the very few tensor libraries that supports both row-major and column-major (col-major) storage layouts.
+
+By default, RSTSR uses row-major order. However, advanced users may consider using column-major or even mixing both row/column-major layouts. This could potentially confuse beginners learning RSTSR or users transitioning from NumPy workflows to Rust.
+
+This documentation section will provide a detailed discussion of row/column-major issues in RSTSR. Generally, what RSTSR refers to as row/column-major corresponds to:
+- Row-major: NumPy
+- Column-major: Julia (with some extensions)
+
+:::warning
+
+When row-major and column-major differ, **even with identical input data and code, different results may be produced**!
+
+:::
+
+## 1. Default Row/Column Major Determined by Cargo Feature
+
+In the `rstsr` or `rstsr-core` crates, the cargo features `row_major` and `col_major` determine the default storage layout for the entire tensor library. Users should also note:
+- If neither `row_major` nor `col_major` is specified, RSTSR defaults to row-major;
+- If both `row_major` and `col_major` are specified, a compilation error will occur.
+
+Additionally, users should be aware that cargo features are designed to be additive. Therefore:
+- If your program doesn't specify `row_major` or `col_major` (intending to use the default row-major), but upstream/downstream dependencies specify `col_major`, your program will run in column-major mode, which may differ from your intention.
+- Conversely, if your program specifies one layout while dependencies specify the other, a compilation error will occur.
+
+## 2. Runtime Modification of Tensor Layout via Device Settings
+
+RSTSR also allows modifying row/column-major order at runtime through `device.set_default_order`:
+
+```rust file=../listings/features-default/tests/order_issue.rs anchor=example_device_change
+```
+
+However, note that operations between row-major and column-major tensors are prohibited. This won't cause compile-time errors but will trigger runtime errors:
+
+<div className="ferris-overlay">
+```rust file=../listings/features-default/tests/order_issue.rs anchor=example_device_change_panics
+```
+<img src={useBaseUrl("/img/ferris/panics.svg")} alt="panics" title="This code will panic!" /> </div>
+
+One solution is to leverage device switching (using the `change_device` trait function). For CPU devices, `change_device` consumes variable `b` without explicitly copying data, making this device switch computationally cost-free.
+
+```rust file=../listings/features-default/tests/order_issue.rs anchor=example_device_change_to_device
+```
+
+## 3. Result Differences Caused by Row/Column Major
+
+### 3.1 reshape and asarray
+
+:::warning
+
+The behavior of `reshape` differs completely between row-major and column-major.
+
+:::
+
+The previous section's code actually demonstrates how `asarray` produces different results under different layouts:
+
+$$
+\begin{gathered}
+\text{data} \begin{pmatrix} 0 & 1 & 2 & 3 & 4 & 5 \end{pmatrix}
+\\
+\text{row-major} \begin{pmatrix} 0 & 1 & 2 \\ 3 & 4 & 5 \end{pmatrix},
+\quad
+\text{col-major} \begin{pmatrix} 0 & 2 & 4 \\ 1 & 3 & 5 \end{pmatrix}
+\end{gathered}
+$$
+
+When the `asarray` function receives parameters containing data and shape (note: not layout):
+```rust
+rt::asarray((data_vec, shape, &device))
+```
+It's functionally equivalent to `reshape` (or similar `into_shape`):
+```rust
+rt::asarray((data_vec, &device)).into_shape(shape)
+```
+Thus, `asarray` can encounter similar situations as `reshape`.
+
+:::warning
+
+While `reshape` produces computationally identical results for c-contiguous and f-contiguous tensors, the processes may differ.
+
+:::
+
+This can be confusing: row/column-major differs from c/f-contiguous. Row/column-major refers to iteration order, while c/f-contiguous refers to storage order.
+
+$$
+\begin{gathered}
+\text{assume row-major}
+\\
+\text{c-contiguous} \begin{pmatrix} 0 & 1 & 2 \\ 3 & 4 & 5 \end{pmatrix} \quad \text{data} \begin{pmatrix} 0 & 1 & 2 & 3 & 4 & 5 \end{pmatrix}
+\\
+\text{f-contiguous} \begin{pmatrix} 0 & 1 & 2 \\ 3 & 4 & 5 \end{pmatrix} \quad \text{data} \begin{pmatrix} 0 & 3 & 1 & 4 & 2 & 5 \end{pmatrix}
+\\ \downarrow \text{reshape to 1-D vector} \\
+\text{contiguous} \begin{pmatrix} 0 & 1 & 2 & 3 & 4 & 5 \end{pmatrix}
+\quad
+\left\{ \begin{matrix} \text{c-contiguous}: & \text{referenced as } \texttt{TensorCow::View} \\ \text{f-contiguous}: & \text{cloned to } \texttt{TensorCow::Owned}  \end{matrix} \right.
+\end{gathered}
+$$
+
+For two tensors, as long as their iteration orders match, they're computationally equivalent regardless of storage order. `reshape` can be viewed as a computation; given consistent iteration order, any storage order will produce identical computational results.
+
+However, identical results don't imply identical processes. Under row-major, c-contiguous tensors can `reshape` without data copying since pre/post-reshape data remains `[0, 1, 2, 3, 4, 5]`. For f-contiguous tensors, `reshape` requires explicit data copying since pre-reshape data is `[0, 3, 1, 4, 2, 5]`, differing from the result.
+
+The following code implements this example:
+
+```rust file=../listings/features-default/tests/order_issue.rs anchor=example_reshape
+```
+
+### 3.2 broadcast
+
+:::warning
+
+Row-major and column-major have completely opposite broadcast rules.
+
+:::
+
+For row/column-major, the following scenarios produce computationally identical results despite differing c/f-contiguous outputs:
+- Elementwise operations where tensors have matching dimensions (`ndim`), or when one operand is 0-dimensional (scalar);
+- Matrix multiplications where all operands are matrices or vectors (≤2 dimensions).
+
+Other cases may differ significantly.
+
+:::info
+
+For programs handling both layouts, it's recommended to align tensor dimensions (`ndim`) before binary operations requiring broadcasting. Basic indexing can achieve this: e.g., expanding 1D tensor `a` via `a.i((None, ..))` (row vector) or `a.i((.., None))` (column vector).
+
+:::
+
+Consider these two elementwise problems:
+
+$$
+\begin{gathered}
+\begin{pmatrix} 1 & 2 & 3 \\ 4 & 5 & 6 \end{pmatrix} \times \begin{pmatrix} 1 & 0 & -1 \end{pmatrix} = ?
+\\
+\begin{pmatrix} 1 & 2 & 3 \\ 4 & 5 & 6 \end{pmatrix} \times \begin{pmatrix} 1 & -1 \end{pmatrix} = ?
+\end{gathered}
+$$
+
+The first problem works in row-major but fails in column-major:
+
+<Tabs>
+<TabItem value="prob-setting" label="Problem Setting">
+```rust file=../listings/features-default/tests/order_issue.rs anchor=example_broadcast_elementwise_setting_01
+```
+</TabItem>
+<TabItem value="row-major" label="Row-major" default>
+```rust file=../listings/features-default/tests/order_issue.rs anchor=example_broadcast_elementwise_01
+```
+</TabItem>
+<TabItem value="col-major" label="Column-major">
+<div className="ferris-overlay">
+```rust file=../listings/features-default/tests/order_issue.rs anchor=example_broadcast_elementwise_fail_01
+```
+<img src={useBaseUrl("/img/ferris/panics.svg")} alt="panics" title="This code will panic!" /> </div>
+</TabItem>
+</Tabs>
+
+The second problem works in column-major but fails in row-major:
+
+<Tabs>
+<TabItem value="prob-setting" label="Problem Setting">
+```rust file=../listings/features-default/tests/order_issue.rs anchor=example_broadcast_elementwise_setting_02
+```
+</TabItem>
+<TabItem value="row-major" label="Row-major">
+<div className="ferris-overlay">
+```rust file=../listings/features-default/tests/order_issue.rs anchor=example_broadcast_elementwise_fail_02
+```
+<img src={useBaseUrl("/img/ferris/panics.svg")} alt="panics" title="This code will panic!" /> </div>
+</TabItem>
+<TabItem value="col-major" label="Column-major" default>
+```rust file=../listings/features-default/tests/order_issue.rs anchor=example_broadcast_elementwise_02
+```
+</TabItem>
+</Tabs>
+
+Matrix multiplication behaves similarly. For example:
+- Multiplying `(2, 3, 4)` with `(4, 5)` tensors yields `(2, 3, 5)` in row-major but fails in column-major;
+- Multiplying `(2, 3, 4)` with `(5, 2)` tensors fails in row-major but yields `(5, 3, 4)` in column-major.
+
+## 4. Performance Differences Between Row/Column Major?
+
+In short: generally no.
+
+This requires clarification.
+
+First, efficiency depends on iteration order - a c/f-contiguous issue rather than row/column-major. Performance varies based on algorithms and how they align with storage order.
+
+Second, RSTSR internally uses column-major iteration for elementwise operations, transposing layouts as needed. This process is layout-agnostic, though c/f-contiguous tensors may undergo different transpositions. Generally, operations with matching contiguity (either c or f) achieve similar efficiency through internal column-major iteration.
+
+Third, for BLAS-compatible (`f32`/`f64` or complex) matrix multiplications $\mathbf{C} = \mathbf{A} \mathbf{B}$, efficiency remains consistent when all matrices are either c-prefer or f-prefer (where one stride is 1 and the other a positive integer). BLAS devices achieve this through transpose parameters and multiplication order.
+
+Fourth, for other linear algebra operations, RSTSR currently follows LAPACKE - requiring row-major matrices to be copied and transposed, incurring acceptable overhead since LAPACK operations are typically O(N³) with computation time dwarfing memory operations. Future versions may improve this.
+
+Fifth, for very small tensors where layout handling becomes significant, column-major may incur overhead as RSTSR internally transposes to row-major for broadcasting before transposing back. However, this overhead is negligible for typical scientific computing.
+
+RSTSR developers maintain that with proper usage, row/column-major differences primarily reflect conventions rather than performance gaps.
+
+## 5. Motivation: Why Support Both Layouts?
+
+- Quantum chemistry programs like PySCF/Psi4 (using NumPy), tensor libraries like TiledArray, and ML frameworks like PyTorch/JAX typically use row-major.
+- Fortran-based programs (GAMESS, Gaussian, FHI-Aims) and languages like Matlab/Julia use column-major.
+- Libraries like Eigen support both through generics, defaulting to column-major;
+- Pure tensor contraction libraries like TBLIS only read layouts without specializing for either.
+
+It's unclear which layout holds majority.
+
+The REST quantum chemistry program uses column-major, motivating RSTSR's column-major support. However, RSTSR also aims for NumPy-like Rust programming, requiring row-major support for compatibility. This dual need drove RSTSR's bidirectional layout implementation.

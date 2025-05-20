@@ -33,7 +33,7 @@ Also, RSTSR has only implemented some important tensor operations, but not very 
 
 - **RSTSR does not support automatic differentiation**. By design, RSTSR follows ndarray's strategy, implementing different ownerships (Owned, View, Mut, Cow, Arc, Reference types, etc.) differently. Most operations return owned tensors or tensor views. This approach is not suitable for automatic differentiation programs, which generally need to record backpropagation information and are better implemented with Arc or RwLock. Due to this design pattern, RSTSR has decided not to support automatic differentiation. 
 
-- **RSTSR does not support lazy evaluation**. Libraries like [Eigen](https://eigen.tuxfamily.org/) and [xtensor](https://xtensor.readthedocs.io/) in C++ have made lazy evaluation a significant feature. However, lazy evaluation typically relies on expression templates, which are not easy to implement. Moreover, in Rust, the assignment operator (`=`) cannot be overloaded. Given Rust's characteristics, we believe lazy evaluation is difficult to achieve.
+- **RSTSR does not support lazy evaluation**. Libraries like [Eigen](https://eigen.tuxfamily.org/) and [xtensor](https://xtensor.readthedocs.io/) in C++ have made lazy evaluation a significant feature. However, lazy evaluation typically relies on expression templates, which are not easy to implement. Moreover, in Rust, the assignment operator (`=`) cannot be overloaded. Given Rust's characteristics, we believe lazy evaluation is possible but difficult to achieve.
 
 - **RSTSR developers are not professional programmers**.
 

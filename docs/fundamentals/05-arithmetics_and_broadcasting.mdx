@@ -10,6 +10,14 @@ As a tensor toolkit, many basic arithmetics are available in RSTSR.
 
 We will touch arithmetics only in this section, and will mention computations based on mapping in next section.
 
+:::warning This section only works in row-major convention
+
+This section involves tensor broadcast. For this topic, row-major and col-major behaves completely different.
+
+For more discussion on this problem, refer to section [Row/Column Major Order Issues](../order-issue).
+
+:::
+
 ## 1. Examples of Arithmetics Operations
 
 RSTSR can handle `+`, `-`, `*`, `/` operations:
