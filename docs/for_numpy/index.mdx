@@ -1,0 +1,45 @@
+--- 
+sidebar_label: RSTSR for NumPy Users  
+sidebar_position: 6  
+---
+
+# RSTSR for NumPy Users  
+
+import DocCardList from '@theme/DocCardList';  
+
+<DocCardList />  
+
+> MATLAB® and NumPy have a lot in common, but NumPy was created to work with Python, not to be a MATLAB clone. This guide will help MATLAB users get started with NumPy.  
+> <p align="right"> --- *NumPy user guide: NumPy for MATLAB users* </p>  
+
+From its inception, one of RSTSR's key design goals was to provide a programming experience somewhat similar to NumPy within the native Rust environment.  
+
+RSTSR shares many similarities with NumPy in Python. However, RSTSR was developed based on the Rust ecosystem, primarily to assist REST electronic structure programs. While it has not yet achieved (but aspires to) full feature parity as a NumPy clone, it strives to make advancements. This guide will help NumPy users quickly understand and adapt to RSTSR.  
+
+Additionally, both the [ndarray](https://github.com/rust-ndarray/ndarray/) library in Rust and RSTSR are $n$-D tensor libraries. RSTSR has drawn many concepts from ndarray, particularly regarding lifetimes.  
+
+## 1. Similarities with NumPy  
+
+RSTSR shares many similarities with NumPy:  
+- It is a dynamic $n$-D tensor library where basic indexing (including slicing) does not involve data movement or copying (i.e., no computational cost).  
+- It follows the same broadcasting rules, applied to element-wise operations, matrix multiplication, and other operations.  
+- Iteration starts at 0 instead of 1, which is a commonality between Python and Rust.  
+- For implemented functionalities, RSTSR strives to maintain consistent function names and parameter signatures with NumPy.  
+- With certain backends, both RSTSR and NumPy can leverage external high-performance libraries for linear algebra computations.  
+
+## 2. Key Differences and Comparisons with NumPy  
+
+This topic also relates to other documents: [Why Choose RSTSR](./why-rstsr) and [Why Not Use RSTSR](./warning).  
+
+| Difference | NumPy | RSTSR |  
+|--|--|--|  
+| REPL | Python is an interactive language, making debugging easier. | Rust is a compiled language, making debugging more challenging but offering better performance. |  
+| Lifetimes | NumPy generally does not expose lifetimes in high-level APIs for user convenience.<br/>However, in low-level APIs, the attribute `np.ndarray.flags` indicates whether the tensor owns its data, is writable, etc.<br/>This is not strictly equivalent but serves a similar purpose to lifetimes. | RSTSR tensors are instances of `TensorBase` (or its type alias `TensorAny`).<br/>In practice, RSTSR requires explicit lifetime and borrowing rules through multiple types:<ul><li>`Tensor` as an owning tensor</li><li>`TensorView` as a tensor view (referencing another tensor's data but owning dimension and layout information like contiguity)</li><li>`TensorMut` as a mutable tensor view</li><li>`TensorCow` as an owning or view type (commonly used in reshape operations)</li></ul>This approach is nearly identical to the Rust ndarray library. |  
+| Backend Devices | NumPy does not support multiple devices (though when installed via conda, it can be configured to use MKL or OpenBLAS). | RSTSR supports multiple devices and allows limited conversions between them.<br/>Currently implemented devices include `DeviceFaer` and `DeviceOpenBLAS` (as well as the reference `DeviceCpuSerial`).<br/>Different backends offer varying implementations for matrix multiplication, linear algebra, and parallelism. |  
+| Dynamic Dimensions | NumPy tensors always have dynamic dimensions. | RSTSR supports static dimensions (like the ndarray library) but recommends using dynamic dimensions.<br/>For basic indexing, RSTSR always returns tensors with dynamic dimensions.<br/>Users needing static dimensions should consider the `into_dim` function.<br/>For improved iteration performance with static dimensions, enable the cargo feature `dispatch_dim_layout_iter`. |  
+| Syntactic Sugar | NumPy allows the `@` symbol for matrix multiplication. | RSTSR allows the `%` symbol for matrix multiplication.<br/>For modulo operations, use the `rt::rem` function. |  
+| Overloading | Python allows overloading based on parameter names.<br/>For example, in `scipy.linalg.eigh`:<ul><li>`eigh(a)` performs standard diagonalization $\mathbf{A} \bm{x} = \lambda \bm{x}$</li><li>`eigh(a, b)` performs generalized diagonalization $\mathbf{A} \bm{x} = \lambda \mathbf{B} \bm{x}$</li><li>`eigh(a, lower=False)` specifies using the upper triangle of $\mathbf{A}$</li><li>`eigh(a, overwrite_a=True)` writes eigenvectors back to `a`</li></ul> | Rust allows overloading based on traits.<br/>For example, in `rt::linalg::eigh`:<ul><li>`eigh(&a)` performs standard diagonalization $\mathbf{A} \bm{x} = \lambda \bm{x}$</li><li>`eigh((&a, &b))` performs generalized diagonalization $\mathbf{A} \bm{x} = \lambda \mathbf{B} \bm{x}$[^1]</li><li>`eigh((&a, Upper))` specifies using the upper triangle of $\mathbf{A}$</li><li>`eigh(a.view_mut())` writes eigenvectors back to `a`[^2]</li></ul> |  
+| Row/Column Major | NumPy is row-major. | By default, RSTSR is row-major.<br/>The default can be adjusted via cargo features to row- or column-major.<br/>RSTSR also supports dynamically changing row/column-major by modifying the device. |  
+
+[^1]: Currently, RSTSR only implements generalized diagonalization for BLAS devices. For Faer devices (`DeviceFaer`), standard diagonalization is supported.  
+[^2]: Currently, RSTSR only supports writing eigenvectors back to the input matrix for BLAS devices. Note that this may not actually reduce memory usage during diagonalization, as LAPACK's default divide-and-conquer method requires significant cache space, and transposing to f-prefer may create temporary memory.  

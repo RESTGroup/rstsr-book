@@ -1,0 +1,45 @@
+---
+sidebar_label: 面向 NumPy 用户的 RSTSR
+sidebar_position: 6
+---
+
+# 面向 NumPy 用户的 RSTSR
+
+import DocCardList from '@theme/DocCardList';
+
+<DocCardList />
+
+> MATLAB® and NumPy have a lot in common, but NumPy was created to work with Python, not to be a MATLAB clone. This guide will help MATLAB users get started with NumPy.
+> <p align="right"> --- *NumPy user guide: NumPy for MATLAB users* </p>
+
+RSTSR 从设计之初，其重要的目标之一，是在原生 Rust 环境中，一定程度上具有与 NumPy 类似的编程体验。
+
+RSTSR 与 Python 语言下的 NumPy 有许多相似之处。但 RSTSR 是基于 Rust 生态创建、并以辅助 REST 电子结构程序为首要目的而开发。它目前还未达到、但希望未来在功能上是 NumPy 的克隆，并尝试有所进步。该指南将帮助 NumPy 用户更快地了解与适应 RSTSR。
+
+同时，Rust 语言下的 [ndarray](https://github.com/rust-ndarray/ndarray/) 库与 RSTSR 都是 $n$-D 张量库。RSTSR 从 ndarray 库中参考了许多概念，特别是关于生命周期。
+
+## 1. 与 NumPy 的相似之处
+
+RSTSR 与 NumPy 在很多方面是相似的：
+- 是动态 $n$-D 维度张量库，基础索引 (包括 slice) 不会产生数据的移动与复制 (即没有计算代价)；
+- 支持相同的 broadcast 规则，并在 elementwise 运算、矩阵乘法等问题上应用了 broadcast 规则；
+- 迭代初值为 0 而非 1；这点是 Python 与 Rust 的共性；
+- RSTSR 实现的功能中，函数名与参数签名尽可能与 NumPy 保持一致；
+- 在一部分后端的支持下，RSTSR 与 NumPy 都可以利用外部的高性能库处理线性代数计算。
+
+## 2. 与 NumPy 的部分差异与比较
+
+该话题也与其他文档 [为何选择 RSTSR](./why-rstsr) 与 [为何不使用 RSTSR](./warning) 有关。
+
+| 差异 | NumPy | RSTSR |
+|--|--|--|
+| REPL | Python 是交互式语言，便于调试。 | Rust 是编译语言，调试较困难，但性能较好。 |
+| 生命周期 | NumPy 为了用户使用方便，在高级 API 上一般不暴露生命周期。<br/>但在底层 API 上，attribute `np.ndarray.flags` 包含了该张量是否拥有数据、是否可写等信息。<br/>这不严格等同，但目的上与生命周期类似。 | RSTSR 的张量都是 `TensorBase` (或其类型别名 `TensorAny`) 的实例。<br/>但具体使用时，RSTSR 需要通过多种类型明确张量的生命周期与借用规则：<ul><li>`Tensor` 作为占有数据的张量</li><li>`TensorView` 作为张量视窗 (引用其他张量的数据，但占有张量的维度、连续性的 layout 信息)</li><li>`TensorMut` 作为可变张量视窗</li><li>`TensorCow` 作为占有或视窗类型 (常出现于 reshape 函数)</li></ul>该使用方法与 Rust 库 ndarray 几乎一致。 |
+| 后端设备 | NumPy 不支持多种设备 (但通过 conda 安装时，可以调整为 MKL 或 OpenBLAS)。 | RSTSR 允许多种设备，有限度地允许设备间转换。<br/>目前实现的设备包括 `DeviceFaer` 与 `DeviceOpenBLAS` (以及作为参考的 `DeviceCpuSerial`)。<br/>不同后端具有不同的矩阵乘法、线性代数与并行实现。 |
+| 动态维度 | NumPy 的所有张量总是动态维度。 | RSTSR 支持静态维度 (与库 ndarray 一样)，但推荐使用动态维度。<br/>RSTSR 在处理基础索引时，总是会返回动态维度张量。<br/>用户若对静态维度有需求，请考虑使用 `into_dim` 函数。<br/>用户若看中静态维度在运算中较高的迭代性能，请考虑开启 cargo feature `dispatch_dim_layout_iter`。 |
+| 语法糖 | NumPy 允许用 `@` 符号作矩阵乘法。 | RSTSR 允许用 `%` 符号作矩阵乘法。<br/>对于需要取余的情形，请考虑使用 `rt::rem` 函数。 |
+| 重载 | Python 允许基于参数名的重载。<br/>以 `scipy.linalg.eigh` 为例，<ul><li>`eigh(a)` 是普通对角化 $\mathbf{A} \bm{x} = \lambda \bm{x}$</li><li>`eigh(a, b)` 是广义对角化 $\mathbf{A} \bm{x} = \lambda \mathbf{B} \bm{x}$</li><li>`eigh(a, lower=False)` 明确 $\mathbf{A}$ 取上三角</li><li>`eigh(a, overwrite_a=True)` 将本征向量写回 `a`</li></ul> | Rust 允许基于 Trait 的重载。<br/>以 `rt::linalg::eigh` 为例，<ul><li>`eigh(&a)` 是普通对角化 $\mathbf{A} \bm{x} = \lambda \bm{x}$</li><li>`eigh((&a, &b))` 是广义对角化 $\mathbf{A} \bm{x} = \lambda \mathbf{B} \bm{x}$[^1]</li><li>`eigh((&a, Upper))` 明确 $\mathbf{A}$ 取上三角</li><li>`eigh(a.view_mut())` 将本征向量写回 `a`[^2]</li></ul> |
+| 行/列优先 | NumPy 是行优先的。 | 不作任何设置时，RSTSR 默认是行优先。<br/>可以通过 cargo features 调整默认的行或列优先。<br/>RSTSR 也支持通过对 device 的修改，动态改变张量的行或列优先。 |
+
+[^1]: 目前 RSTSR 仅针对 BLAS 设备实现了广义对角化。对于 Faer 设备 (`DeviceFaer`)，普通对角化是可行的。
+[^2]: 目前 RSTSR 仅针对 BLAS 设备实现了本征向量写回输入矩阵。但也需要留意，这未必真的就降低了对角化过程所需要的内存量，因为默认的分治法对角化下 LAPACK 需要较大缓存空间；转置为 f-prefer 也可能产生临时内存。
