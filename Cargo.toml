@@ -10,10 +10,11 @@ edition = "2021"
 
 [workspace.dependencies]
 rayon = { version = "1.10" }
-rstsr = { version = ">=0.3.4", features = ["linalg", "faer", "openblas"] }
-rstsr-openblas = { version = ">=0.3.4", features = ["linalg", "openmp"] }
-rstsr-linalg-traits = { version = ">=0.3.4", features = ["faer"] }
-rstsr-core = { version = ">=0.3.4" }
+rstsr = { version = ">=0.3.5", features = ["linalg", "faer", "openblas"] }
+rstsr-openblas = { version = ">=0.3.5", features = ["linalg", "openmp"] }
+rstsr-linalg-traits = { version = ">=0.3.5", features = ["faer"] }
+rstsr-blas-traits = { version = ">=0.3.5" }
+rstsr-core = { version = ">=0.3.5" }
 
 [profile.dev]
 opt-level = 2

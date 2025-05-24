@@ -1,0 +1,517 @@
+---
+sidebar_label: NumPy-RSTSR Cheatsheet
+sidebar_position: 7
+---
+
+import CodeBlock from '@theme/CodeBlock';
+import useBaseUrl from '@docusaurus/useBaseUrl';
+
+# NumPy-RSTSR Cheatsheet
+
+This comparison table generally assumes you have imported RSTSR via the following statement:
+
+```rust
+use rstsr::prelude::*;
+```
+
+The `rt` module contains most structs and functions of RSTSR. The above statement also imports most traits needed when using RSTSR.
+
+We also assume users have enabled necessary cargo features in their Cargo.toml file:
+
+```toml
+rstsr = { version = "0.3", features = ["linalg", "faer", "openblas"] }
+```
+
+:::info Trait-based Rust Overloading Differs from Other Languages
+
+Many RSTSR functions use traits for overloading:
+- Functions with single parameters only need one set of parentheses;
+- Functions with two or more parameters require passing arguments through tuples, thus needing two sets of parentheses.
+
+The double parentheses syntax may confuse both Rust users and those coming from other languages, but we believe there's currently no better solution. We expect true overloading in Rust may become possible when [rust#29625](https://github.com/rust-lang/rust/issues/29625) stabilizes.
+
+:::
+
+:::info Error Handling
+
+RSTSR provides error handling capabilities.
+
+Most error-handling functions have an `_f` suffix; for example, `rt::zeros` will panic on errors, while `rt::zeros_f` returns manageable errors.
+
+:::
+
+## 1. Common Non-computational Operations
+
+These are operations frequently needed by users.
+
+### 1.1 Printing Tensors
+
+| NumPy | RSTSR | Description |
+|--|--|--|
+| `print(a)` | `println!("{a}")` | Prints tensor (by default shows only first/last 3 elements when any dimension exceeds 8 elements)[^1] |
+|  | `println!("{a:?}")` | Also prints shape/stride/offset info, device info, and concrete type |
+|  | `println!("{a:16.8}")` | Each element printed with 16 chars width and 8 decimal places |
+
+[^1]: For larger tensors, if you want to print more than the default 3 elements (`MIN_PRINT`) when dimensions exceed 8 elements (`MAX_PRINT`), you can modify static variables. Example for printing up to 10 elements:
+
+    ```rust file=../listings/features-default/tests/numpy_cheatsheet.rs anchor=example_print_set_max_print
+    ```
+
+### 1.2 Outputting Layout Information
+
+| NumPy | RSTSR | Description |
+|--|--|--|
+| `a.shape` | `a.shape()` | Shape information |
+| `a.strides` | `a.stride()` | Stride for each dimension[^2] |
+| No equivalent | `a.offset()` | Byte offset between first tensor element and underlying data |
+| `a.ctypes.data` | `a.raw().as_ptr().add(a.offset())` | Pointer to first element in memory[^3] |
+| `a.ndim` | `a.ndim()` | Dimensionality |
+| `a.flags.c_contiguous` | `a.c_contig()` | Whether row-major contiguous |
+| `a.flags.f_contiguous` | `a.f_contig()` | Whether column-major contiguous |
+| No equivalent | `a.c_prefer()` | Whether row-major with strided continuity[^4] |
+| No equivalent | `a.f_prefer()` | Whether column-major with strided continuity[^4] |
+| No equivalent | `a.layout()` | Outputs complete layout information |
+
+[^2]: RSTSR and NumPy conventions differ here. RSTSR stride counts elements; most contiguous dimension has stride 1. NumPy stride counts bytes; for `np.float32`, most contiguous dimension has stride 4; for `np.float64`, stride 8.
+[^3]: Pointer handling differs between RSTSR and NumPy. NumPy pointers always point to tensor's first element. RSTSR pointers point to underlying data's first element, offset by `a.offset()` from tensor's first element.
+[^4]: "Strided continuity" means while the tensor itself isn't contiguous, each dimension is contiguous. Submatrices of large contiguous matrices are strided-contiguous; in column-major BLAS calls, this appears as leading dimension being larger than actual row count. Thus, column-major strided-contiguous (`f_prefer`) matrices can be used directly in BLAS without copying. Some BLAS routines like GEMM can also handle row-major strided-contiguous (`c_prefer`) cases via transpose parameters.
+
+## 2. Tensor Creation
+
+Tensor creation includes three scenarios: creating special tensors, creating new tensors from existing ones, and creating from Rust types like `Vec<T>`, `&[T]`, `&mut [T]`. For the latter, see [Tensor-Rust Type Conversion](../fundamentals/tensor_rust_conversion) for details.
+
+### 2.0 Device Parameter `device`
+
+For device parameters, users typically use default constructors. For `DeviceFaer`:
+
+```rust
+let device = DeviceFaer::default();
+```
+
+But if thread count needs control (not via `RAYON_NUM_THREADS`), for `DeviceOpenBLAS`:
+
+```rust
+let device = DeviceOpenBLAS::new(6);
+```
+
+Most functions allow omitting `&device` overload; in such cases `DeviceFaer::default()` is used (if `faer_as_default` feature is enabled).
+
+For Rayon-parallel devices, use `device.get_current_pool` to get thread pool; if it returns None, it means current call is already in Rayon parallel region and should run serially.
+
+### 2.1 Creating Tensors from Lists
+
+:::warning Row/Column Major Differences in asarray and reshape
+
+The following table assumes row-major order.
+
+For column-major, due to indexing differences, asarray with shape parameters yields different results than row-major. Users familiar with both NumPy and Julia will understand this. See also [Row/Column Major Issues](./order-issue).
+
+:::
+
+| NumPy | RSTSR | Description |
+|--|--|--|
+| Assuming:<br/>`l = [0, 1, 2, 3, 4, 5]` | Assuming:<br/>`let l = vec![0, 1, 2, 3, 4, 5];` |
+| `np.array(l)` | `rt::asarray((l, &device))` | RSTSR creates owned `Tensor`<br/>(ownership transferred, no clone) |
+| | `rt::asarray((&l, &device))` | RSTSR creates `TensorView`<br/>(references `l`'s data) |
+| | `rt::asarray((&mut l, &device))` | RSTSR creates mutable `TensorMut`<br/>(mutably references `l`) |
+| `np.array(l).reshape(2, 3)`| `rt::asarray((l, [2, 3], &device))` | Equivalent RSTSR `Tensor` creation |
+| | `rt::asarray((&l, [2, 3], &device))` | RSTSR `TensorView` creation |
+| `np.array(l).reshape((2, 3), order="F")` | `rt::asarray((l, [2, 3].f(), &device))` | Creates f-contiguous `Tensor` |
+| <CodeN4/> | No equivalent[^5] | Creating high-dim tensors from nested lists |
+
+[^5]: RSTSR doesn't support creating high-dim tensors from nested lists directly.
+
+    Specifically, RSTSR treats `Vec<T>` as tensor elements, making the following a 1-D vector rather than 2×3 matrix:
+
+    <div className="ferris-overlay">
+    ```rust file=../listings/features-default/tests/numpy_cheatsheet.rs anchor=example_asarray_nested
+    ```
+    <img src={useBaseUrl("/img/ferris/not_desired_behavior.svg")} alt="not_desired_behavior" title="Undesired behavior!" /> </div>
+
+    Current workaround is flattening nested lists first:
+
+    ```rust file=../listings/features-default/tests/numpy_cheatsheet.rs anchor=example_asarray_nested_flatten
+    ```
+
+export function CodeN4() {return <CodeBlock language="python">{`\
+l = [[0, 1, 2], [3, 4, 5]]
+a = np.array(l)
+`}</CodeBlock>}
+
+### 2.2 Creating Special Tensors
+
+| NumPy | RSTSR | Description |
+|--|--|--|
+| `np.zeros((2, 3))` | `rt::zeros(([2, 3], &device))` | Zero-valued tensor |
+| `np.ones((2, 3))` | `rt::ones(([2, 3], &device))` | One-valued tensor |
+| `np.empty((2, 3))` | `unsafe { rt::empty(([2, 3], &device)) }` | Uninitialized tensor[^6] |
+| `np.full((2, 3), 65742)` | `rt::full(([2, 3], 65742, &device))` | Tensor filled with specific value |
+| `np.eye(3)` | `rt::eye((3, &device))` | 3×3 identity matrix |
+| `np.zeros((2, 3), order="F")` | `rt::zeros(([2, 3].f(), &device))` | f-contiguous zeros |
+| `np.zeros((2, 3), order="C")` | `rt::zeros(([2, 3].c(), &device))` | c-contiguous zeros |
+| `np.arange(6.0)` | `rt::arange((6.0, &device))` | Vector from 0 with step 1 (left-inclusive) |
+| `np.linspace(1+2j, 3-5j, 10)` | `rt::linspace((c64(1.0, 2.0), c64(3.0, -5.0), 10, &device))` | 10 equally spaced points between complex numbers |
+
+For functions like `zeros` where type can't be inferred from parameters:
+
+```
+| let a = rt::zeros(([2, 3], &device));
+|         ^^^^^^^^^ cannot infer type of the type parameter `Inp` declared on the function `zeros`
+```
+
+Explicitly declare type:
+
+```rust
+let a: Tensor<f64, _> = rt::zeros(([2, 3], &device))
+```
+
+[^6]: Note: While safe for common types (floats, bools, complex without `Drop`), `rt::empty` is unsafe due to potential memory exposure.
+    - It cannot be used with types having destructors (like `Vec<T>` tensors) to avoid double-free or illegal instructions.
+    - Future versions may introduce `uninit` returning `MaybeUninit<T>` tensors for safer handling.
+
+### 2.3 Creating Tensors from Existing Tensors
+
+| NumPy / PySCF | RSTSR | Description |
+|--|--|--|
+| `np.zeros_like(a)` | `rt::zeros_like(a)`<br/>`a.zeros_like()` | Zero tensor matching `a`'s shape and device |
+| `np.triu(a)` | `rt::triu(a)`<br/>`a.triu()` | Upper triangular matrix (others zeroed) |
+| `np.diag(a)` | `rt::diag(a)`<br/>`a.diag()` | Diagonal elements for 2D matrix<br/>Diagonal matrix for 1D vector |
+| `pyscf.lib.pack_tril(a)` | `rt::pack_tril(&a)`<br/>`a.pack_tril()` | Compress lower triangle to vector[^7] |
+| `pyscf.lib.unpack_tril(a)` | `rt::unpack_tril(&a, FlagSymm::Sy)`<br/>`a.unpack_tril(FlagSymm::Sy)` | Expand vector to symmetric matrix[^7] |
+
+[^7]: These functions behave differently for row/column major. Generally, row-major favors lower triangle, column-major upper triangle.
+
+## 3. Indexing
+
+### 3.1 Element Indexing
+
+Indexing `Tensor<T, B, D>` (or variants) yields `T`, `&T` or `&mut T`.
+
+**Table assumes 2D tensors**. Higher/lower dimensions work similarly.
+
+| NumPy | RSTSR | Description |
+|--|--|--|
+| `a[1, 4]` | `a[[1, 4]]` | Returns `T` value |
+| | `unsafe { a.index_uncheck([0, 1]) }` | Unsafe unchecked `&T` reference |
+| | `unsafe { a.index_mut_uncheck([0, 1]) }` | Unsafe unchecked `&mut T` reference |
+| `a[1, 4] += 3.14` | `a[[1, 4]] += 3.14` | In-place addition |
+
+### 3.2 Basic Indexing
+
+Basic indexing on `Tensor<T, B, D>` (or variants):
+- `slice`/`i` returns `TensorView<'_, T, B, D>`
+- `slice_mut`/`i_mut` returns `TensorMut<'_, T, B, D>`
+- `into_slice` maintains original type but changes layout
+- `slice!` macro provides Python-like stride indexing (different from `slice` function)
+
+**Basic indexing never copies data**, preserving performance.
+
+Row/column major basic indexing behaves consistently: dimensions are indexed left-to-right without additional broadcast rules.
+
+**Table assumes 3D tensors**.
+
+| NumPy / PyTorch | RSTSR | Description |
+|--|--|--|
+| `a[2]`<br/>`a[2, :, :]` | `a.i(2)`<br/>`a.i((2, .., ..))` | Gets 2D view at axis=0 index 2 |
+| `a[:, 3]`<br/>`a[:, 3, :]` | `a.i((.., 3))`<br/>`a.i((.., 3, ..))` | Gets 2D view at axis=1 index 3 |
+| `a[:, :, -1]` | `a.i((.., .., -1))` | Gets 2D view at last axis |
+| `a[..., -1]` | `a.i((Ellipsis, -1))` | Gets 2D view at last axis |
+| `a[2:10]` | `a.i(2..10)` | 3D view of indices [2,10) at axis=0 |
+| `a[3, 2:10]` | `a.i((3, 2..10))` | 2D view: axis=0 index 3 + axis=1 [2,10) |
+| `a[:nocc, nocc:]` | `a.i((..nocc, nocc..))` | 3D view: first `nocc` at axis=0, from `nocc` at axis=1 |
+| `a[-10:8]` | `a.i(-10..8)` | 3D view of last 10th to 8th at axis=0 |
+| `a[2:10:2]` | `a.i(slice!(2, 10, 2))` | 3D view of [2,4,6,8] at axis=0 |
+| `a[3, 10:2:-2]` | `a.i((3, slice!(2, 10, -2)))` | 2D view: axis=0 index 3 + axis=1 [10,8,6,4] |
+| `a[:, np.newaxis]`<br/>`a[:, None]`<br/>`torch.unsqueeze(a, 1)` | `a.i((.., None))` | Inserts dimension between axis=0/1 (4D) |
+| `a[np.newaxis]`<br/>`a[None]`<br/>`torch.unsqueeze(a, 0)` | `a.i(None)` | Inserts dimension before axis=0 (4D) |
+| Complex example | `a.i((-1, None, slice!(-1, 1, -2), Ellipsis, None, 2..))` | Complex basic indexing |
+
+### 3.3 Diagonal Indexing
+
+`diagonal`, `diagonal_mut`, `into_diagonal` are special cases similar to basic indexing, returning views/mutable views/original types respectively.
+
+| NumPy | RSTSR | Description |
+|--|--|--|
+| `a.diagonal()` | `a.diagonal(0)`<br/>`a.diagonal(None)` | Diagonal of axes=(0,1) |
+| `a.diagonal(2)` | `a.diagonal(2)` | Diagonal offset left[^8] by 2 elements |
+| `a.diagonal(-4, -2, -1)` | `a.diagonal((-4, -2, -1))` | Diagonal of last two axes offset down[^8] by 4 |
+| `np.fill_diagonal(a, d)` | `a.diagonal_mut(0).assign(&d)` | Only for 2D matrices[^9]<br/>Assigns to diagonal |
+
+[^8]: "Left"/"down" depends on axes order. For axes=(0,1), positive offset goes left; for (1,0), positive goes down.
+[^9]: Higher-dim diagonal assignment works in RSTSR, but differs from NumPy's `fill_diagonal`. RSTSR's `diagonal`/`diagonal_mut` matches NumPy's `diagonal` behavior.
+
+### 3.4 Advanced Indexing
+
+:::info
+
+Advanced indexing differs from basic indexing by typically returning owned tensors with data copies. Basic indexing never copies data, returning views instead.
+
+:::
+
+RSTSR currently lacks full advanced indexing support but provides `index_select` for list-based indexing along one dimension.
+
+| NumPy | RSTSR | Description |
+|--|--|--|
+| `a[:, [1, 8, 7]]`<br/>`a.take([1, 8, 7], axis=1)` | `a.index_select(1, [1, 8, 7])` | Selects elements [1,8,7] along axis=1 into new tensor |
+
+## 4. Tensor Manipulation
+
+### 4.1 Reshaping Tensors
+
+:::warning Row/Column Major Differences in asarray and reshape
+
+For column-major, reshape results differ from row-major due to indexing order. Users familiar with both NumPy and Julia will understand this. See [Row/Column Major Issues](./order-issue).
+
+:::
+
+RSTSR's `reshape`, `to_` and `change_`-prefixed functions return `TensorCow` - either a view or owned tensor. `into_`-prefixed functions return owned `Tensor`.
+
+For `TensorCow`:
+- Use `a.view()` for subsequent view operations
+- Use `a.into_owned()` for subsequent owned tensor operations
+
+:::info
+
+Table assumes row-major order.
+
+For column-major, RSTSR's `shape`-suffixed functions match Julia's `reshape(a, (3, 4))`.
+
+:::
+
+| NumPy | RSTSR | Description |
+|--|--|--|
+| `a.reshape(3, 4)` | `a.reshape((3, 4))` | `a` remains; output lifetime bound to `a`<br/>Output is `TensorCow`:<br/>- `TensorCow::View` if no data copy needed<br/>- `TensorCow::Owned` if copied |
+| | `a.into_shape((3, 4))` | Consumes `a`<br/>Output is `Tensor`:<br/>- No copy if `a` is owned and contiguous<br/>- Copies if discontiguous or referenced |
+| | `a.change_shape((3, 4))` | Consumes `a`<br/>Output is `TensorCow`:<br/>- `Owned` if `a` was contiguous<br/>- `View` if referenced but contiguous<br/>- `Owned` with copy otherwise |
+| `a.reshape(-1, 4)` | `a.reshape((-1, 4))`<br/>`a.into_shape((-1, 4))`<br/>`a.change_shape((-1, 4))` | -1 infers dimension from total elements |
+| No equivalent[^10] | `a.to_layout([3, 4].f())` | Like `reshape` but ensures f-contiguous |
+| | `a.into_layout([3, 4].f())` | Like `into_shape` but ensures f-contiguous |
+| | `a.change_layout([3, 4].f())` | Like `change_shape` but ensures f-contiguous |
+| `a.flatten()`<br/>`a.reshape(-1)` | `a.reshape(-1)` | Flattens to 1D tensor |
+
+[^10]: Note: RSTSR's `a.to_layout([3, 4].f())` differs from NumPy's `a.reshape((3, 4), order="F")`. RSTSR ensures iteration order matches `device.default_order()` before/after reshape, while NumPy matches the `order` parameter. For NumPy code:
+
+    ```python
+    # NumPy code
+    a = np.arange(24).reshape(2, 3, 4)
+    b = a.reshape((3, 4), order="F")
+    ```
+    
+    RSTSR offers two approaches:
+
+    ```rust file=../listings/features-default/tests/numpy_cheatsheet.rs anchor=example_reshape_order_f_01
+    ```
+
+    ```rust file=../listings/features-default/tests/numpy_cheatsheet.rs anchor=example_reshape_order_f_02
+    ```
+
+### 4.2 Non-Data-Changing Tensor Manipulation
+
+:::info
+
+Many tensor manipulation methods only change layout without modifying underlying data. For these:
+- No-prefix or `to_`-prefixed methods take references, don't consume input, return `TensorView`
+- `into_`-prefixed methods consume input, maintaining ownership without data changes/copies
+
+This prefix behavior differs from reshaping. Here `into_` is more similar to reshaping's `change_` prefix.
+
+:::
+
+| NumPy | RSTSR | Description |
+|--|--|--|
+| `np.broadcast_arrays([a, b, c])` | `rt::broadcast_arrays(vec![a, b, c])` | Broadcasts multiple tensors<br/>※Currently only supports same-borrow tensors |
+| `np.broadcast_to(a, [2, 3, 4])` | `a.to_broadcast(vec![2, 3, 4])`<br/>`a.into_broadcast(vec![2, 3, 4])` | Broadcasts to specific shape |
+| `np.expand_dims(a, axis=2)`<br/> | `a.expand_dims(2)`<br/>`a.into_expand_dims(2)`  | Adds dimension |
+| `np.expand_dims(a, axis=[1, 3])` | `a.expand_dims([1, 2])`<br/>`a.into_expand_dims([1, 2])` | Adds multiple dimensions<br/>※Note different parameters |
+| `np.flip(a, axis=2)`<br/>`a[:, :, ::-1]` | `a.flip(2)`<br/>`a.into_flip(2)`<br/>`a.i((.., .., slice!(None, None, -1)))` | Reverses specific dimension |
+| `a.transpose(1, 0, 2)` | `a.transpose((1, 0, 2))`<br/>`a.into_transpose((1, 0, 2))` | Transposes dimensions |
+| `a.T`<br/>`a.transpose()` | `a.t()`<br/>`a.transpose(())`<br/>`a.reverse_axes()`<br/>`a.into_reverse_axes()` | Reverses all dimensions |
+| `a.swapaxes(1, 2)` | `a.swapaxes(1, 2)`<br/>`a.into_swapaxes(1, 2)` | Swaps two dimensions |
+| `a.mT`<br/>`a.swapaxes(-1, -2)` | `a.swapaxes(-1, -2)`<br/>`a.into_swapaxes(-1, -2)` | Swaps last two dimensions |
+| `a.squeeze(2)` | `a.squeeze(2)`<br/>`a.into_squeeze(2)` | Removes length-1 dimension |
+
+### 4.3 Data-Creating Tensor Manipulation
+
+:::info
+
+Data-creating manipulations include `stack`, `concate`, `repeat`, `roll` etc.
+
+These aren't yet implemented in RSTSR but planned for future.
+
+:::
+
+## 5. Tensor Operations
+
+### 5.1 Rust Built-in Operator Overloading
+
+Rust built-in operators include:
+- Arithmetic operations (`+`, `-`, `*`, `/`)
+- Bitwise operations (`&`, `|`, `^`)
+- Negation (`-`, unary operation)
+- Bitwise or logical NOT (`!`, unary operation)
+
+RSTSR supports elementwise tensor operations with these operators, as well as their corresponding in-place operations (e.g., `+=`). These operations also follow broadcasting rules.
+
+The following table demonstrates some binary built-in operator operations in RSTSR using `i32` as an example element type. The output of binary operations is always of type `Tensor`.
+
+| Operation | Type of `a` | Type of `b` | Output Data Source |
+|--|--|--|--|
+| `&a + &b` | Any tensor | Any tensor | Newly allocated data |
+| `a + &b` | Scalar<br/>`TensorView`<br/>`TensorCow::View` | Any tensor | Newly allocated data |
+| `a + &b` | `Tensor`<br/>`TensorCow::Owned` | Any tensor | Uses `a`'s data for in-place addition |
+| `&a + b` | Any tensor | Scalar<br/>`TensorView`<br/>`TensorCow::View` | Newly allocated data |
+| `&a + b` | Any tensor | `Tensor`<br/>`TensorCow::Owned` | Uses `b`'s data for in-place addition |
+| `a + b` | Scalar<br/>`TensorView`<br/>`TensorCow::View` | Scalar<br/>`TensorView`<br/>`TensorCow::View` | Newly allocated data |
+| `a + b` | `Tensor`<br/>`TensorCow::Owned` | `Tensor`<br/>`TensorCow::Owned` | Prefers using `a`'s data for in-place addition |
+
+There are exceptions when using `a` or `b`'s data for in-place operations. If `a` or `b` is a broadcasted tensor (e.g., having zero stride in some dimensions), new data will still be allocated for the result.
+
+Alternatively, to explicitly output the result to a specific tensor, consider using functions like `rt::add_with_output(a.view(), b.view(), c.view_mut())`, which is equivalent to `np.add(a, b, out=c)`.
+
+:::warning Special Case of Remainder Operator in RSTSR
+
+Rust has another important built-in operator: remainder `%`. In RSTSR, this symbol is used for matrix multiplication.
+
+If you need to perform remainder operations:
+- Use the `rt::rem` function for remainder calculations
+- Do NOT call `core::ops::Rem::rem` as a trait function - even if `a.rem(&b)` compiles, it does NOT represent remainder operation.
+
+:::
+
+### 5.2 Matrix Multiplication
+
+Currently RSTSR only uses the `matmul` function as the unified symbol for matrix multiplication. Its behavior matches `np.matmul`, including broadcasting rules, but differs from functions like `np.dot` for higher-dimensional tensors.
+
+The matrix multiplication $\mathbf{C} = \mathbf{A} \mathbf{B}$ can be implemented using the `%` operator:
+
+```rust
+let c = &a % &b;
+```
+
+RSTSR also supports some advanced matrix multiplication operations:
+
+- `rt::matmul_with_output(&a, &b, &mut c)`: Outputs result to specific matrix, performing $\mathbf{C} \leftarrow \mathbf{A} \mathbf{B}$
+- `c.matmul_from(&a, &b, alpha, beta)`: Outputs result to specific matrix, performing $\mathbf{C} \leftarrow \alpha \mathbf{A} \mathbf{B} + \beta \mathbf{C}$
+- For BLAS devices, you can use the BLAS interface provided by `rstsr-blas-traits`, similar to `scipy.linalg.blas.dgemm`. For DGEMM example:
+
+    ```rust file=../listings/features-default/tests/numpy_cheatsheet.rs anchor=example_blas_dgemm
+    ```
+
+### 5.3 Assignment
+
+| NumPy | RSTSR | Description |
+|--|--|--|
+| `a[2:] = b` | `a.i_mut(2..).assign(&b)` | Sub-tensor assignment |
+| `a[2:] += b` | `a.i_mut(2..).add_assign(&b)`<br/>`*&mut a.i_mut(2..) += &b` | Tensor in-place addition<br/>Ignore clippy warning: deref_addrof |
+| `a[2:] = 0.5` | `a.i_mut(2..).fill(0.5)` | Element-wise assignment |
+| `np.fill_diagonal(a, d)` | `a.diagonal_mut(0).assign(&d)` | Only works for 2-D matrices[^9]<br/>Diagonal element assignment |
+
+### 5.4 Common Functions
+
+RSTSR has native implementations for common functions including `sin`, `exp`, `abs`, `floor`, `sign`, etc.
+
+Some Python built-in comparison operators like `>`, `>=` cannot be implemented as similar operators in RSTSR. However, RSTSR provides equivalent functions like `rt::greater`, `rt::greater_equal` (abbreviated as `rt::gt` and `rt::ge`).
+
+### 5.5 Element-wise Tensor Mapping
+
+For computations not natively implemented in RSTSR, you can often use functions with the `map` prefix.
+
+| NumPy | RSTSR | Description |
+|--|--|--|
+| `a > 2` | `a.mapv(\|x\| x > 2.0)` | Checks if elements > 2, outputs boolean tensor |
+| `scipy.special.gamma(a)` | `a.mapv(libm::tgamma)` | $\Gamma(a)$, outputs `f64` tensor |
+| `a**b` | `a.mapvb(&b, libm::pow)`<br/>`rt::pow(&a, &b)` | Binary power operation, outputs `f64` tensor |
+| `a.astype(np.float32)` | `a.mapv(\|x\| x as f32)` | Data type conversion |
+
+### 5.6 Reduction Operations
+
+Note there are slight differences between RSTSR and NumPy usage. RSTSR's `sum`, `mean` etc. perform reduction over all elements by default. For reduction along specific dimensions, use functions with the `_axes` suffix. The table below shows general usage of reduction operations.
+
+Currently implemented reduction methods include `sum`, `min`, `max`, `prod`, `mean`, `var`, `std`, `argmin`, `argmax`, `l2_norm`.
+
+| NumPy | RSTSR | Description |
+|--|--|--|
+| `a.sum()` | `a.sum()`<br/>`a.sum_all()`<br/>`rt::sum(&a)`[^11]<br/>`rt::sum_all(&a)`[^11] | Sum over all tensor elements |
+| `a.sum(axis=-1)` | `a.sum_axes(-1)`<br/>`rt::sum_axes(&a, -1)` | Sum over last dimension |
+| `a.sum(axis=(2, -1))` | `a.sum_axes((2, -1))`<br/>`rt::sum_axes(&a, (2, -1))` | Sum over second and last dimensions |
+
+[^11]: For boolean tensors, summation via `a.sum()` etc. counts the number of `true` values. Note that `rt::sum` cannot be used in this case as the trait implementation differs.
+
+## 6. Linear Algebra (linalg)
+
+### 6.1 BLAS and LAPACK Interfaces (BLAS Devices)
+
+The `rstsr-blas-traits` crate provides BLAS function interfaces for RSTSR tensors. The [Matrix Multiplication](#52-matrix-multiplication) section shows `DGEMM` usage. Similarly, BLAS/LAPACK functions like `DSYRK`, `DSYEVD`, `DGESDD` are available.
+
+### 6.2 `rt::linalg` Functions
+
+:::info
+
+Not all backends implement linear algebra functionality, and implementations may vary between backends.
+
+Currently, the BLAS backend implements more linalg features with more parameter overloading. The Faer backend implements some key linalg features but cannot yet handle generalized eigenvalue problems like $\mathbf{A} \bm{x} = \lambda \mathbf{B} \bm{x}$ and has fewer parameter overloads.
+
+:::
+
+The following tables assume `DeviceOpenBLAS` device with row-major tensors. Note default uplo (upper/lower triangular) settings:
+- For row-major: Default is `FlagUpLo::Lower`
+- For column-major: Default is `FlagUpLo::Upper`
+
+#### 6.2.1 Hermitian Eigenvalue Problems
+
+| NumPy | RSTSR | Description |
+|--|--|--|
+| `np.linalg.eigh(a, uplo='L')`<br/>`scipy.linalg.eigh(a, lower=True)` | `rt::linalg::eigh(&a)` | Standard diagonalization $\mathbf{A} \bm{x} = \lambda \bm{x}$ |
+| `np.linalg.eigh(a, uplo)`<br/>`scipy.linalg.eigh(a, lower)` | `rt::linalg::eigh((&a, uplo))` | Standard diagonalization $\mathbf{A} \bm{x} = \lambda \bm{x}$<br/>Explicit upper/lower triangular |
+| `scipy.linalg.eigh(a, b, lower=True)` | `rt::linalg::eigh((&a, &b))` | Generalized diagonalization $\mathbf{A} \bm{x} = \lambda \mathbf{B} \bm{x}$ |
+| `scipy.linalg.eigh(a, b, lower)` | `rt::linalg::eigh((&a, &b, uplo))` | Generalized diagonalization $\mathbf{A} \bm{x} = \lambda \mathbf{B} \bm{x}$<br/>Explicit upper/lower triangular |
+| `scipy.linalg.eigh(a, b, lower, type=2)` | `rt::linalg::eigh((&a, &b, uplo, 2))` | Generalized diagonalization $\mathbf{A} \mathbf{B} \bm{x} = \lambda \bm{x}$<br/>Explicit upper/lower triangular<br/>Problem type (see DSYGV) |
+| `scipy.linalg.eigh(a, b, lower, type=3)` | `rt::linalg::eigh((&a, &b, uplo, 3))` | Generalized diagonalization $\mathbf{B} \mathbf{A} \bm{x} = \lambda \bm{x}$<br/>Explicit upper/lower triangular<br/>Problem type (see DSYGV) |
+| `scipy.linalg.eigh(a, overwrite_a=True)` | `rt::linalg::eigh(a.view_mut())`<br/>`rt::linalg::eigh(a)` | Standard diagonalization $\mathbf{A} \bm{x} = \lambda \bm{x}$<br/>Explicitly writes eigenvectors to `a` |
+| `np.linalg.eigvalsh(a)`<br/>`scipy.linalg.eigvalsh(a)`<br/>`scipy.linalg.eigh(a, eigvals_only=True)` | `rt::linalg::eigvalsh(&a)` | Standard diagonalization $\mathbf{A} \bm{x} = \lambda \bm{x}$<br/>No eigenvector output |
+
+#### 6.2.2 Matrix Decomposition
+
+| NumPy | RSTSR | Description |
+|--|--|--|
+| `np.linalg.cholesky(a, upper=False)`<br/>`scipy.linalg.cholesky(a, lower=True)` | `rt::linalg::cholesky(&a)` | Cholesky decomposition |
+| `np.linalg.cholesky(a, upper)`<br/>`scipy.linalg.cholesky(a, lower)` | `rt::linalg::cholesky((&a, uplo))` | Cholesky decomposition<br/>Explicit upper/lower triangular |
+| `np.linalg.svd(a)`<br/>`scipy.linalg.svd(a)` | `rt::linalg::svd(&a)` | SVD decomposition<br/>Output order: $\mathbf{U}$, $\mathbf{s}$, $\mathbf{V}^\dagger$<br/>Both $\mathbf{U}$ and $\mathbf{V}^\dagger$ are square |
+| `np.linalg.svd(a, full_matrices=False)`<br/>`scipy.linalg.svd(a, full_matrices=False)` | `rt::linalg::svd((&a, false))` | SVD decomposition<br/>Output order: $\mathbf{U}$, $\mathbf{s}$, $\mathbf{V}^\dagger$<br/>Only larger matrix is rectangular |
+| `np.linalg.svdvals(a)`<br/>`scipy.linalg.svdvals(a)` | `rt::linalg::svdvals(&a)` | SVD decomposition<br/>Only $\mathbf{s}$ output |
+
+#### 6.2.3 Matrix Solving
+
+These operations solve $\mathbf{A} \mathbf{X} = \mathbf{B}$. Depending on $\mathbf{A}$'s properties, we have different implementations.
+
+Currently RSTSR hasn't unified different matrix solving methods under one function.
+
+| NumPy | RSTSR | Description |
+|--|--|--|
+| `scipy.linalg.solve(a, b, assume_a="gen")` | `rt::linalg::solve_general((&a, &b))` | General square matrix $\mathbf{A}$ |
+| `scipy.linalg.solve(a, b, lower, assume_a="her")` | `rt::linalg::solve_symmetric((&a, &b, true, uplo))` | Hermitian matrix $\mathbf{A}$ |
+| `scipy.linalg.solve(a, b, lower, assume_a="sym")` | `rt::linalg::solve_symmetric((&a, &b, false, uplo))` | Symmetric matrix $\mathbf{A}$ |
+| `scipy.linalg.solve(a, b, assume_a="lower triangular")` | `rt::linalg::solve_triangular((&a, &b, Lower))` | Lower triangular matrix $\mathbf{A}$ |
+| `scipy.linalg.solve(a, b, assume_a="upper triangular")` | `rt::linalg::solve_triangular((&a, &b, Upper))` | Upper triangular matrix $\mathbf{A}$ |
+| `scipy.linalg.solve(a, b, overwrite_b=True)` | `rt::linalg::solve_general((&a, b.view_mut()))`<br/>`rt::linalg::solve_general((&a, b))` | General square matrix $\mathbf{A}$<br/>Writes to $\mathbf{B}$ matrix |
+
+#### 6.2.4 Other Linear Algebra Operations
+
+| NumPy | RSTSR | Description |
+|--|--|--|
+| `np.linalg.inv(a)`<br/>`scipy.linalg.inv(a)` | `rt::linalg.inv(&a)` | Matrix inversion |
+| `scipy.linalg.inv(a, overwrite_a=True)` | `rt::linalg.inv(a.view_mut())`<br/>`rt::linalg.inv(a)` | Matrix inversion<br/>Explicit write to `a` |
+| `np.linalg.pinv(a)`<br/>`scipy.linalg.pinv(a)` | `rt::linalg.pinv(&a)` | Moore-Penrose pseudoinverse |
+| `scipy.linalg.pinv(a, atol, rtol)` | `rt::linalg.pinv((&a, atol, rtol))` | Moore-Penrose pseudoinverse<br/>Given atol and rtol to discard small singular values |
+| `np.linalg.det(a)`<br/>`scipy.linalg.det(a)` | `rt::linalg.det(&a)` | Determinant calculation |
+| `np.linalg.slogdet(a)` | `rt::linalg.slogdet(&a)` | Determinant calculation<br/>Returns $(s, x)$ where $\mathrm{det} = s \mathrm{e}^x$ |
+
+## Unimplemented Important Operations in RSTSR
+
+As RSTSR is in early development, some important operations are not yet implemented, including:
+- Einstein summation and `tensordot`
+- Advanced indexing
+- Sorting operations
+- Tensor concatenation (`concate`, `stack`, etc.)
+
+Additionally, while RSTSR has implemented key linear algebra (linalg) functionality like eigenvalue decomposition and SVD, operations like matrix functions (`expm`, `logm`) remain unimplemented.

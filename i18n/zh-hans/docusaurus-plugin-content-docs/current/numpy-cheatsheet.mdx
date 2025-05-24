@@ -1,0 +1,520 @@
+---
+sidebar_label: NumPy-RSTSR 对照表
+sidebar_position: 7
+---
+
+import CodeBlock from '@theme/CodeBlock';
+import useBaseUrl from '@docusaurus/useBaseUrl';
+
+# NumPy-RSTSR 对照表
+
+该对照表一般假设您已经通过下述语句引入 RSTSR：
+
+```rust
+use rstsr::prelude::*;
+```
+
+其中的 mod `rt` 中包含大多数 RSTSR 的 struct 与 func。上述语句也引入大部分使用 RSTSR 时所需要的 traits。
+
+同时，我们假设用户在 Cargo.toml 文件中，开启了一些必要的 cargo features。
+
+```toml
+rstsr = { version = "0.3", features = ["linalg", "faer", "openblas"] }
+```
+
+:::info 基于 Trait 的 Rust 重载与其他语言有编写风格差异
+
+RSTSR 的许多函数通过 trait 作重载：
+- 只传入一个参数的变量，只需要一个括号；
+- 传入两个或多个参数的变量，需要通过 tuple (元组) 传入参数，因此需要两个括号。
+
+两个括号的写法可能会同时对 Rust 与从其他语言而来的用户感到困惑，但我们认为目前没有其他更好的解决方法。我们认为，当 [rust#29625](https://github.com/rust-lang/rust/issues/29625) 稳定后，Rust 语言下真正的重载有希望能达成。
+
+:::
+
+:::info 错误处理
+
+RSTSR 提供错误处理功能。
+
+大多数错误处理函数都具有后缀 `_f`；举例而言，`rt::zeros` 遇到错误会 panic，但 `rt::zeros_f` 则将返回可以处理的错误。
+
+:::
+
+## 1. 常见非运算操作
+
+这部分非运算操作，是用户经常需要调用的。
+
+### 1.1 打印张量
+
+| NumPy | RSTSR | 说明 |
+|--|--|--|
+| `print(a)` | `println!("{a}")` | 打印张量 (默认某一维度大于 8 个元素时，只显示前后 3 个元素)[^1] |
+|  | `println!("{a:?}")` | 同时打印其 shape/stride/offset 信息、device 信息、具体的类型 |
+|  | `println!("{a:16.8}")` | 每个元素以 16 字符、8 位小数输出 |
+
+[^1]: 对于较大的张量，如果不满足于大于 8 个元素 (`MAX_PRINT`) 时只打印前后 3 个数值 (`MIN_PRINT`)，那么可以通过更改 static 变量修改。以下是打印 10 个元素以上的示例程序：
+
+    ```rust file=../listings/features-default/tests/numpy_cheatsheet.rs anchor=example_print_set_max_print
+    ```
+
+### 1.2 输出 Layout 信息
+
+| NumPy | RSTSR | 说明 |
+|--|--|--|
+| `a.shape` | `a.shape()` | 形状信息 |
+| `a.strides` | `a.stride()` | 每个维度对应的步幅[^2] |
+| 无对应 | `a.offset()` | 张量第一个元素与底层数据第一个元素的位差 |
+| `a.ctypes.data` | `a.raw().as_ptr().add(a.offset())` | 第一个元素所在内存的指针[^3] |
+| `a.ndim` | `a.ndim()` | 维度大小 |
+| `a.flags.c_contiguous` | `a.c_contig()` | 是否 row-major 下连续的 |
+| `a.flags.f_contiguous` | `a.f_contig()` | 是否 col-major 下连续的 |
+| 无对应 | `a.c_prefer()` | 是否 row-major 下跳跃连续的[^4] |
+| 无对应 | `a.f_prefer()` | 是否 col-major 下跳跃连续的[^4] |
+| 无对应 | `a.layout()` | 输出完整的 Layout 信息 |
+
+[^2]: 这里 RSTSR 与 NumPy 的约定俗成不同。RSTSR 的 stride 是以元素数量计；最连续的维度，其 stride 为 1。NumPy 的 stride 是以内存的 byte 数量计；对于 `np.float32` 类型，最连续的维度的 stride 为 4；对于 `np.float64` 类型则为 8。
+[^3]: RSTSR 与 NumPy 在对指针的处理上有所不同。NumPy 给出的指针总是指向张量的第一个元素。但 RSTSR 给出的指针是指向底层数据向量的第一个元素，它与张量的第一个元素之间相差 `a.offset()` 的长度。
+[^4]: 这里的“跳跃连续”是指，尽管张量本身是不连续的，但每一个维度本身是连续的。连续大矩阵中的子矩阵是跳跃连续的；在 col-major 的 BLAS 的调用中，这体现为矩阵的 leading dimension 数值比实际的行数更大。因此，当一个矩阵是 col-major 跳跃连续 (即 `f_prefer`) 时，它不需要额外作内存复制，而可以代入到 BLAS 中进行计算。以 GEMM 为代表的部分 BLAS 程序也能通过转置参数，不复制内存地处理 row-major 跳跃连续 (即 `c_prefer`) 情形。
+
+## 2. 张量生成
+
+张量生成包含三层含义：生成特殊的张量，从已有张量新生成张量，从 Rust 的 `Vec<T>`、`&[T]`、`&mut [T]` 等类型生成张量。对于后者，文档 [张量与 Rust 类型相互转换](../fundamentals/tensor_rust_conversion) 有较详细的说明。
+
+### 2.0 设备参数 `device`
+
+对于设备参数 `device`，一般用户使用默认构造函数即可。以 `DeviceFaer` 为例，
+
+```rust
+let device = DeviceFaer::default();
+```
+
+但如果用户对线程数有限制 (且并非通过外部的 `RAYON_NUM_THREADS` 控制)，那么以 `DeviceOpenBLAS` 为例，可以通过下述方式控制线程数为 6：
+
+```rust
+let device = DeviceOpenBLAS::new(6);
+```
+
+几乎所有函数都允许不传入 `&device` 的重载；在此情况下会使用 `DeviceFaer::default()` 作为默认设备 (若开启 cargo feature `faer_as_default`)。
+
+对于支持 Rayon 并行的设备，可以通过 `device.get_current_pool` 获得该设备的线程池；若该函数返回 None，则表明当前的调用已经在 Rayon 并行区域，不应再调用线程池而应串行执行代码。
+
+### 2.1 从列表生成张量
+
+:::warning 行/列优先在 asarray 与 reshape 函数上有不同的表现
+
+下面的表格仅对 row-major 成立。
+
+对于 col-major，由于索引顺序的差异，若对 asarray 传入维度信息，则结果会与 row-major 不同。如果用户同时使用过 NumPy 与 Julia，就应该能理解这一点。同时参考文档 [行/列优先问题](./order-issue)。
+
+:::
+
+| NumPy | RSTSR | 说明 |
+|--|--|--|
+| 以下代码假定<br/>`l = [0, 1, 2, 3, 4, 5]` | 以下代码假定<br/>`let l = vec![0, 1, 2, 3, 4, 5];` |
+| `np.array(l)` | `rt::asarray((l, &device))` | RSTSR 生成占有数据的张量 `Tensor`<br/>(变量 `l` 所有权转移给 `a`，没有克隆) |
+| | `rt::asarray((&l, &device))` | RSTSR 生成张量视窗 `TensorView`<br/>(变量 `a` 的底层数据引用了 `l`) |
+| | `rt::asarray((&mut l, &device))` | RSTSR 生成可变张量视窗 `TensorMut`<br/>(变量 `a` 的底层数据引用了 `l`) |
+| `np.array(l).reshape(2, 3)`| `rt::asarray((l, [2, 3], &device))` | RSTSR 生成 `Tensor` 的等价代码 |
+| | `rt::asarray((&l, [2, 3], &device))` | RSTSR 生成 `TensorView` 的代码 |
+| `np.array(l).reshape((2, 3), order="F")` | `rt::asarray((l, [2, 3].f(), &device))` | RSTSR 生成 f-contiguous `Tensor` 的等价代码 |
+| <CodeN4/> | 无对应[^5] | 从嵌套列表生成高维张量 |
+
+[^5]: RSTSR 不提供对折叠列表生成高维张量的功能支持。
+
+    更准确地说，RSTSR 在面对下述代码时，并不会报错；但它将视 `Vec<T>` 类型作为张量的元素，即下述张量在 RSTSR 中是 1-D 向量而不是 $2 \times 3$ 的 2-D 矩阵。这一般不是用户所预期的行为：
+
+    <div className="ferris-overlay">
+    ```rust file=../listings/features-default/tests/numpy_cheatsheet.rs anchor=example_asarray_nested
+    ```
+    <img src={useBaseUrl("/img/ferris/not_desired_behavior.svg")} alt="not_desired_behavior" title="非预期行为！" /> </div>
+
+    如果用户确实希望将嵌套列表传入 RSTSR 作为矩阵或张量，目前的解决方案是首先用户将嵌套列表压平到一维向量：
+
+    ```rust file=../listings/features-default/tests/numpy_cheatsheet.rs anchor=example_asarray_nested_flatten
+    ```
+
+export function CodeN4() {return <CodeBlock language="python">{`\
+l = [[0, 1, 2], [3, 4, 5]]
+a = np.array(l)
+`}</CodeBlock>}
+
+### 2.2 生成特殊张量
+
+| NumPy | RSTSR | 说明 |
+|--|--|--|
+| `np.zeros((2, 3))` | `rt::zeros(([2, 3], &device))` | 生成零值张量 |
+| `np.ones((2, 3))` | `rt::ones(([2, 3], &device))` | 生成一值张量 |
+| `np.empty((2, 3))` | `unsafe { rt::empty(([2, 3], &device)) }` | 生成非初始化张量[^6] |
+| `np.full((2, 3), 65742)` | `rt::full(([2, 3], 65742, &device))` | 生成特定初始值的张量 |
+| `np.eye(3)` | `rt::eye((3, &device))` | 生成 $3 \times 3$ 单位阵 |
+| `np.zeros((2, 3), order="F")` | `rt::zeros(([2, 3].f(), &device))` | 生成 f-contiguous 的零值张量 |
+| `np.zeros((2, 3), order="C")` | `rt::zeros(([2, 3].c(), &device))` | 生成 c-contiguous 的零值张量 |
+| `np.arange(6.0)` | `rt::arange((6.0, &device))` | 自 0 生成步长为 1 的左闭右开向量 |
+| `np.linspace(1+2j, 3-5j, 10)` | `rt::linspace((c64(1.0, 2.0), c64(3.0, -5.0), 10, &device))` | 给定起点与终点，等长地划分 10 个点组成向量 |
+
+该表格的很多函数，以 `zeros` 为例，其张量生成函数不一定能通过输入参数以确定数据类型：
+
+```
+| let a = rt::zeros(([2, 3], &device));
+|         ^^^^^^^^^ cannot infer type of the type parameter `Inp` declared on the function `zeros`
+```
+
+若遇到这类情况，在变量声明时明确指出其类型即可：
+
+```rust
+let a: Tensor<f64, _> = rt::zeros(([2, 3], &device))
+```
+
+[^6]: 请注意，尽管对科学计算常用的类型 (如浮点数、布尔量、复数等不具备析构实现 (trait `Drop`) 的类型)，这里的 `rt::empty` 函数仅仅是不保证对张量赋予初值。
+    - 但一方面，它有潜在的暴露内存数据的危险，因此是 unsafe 的。
+    - 另一方面，该 `rt::empty` 函数不可以应用于具有析构实现元素的张量 (譬如以 `Vec<T>` 为元素构成的张量)；否则会对不具有意义的内存块作析构，造成 SIGABRT (double free) 或 SIGILL (illegal instruction)。该问题可以参考 [clippy `uninit_vec`](https://rust-lang.github.io/rust-clippy/master/#uninit_vec)。
+
+    因此，取决于张量元素是否存在析构实现，这可以是比较安全的 unsafe，也可以是极端危险的 unsafe。未来我们也许会考虑引入 `uninit` 函数用以初始化，给出 `MaybeUninit<T>` 类型的张量，从而避免过于危险的 unsafe。
+
+### 2.3 从已有张量生成新的张量
+
+| NumPy / PySCF | RSTSR | 说明 |
+|--|--|--|
+| `np.zeros_like(a)` | `rt::zeros_like(a)`<br/>`a.zeros_like()` | 与 `a` 形状一致、后端 device 相同的零张量 |
+| `np.triu(a)` | `rt::triu(a)`<br/>`a.triu()` | 取上三角矩阵，其余部分置零 |
+| `np.diag(a)` | `rt::diag(a)`<br/>`a.diag()` | 对于二维矩阵取其对角<br/>对于一维矩阵展开为对角方阵 |
+| `pyscf.lib.pack_tril(a)` | `rt::pack_tril(&a)`<br/>`a.pack_tril()` | 将下三角矩阵压缩到向量[^7] |
+| `pyscf.lib.unpack_tril(a)` | `rt::unpack_tril(&a, FlagSymm::Sy)`<br/>`a.unpack_tril(FlagSymm::Sy)` | 将向量解压到对称矩阵[^7] |
+
+[^7]: 这两类函数会随 row-major 或 col-major 不同而不同。一般来说，row-major 倾向于下三角，col-major 倾向于上三角。
+
+## 3. 索引
+
+### 3.1 对元素的索引
+
+对张量 `Tensor<T, B, D>` (或其他引用的变种) 元素的索引，其输出是 `T` 元素类型，或其引用 `&T` 或 `&mut T` 类型。
+
+**下述表格假定 2-D 张量**。对于更高或更低维度的张量，索引方法是类似的。
+
+| NumPy | RSTSR | 说明 |
+|--|--|--|
+| `a[1, 4]` | `a[[1, 4]]` | 索引得到 `T` 类型的数值 |
+| | `unsafe { a.index_uncheck([0, 1]) }` | 不作边界检查，索引得到 `&T` 引用 |
+| | `unsafe { a.index_mut_uncheck([0, 1]) }` | 不作边界检查，索引得到 `&mut T` 引用 |
+| `a[1, 4] += 3.14` | `a[[1, 4]] += 3.14` | 对索引值作 `add_assign` 运算 |
+
+### 3.2 对子张量的基础索引 (basic indexing)
+
+对张量 `Tensor<T, B, D>` (或其他引用的变种) 的基础索引，
+- 以函数 `slice` 或等价函数 `i`，其输出是视窗 `TensorView<'_, T, B, D>`。
+- 以函数 `slice_mut` 或等价函数 `i_mut`，其输出是可变视窗 `TensorMut<'_, T, B, D>` 类型。
+- 以函数 `into_slice`，其输出类型与原先的张量一致，但将改变其 layout (即其输出也可以是 `Tensor` 或 `TensorCow` 类型)。
+- 通过宏 `slice!` 可以生成与 Python 的 built-in `slice` 接近的跳跃索引的功能；但请注意宏 `slice!` 与函数 `slice` 是不同的。
+
+**基础索引不会产生对数据的复制**，一般不影响计算性能与分配数据内存。
+
+请留意，对于 row-major 与 col-major，基础索引给出的结果是一致的：即都是维度指标从左向右进行索引，不额外引入 broadcast 规则。
+
+**下述表格假定 3-D 张量**。对于更高或更低维度的张量，索引方法是类似的。
+
+| NumPy / PyTorch | RSTSR | 说明 |
+|--|--|--|
+| `a[2]`<br/>`a[2, :, :]` | `a.i(2)`<br/>`a.i((2, .., ..))` | 从 axis=0 取第二个 2-D 张量视窗 |
+| `a[:, 3]`<br/>`a[:, 3, :]` | `a.i((.., 3))`<br/>`a.i((.., 3, ..))` | 从 axis=1 取第三个 2-D 张量视窗 |
+| `a[:, :, -1]` | `a.i((.., .., -1))` | 从 axis=2 取第倒数第一个 2-D 张量视窗 |
+| `a[..., -1]` | `a.i((Ellipsis, -1))` | 从 axis=-1 (倒数第一个 axis) 取第倒数第一个 2-D 张量视窗 |
+| `a[2:10]` | `a.i(2..10)` | 从 axis=0 取 [2, 3, ..., 8, 9] 组成 3-D 的张量视窗 |
+| `a[3, 2:10]` | `a.i((3, 2..10))` | 从 axis=0 取第三个子张量，并对 axis=1 取 [2, 3, ..., 8, 9]<br/>组成 2-D 的张量视窗 |
+| `a[:nocc, nocc:]` | `a.i((..nocc, nocc..))` | 从 axis=0 取前 `nocc` 个指标、从 axis=1 取 `nocc` 开始的指标<br/>组成 3-D 的张量视窗 |
+| `a[-10:8]` | `a.i(-10..8)` | 对 axis=0 取倒数第 10 个到正数第 8 个指标<br/>组成 3-D 的张量视窗 |
+| `a[2:10:2]` | `a.i(slice!(2, 10, 2))` | 对 axis=0 取 [2, 4, 6, 8] 组成 3-D 的张量视窗 |
+| `a[3, 10:2:-2]` | `a.i((3, slice!(2, 10, -2)))` | 从 axis=0 取第三个子张量，并对 axis=1 取 [10, 8, 6, 4]<br/>组成 3-D 的张量视窗 |
+| `a[:, np.newaxis]`<br/>`a[:, None]`<br/>`torch.unsqueeze(a, 1)` | `a.i((.., None))` | 对 axis=0 与 axis=1 之间插入一个维度构成 4-D 的张量视窗 |
+| `a[np.newaxis]`<br/>`a[None]`<br/>`torch.unsqueeze(a, 0)` | `a.i(None)` | 对 axis=0 之前插入一个维度构成 4-D 的张量视窗 |
+| `a[-1, None, -1:1:-2, ..., None, 2:]` | `a.i((-1, None, slice!(-1, 1, -2), Ellipsis, None, 2..))` | 复杂的基础索引 |
+
+### 3.3 对角张量索引
+
+`diagonal`, `diagonal_mut`, `into_diagonal` 函数是比较特殊的情形：它们的行为与基础索引相似，也将分别返回视窗、可变视窗与原有类型。
+
+| NumPy | RSTSR | 说明 |
+|--|--|--|
+| `a.diagonal()` | `a.diagonal(0)`<br/>`a.diagonal(None)` | 取 axes=(0, 1) 即前两个维度的对角元 |
+| `a.diagonal(2)` | `a.diagonal(2)` | 取 axes=(0, 1) 即前两个维度的、向左边[^8]偏移两个元素的对角元 |
+| `a.diagonal(-4, -2, -1)` | `a.diagonal((-4, -2, -1))` | 取 axes=(-2, -1) 即倒数两个维度的、向下方[^8]偏移四个元素的对角元 |
+| `np.fill_diagonal(a, d)` | `a.diagonal_mut(0).assign(&d)` | 该示例仅对 2-D 矩阵成立[^9]<br/>对矩阵对角元赋值 |
+
+[^8]: 这里的**左边**与**下方**是相对于两个 axes 的顺序的。例如，axes=(0, 1) 的情形，对于矩阵而言，diagonal 函数的 offset 若为正值，则向左边偏移；但若 axes=(1, 0)，那么若 offset 为正值，则会反过来向下方偏移。
+
+[^9]: 实际上，更高维度的张量，RSTSR 在对角线上赋值也是可行的。但对于 NumPy，`np.fill_diagonal` 的行为与 `np.diagonal` 不同。在 RSTSR 中，我们始终用 `diagonal` 或 `diagonal_mut` 取对角线，对应的是 `np.diagonal` 的行为。
+
+### 3.4 高级索引
+
+:::info
+
+高级索引与基础索引不同。高级索引一般会返回占有数据张量，即会明确地作内存复制。基础索引则在任何情况下都不会作内存赋值，而可以返回张量视窗。
+
+:::
+
+目前 RSTSR 没有实现对高级索引的完整支持；但我们支持 `index_select` 函数，即在其中一个维度上对列表作索引。
+
+| NumPy | RSTSR | 说明 |
+|--|--|--|
+| `a[:, [1, 8, 7]]`<br/>`a.take([1, 8, 7], axis=1)` | `a.index_select(1, [1, 8, 7])` | 对 axis=1 选取其第 [1, 8, 7] 元素拼成新的张量 |
+
+## 4. 张量操纵
+
+### 4.1 张量形状调整
+
+:::warning 行/列优先在 asarray 与 reshape 函数上有不同的表现
+
+对于 col-major，由于索引顺序的差异，reshape 的结果会与 row-major 不同。如果用户同时使用过 NumPy 与 Julia，就应该能理解这一点。同时参考文档 [行/列优先问题](./order-issue)。
+
+:::
+
+RSTSR 在处理张量形状调整时，`reshape` 函数、`to_` 与 `change_` 为前缀的函数将返回给出 `TensorCow` 类型；它可能是另一个张量的视窗，也可能是占有实际数据的张量。以 `into_` 为前缀的函数将给出 `Tensor` 类型，即占有实际数据的张量。
+
+对于 `TensorCow` 类型，
+- 若后续希望处理张量视窗，请运行 `a.view()` 以进行后续计算；
+- 若后续希望处理实际占有数据的张量，请运行 `a.into_owned()` 以进行后续计算。
+
+:::info
+
+下述表格以 row-major 为前提。
+
+对于 col-major 的情形，下述表格 RSTSR 以 `shape` 为后缀的函数，其行为应与 Julia 的 `reshape(a, (3, 4))` 是一致的。
+
+:::
+
+| NumPy | RSTSR | 说明 |
+|--|--|--|
+| `a.reshape(3, 4)` | `a.reshape((3, 4))` | 调用后，`a` 仍然存留；输出张量声明周期在 `a` 之内<br/>输出类型为 `TensorCow`<br/><ul><li>若形状调整不需要复制数据，则封装为 `TensorCow::View`</li><li>否则复制数据并封装为 `TensorCow::Owned`</li></ul> |
+| | `a.into_shape((3, 4))` | 调用后，`a` 消失<br/>输出类型为 `Tensor`<br/><ul><li>若 `a` 本身也是占有数据的 `Tensor` 且足够连续，则不进行内存复制</li><li>否则，对于内存不连续、或 `a` 是引用类型的，则复制数据</li></ul> |
+| | `a.change_shape((3, 4))` | 调用后，`a` 消失<br/>输出类型为 `TensorCow`<br/><ul><li>若 `a` 占有数据且连续，则不复制内存且封装为 `TensorCow::Owned`</li><li>若 `a` 是引用类型，但本身足够连续，则封装为 `TensorCow::View`</li><li>否则复制数据并封装为 `TensorCow::Owned`</li></ul> |
+| `a.reshape(-1, 4)` | `a.reshape((-1, 4))`<br/>`a.into_shape((-1, 4))`<br/>`a.change_shape((-1, 4))` | 允许其中一个维度为 -1<br/>该维度将通过张量总元素数量推断 |
+| 无对应[^10] | `a.to_layout([3, 4].f())` | 类似于 `reshape`，但保证输出是 f-contiguous 的 |
+| | `a.into_layout([3, 4].f())` | 类似于 `into_shape`，但保证输出是 f-contiguous 的 |
+| | `a.change_layout([3, 4].f())` | 类似于 `change_shape`，但保证输出是 f-contiguous 的 |
+| `a.flatten()`<br/>`a.reshape(-1)` | `a.reshape(-1)` | 将高维张量压平到 1-D 张量 |
+
+[^10]: 请留意，RSTSR 的 `a.to_layout([3, 4].f())` 与 NumPy 的 `a.reshape((3, 4), order="F")` 行为并不相同。RSTSR 的 `reshape` 或 `to_layout` 对运行前后的张量，将保证依照 `device.default_order()` 所要求的 row/col-major 的迭代顺序是一致的。NumPy 的情形，则是对运行前后的张量，按 `order` 可选参数的迭代顺序一致。因此，对于 NumPy 的代码
+
+    ```python
+    # NumPy code
+    a = np.arange(24).reshape(2, 3, 4)
+    b = a.reshape((3, 4), order="F")
+    ```
+    
+    RSTSR 有两种实现方法：
+
+    ```rust file=../listings/features-default/tests/numpy_cheatsheet.rs anchor=example_reshape_order_f_01
+    ```
+
+    ```rust file=../listings/features-default/tests/numpy_cheatsheet.rs anchor=example_reshape_order_f_02
+    ```
+
+### 4.2 不更改底层数据的张量操纵
+
+:::info
+
+不少张量操纵 (tensor manipulation) 方法，是不需要更改底层数据、而只需要更改张量的 layout 的。对于这类方法，
+- 没有前缀或前缀为 `to_` 的方法，其输入是张量的引用，不会消耗输入参数，输出是张量的视窗 `TensorView`；
+- 前缀为 `into_` 的方法，会消耗输入参数，输出的张量借用规则与输入张量一致，不会更改或复制底层数据。
+
+这里的前缀规则与张量形状调整有所不同。张量操纵的 `into_` 前缀，更接近张量形状调整的 `change_` 前缀。
+
+:::
+
+| NumPy | RSTSR | 说明 |
+|--|--|--|
+| `np.broadcast_arrays([a, b, c])` | `rt::broadcast_arrays(vec![a, b, c])` | 广播多组张量<br/>※目前仅支持相同借用规则的张量广播 |
+| `np.broadcast_to(a, [2, 3, 4])` | `a.to_broadcast(vec![2, 3, 4])`<br/>`a.into_broadcast(vec![2, 3, 4])` | 广播张量到特定形状 |
+| `np.expand_dims(a, axis=2)`<br/> | `a.expand_dims(2)`<br/>`a.into_expand_dims(2)`  | 扩张一个张量维度 |
+| `np.expand_dims(a, axis=[1, 3])` | `a.expand_dims([1, 2])`<br/>`a.into_expand_dims([1, 2])` | 扩张多个张量维度<br/>※请留意输入参数是不同的 |
+| `np.flip(a, axis=2)`<br/>`a[:, :, ::-1]` | `a.flip(2)`<br/>`a.into_flip(2)`<br/>`a.i((.., .., slice!(None, None, -1)))` | 翻转张量的特定维度 |
+| `a.transpose(1, 0, 2)` | `a.transpose((1, 0, 2))`<br/>`a.into_transpose((1, 0, 2))` | 依给定维度顺序转置张量 |
+| `a.T`<br/>`a.transpose()` | `a.t()`<br/>`a.transpose(())`<br/>`a.reverse_axes()`<br/>`a.into_reverse_axes()` | 依逆序转置张量的所有维度 |
+| `a.swapaxes(1, 2)` | `a.swapaxes(1, 2)`<br/>`a.into_swapaxes(1, 2)` | 交换两个维度 |
+| `a.mT`<br/>`a.swapaxes(-1, -2)` | `a.swapaxes(-1, -2)`<br/>`a.into_swapaxes(-1, -2)` | 交换张量的最后两个维度 |
+| `a.squeeze(2)` | `a.squeeze(2)`<br/>`a.into_squeeze(2)` | 去除长度为 1 的一个维度 |
+
+### 4.3 产生新张量的张量操纵
+
+:::info
+
+产生新张量的张量操纵，包括 `stack`, `concate`, `repeat`, `roll` 等函数。
+
+目前这些函数尚未在 RSTSR 中实现，但有计划在未来实现。
+
+:::
+
+## 5. 张量运算
+
+### 5.1 Rust 内置符号的运算
+
+Rust 内置符号包括
+- 四则运算 (`+`, `-`, `*`, `/`)；
+- 比特运算 (`&`, `|`, `^`)；
+- 取负 (`-`，一目运算)；
+- 比特或逻辑非 (`!`，一目运算)。
+
+RSTSR 支持这些符号的张量 elementwise 运算、以及这些符号对应的 inplace 运算 (譬如 `+=`)。这些运算同时支持广播规则。
+
+下述表格以 `i32` 元素类型为例，将展示一部分 RSTSR 的二目内置符号运算。二目运算的输出总是 `Tensor` 类型。
+
+| 运算 | `a` 类型 | `b` 类型 | 输出数据来源 |
+|--|--|--|--|
+| `&a + &b` | 任意张量 | 任意张量 | 新开辟数据 |
+| `a + &b` | Scalar<br/>`TensorView`<br/>`TensorCow::View` | 任意张量 | 新开辟数据 |
+| `a + &b` | `Tensor`<br/>`TensorCow::Owned` | 任意张量 | 使用 `a` 的数据作 inplace add |
+| `&a + b` | 任意张量 | Scalar<br/>`TensorView`<br/>`TensorCow::View` | 新开辟数据 |
+| `&a + b` | 任意张量 | `Tensor`<br/>`TensorCow::Owned` | 使用 `b` 的数据作 inplace add |
+| `a + b` | Scalar<br/>`TensorView`<br/>`TensorCow::View` | Scalar<br/>`TensorView`<br/>`TensorCow::View` | 新开辟数据 |
+| `a + b` | `Tensor`<br/>`TensorCow::Owned` | `Tensor`<br/>`TensorCow::Owned` | 优先尝试 `a` 的数据作 inplace add |
+
+上述使用 `a` 或 `b` 的数据作 inplace 运算，存在例外情况。当 `a` 或 `b` 是通过 broadcast 而来的张量 (存在一些维度的 stride 为零等情况)，那么将仍然开辟新数据储存结果。
+
+除此之外，若希望明确将计算结果输出到某一个特定张量，可以考虑使用 `rt::add_with_output(a.view(), b.view(), c.view_mut())` 等函数；这将等效于 `np.add(a, b, out=c)`。
+
+:::warning RSTSR 取余符号特例
+
+Rust 语言中，还有一个重要的内置符号：取余 `%` (remainder)。该符号在 RSTSR 中被作为矩阵乘法符号使用。
+
+若您希望使用取余，
+- 请使用 `rt::rem` 函数作取余计算；
+- 请**不要**调用 `core::ops::Rem::rem` 作为 trait 函数；这是指即使 `a.rem(&b)` 的写法能通过编译，**它并不代表取余**。
+
+:::
+
+### 5.2 矩阵乘法
+
+目前 RSTSR 仅使用 `matmul` 函数作为矩阵乘法的统一标志。该函数的行为与 `np.matmul` 一致，包括该函数的 broadcast 规则；但与 `np.dot` 等函数在高维张量下不同。
+
+矩阵乘法 $\mathbf{C} = \mathbf{A} \mathbf{B}$ 可以通过 `%` 符号实现。
+
+```rust
+let c = &a % &b;
+```
+
+RSTSR 也同样支持一些高级的矩阵乘法用法。
+
+- `rt::matmul_with_output(&a, &b, &mut c)`：将结果输出到特定矩阵中，执行 $\mathbf{C} \leftarrow \mathbf{A} \mathbf{B}$。
+- `c.matmul_from(&a, &b, alpha, beta)`：将结果输出到特定矩阵中，且执行的矩阵乘法是 $\mathbf{C} \leftarrow \alpha \mathbf{A} \mathbf{B} + \beta \mathbf{C}$。
+- 对于 BLAS 设备，可以使用 `rstsr-blas-traits` 提供的 BLAS 接口；该功能类似于 `scipy.linalg.blas.dgemm`。以 DGEMM 为例，该接口的使用方式为 (其中一部分参数是可选的)
+
+    ```rust file=../listings/features-default/tests/numpy_cheatsheet.rs anchor=example_blas_dgemm
+    ```
+
+### 5.3 赋值
+
+| NumPy | RSTSR | 说明 |
+|--|--|--|
+| `a[2:] = b` | `a.i_mut(2..).assign(&b)` | 子张量赋值 |
+| `a[2:] += b` | `a.i_mut(2..).add_assign(&b)`<br/>`*&mut a.i_mut(2..) += &b` | 张量 inplace add<br/>请无视 clippy 警告：deref_addrof |
+| `a[2:] = 0.5` | `a.i_mut(2..).fill(0.5)` | 元素赋值 |
+| `np.fill_diagonal(a, d)` | `a.diagonal_mut(0).assign(&d)` | 该示例仅对 2-D 矩阵成立[^9]<br/>对矩阵对角元赋值 |
+
+### 5.4 常用函数
+
+RSTSR 对部分常用函数，包括 `sin`, `exp`, `abs`, `floor`, `sign` 等函数有原生实现。
+
+在 Python 中的一些语言上支持的内置符号运算，譬如 `>`, `>=` 等，在 RSTSR 中无法以类似的内置符号运算实现。但 RSTSR 实现了等价功能的函数 `rt::greater`, `rt::greater_equal` 等；这些函数也可以缩写为 `rt::gt` 或 `rt::ge`。
+
+### 5.5 张量 elementwise 映射
+
+在 RSTSR 中没有原生实现的计算函数，经常可通过 `map` 前缀的函数作实现。
+
+| NumPy | RSTSR | 说明 |
+|--|--|--|
+| `a > 2` | `a.mapv(\|x\| x > 2.0)` | 张量元素是否大于 2，输出布尔类型张量 |
+| `scipy.special.gamma(a)` | `a.mapv(libm::tgamma)` | $\Gamma(a)$，输出 `f64` 类型张量 |
+| `a**b` | `a.mapvb(&b, libm::pow)`<br/>`rt::pow(&a, &b)` | 二目幂次运算，输出 `f64` 类型张量 |
+| `a.astype(np.float32)` | `a.mapv(\|x\| x as f32)` | 数据类型转换 |
+
+### 5.6 归约运算
+
+请留意 RSTSR 与 NumPy 的在使用上有少许差异。RSTSR 的 `sum`, `mean` 等函数是对所有元素作归约的；若仅对部分维度作归约，则需要使用后缀为 `_axes` 的函数。下表展示了归约运算的总体使用方法。
+
+目前 RSTSR 实现的归约方法包括 `sum`, `min`, `max`, `prod`, `mean`, `var`, `std`, `argmin`, `argmax`, `l2_norm`。
+
+| NumPy | RSTSR | 说明 |
+|--|--|--|
+| `a.sum()` | `a.sum()`<br/>`a.sum_all()`<br/>`rt::sum(&a)`[^11]<br/>`rt::sum_all(&a)`[^11] | 对张量的所有元素求和 |
+| `a.sum(axis=-1)` | `a.sum_axes(-1)`<br/>`rt::sum_axes(&a, -1)` | 对倒数第一个维度求和 |
+| `a.sum(axis=(2, -1))` | `a.sum_axes((2, -1))`<br/>`rt::sum_axes(&a, (2, -1))` | 对第二个与倒数第一个维度求和 |
+
+[^11]: 对于 bool 类型的张量，其求和也可以通过 `a.sum()` 等函数，给出张量中包含 `true` 的数量。但需要注意，此情形下 `rt::sum` 函数不能使用，因为 bool 类型张量求和所用到的 trait 与 `rt::sum` 是不同的。
+
+## 6. 线性代数 (linalg)
+
+### 6.1 BLAS 与 LAPACK 接口 (BLAS 设备)
+
+在 crate `rstsr-blas-traits` 中，我们提供了一部分 BLAS 函数对 RSTSR 张量的接口。在 [矩阵乘法](#52-矩阵乘法) 一段中，我们展示了 `DGEMM` 的使用方式。类似地，`DSYRK`, `DSYEVD`, `DGESDD` 等 BLAS 或 LAPACK 函数都是可以调用的。
+
+### 6.2 `rt::linalg` 函数
+
+:::info
+
+并非所有后端实现了线性代数功能；每个后端所实现的线性代数功能也未必相同。
+
+目前，BLAS 后端实现了更多的 linalg 功能、以及更多的参数重载。Faer 后端也有实现一些重要的 linalg 功能，但目前尚不能处理 $\mathbf{A} \bm{x} = \lambda \mathbf{B} \bm{x}$ 等广义对角化问题，可重载的参数较少。
+
+:::
+
+下述表格假定 `DeviceOpenBLAS` 设备下的张量运算，且为 row-major。需要注意，默认的 uplo (上三角或下三角) 选项，
+- 对于 row-major，默认是 `FlagUpLo::Lower`；
+- 对于 col-major，默认是 `FlagUpLo::Upper`；
+
+#### 6.2.1 厄米本征值问题
+
+| NumPy | RSTSR | 说明 |
+|--|--|--|
+| `np.linalg.eigh(a, uplo='L')`<br/>`scipy.linalg.eigh(a, lower=True)` | `rt::linalg::eigh(&a)` | 普通对角化 $\mathbf{A} \bm{x} = \lambda \bm{x}$ |
+| `np.linalg.eigh(a, uplo)`<br/>`scipy.linalg.eigh(a, lower)` | `rt::linalg::eigh((&a, uplo))` | 普通对角化 $\mathbf{A} \bm{x} = \lambda \bm{x}$<br/>明确上三角或下三角 |
+| `scipy.linalg.eigh(a, b, lower=True)` | `rt::linalg::eigh((&a, &b))` | 广义对角化 $\mathbf{A} \bm{x} = \lambda \mathbf{B} \bm{x}$ |
+| `scipy.linalg.eigh(a, b, lower)` | `rt::linalg::eigh((&a, &b, uplo))` | 广义对角化 $\mathbf{A} \bm{x} = \lambda \mathbf{B} \bm{x}$<br/>明确上三角或下三角 |
+| `scipy.linalg.eigh(a, b, lower, type=2)` | `rt::linalg::eigh((&a, &b, uplo, 2))` | 广义对角化 $\mathbf{A} \mathbf{B} \bm{x} = \lambda \bm{x}$<br/>明确上三角或下三角<br/>明确问题类型 (参考 DSYGV) |
+| `scipy.linalg.eigh(a, b, lower, type=3)` | `rt::linalg::eigh((&a, &b, uplo, 3))` | 广义对角化 $\mathbf{B} \mathbf{A} \bm{x} = \lambda \bm{x}$<br/>明确上三角或下三角<br/>明确问题类型 (参考 DSYGV) |
+| `scipy.linalg.eigh(a, overwrite_a=True)` | `rt::linalg::eigh(a.view_mut())`<br/>`rt::linalg::eigh(a)` | 普通对角化 $\mathbf{A} \bm{x} = \lambda \bm{x}$<br/>明确对 `a` 写入本征向量 |
+| `np.linalg.eigvalsh(a)`<br/>`scipy.linalg.eigvalsh(a)`<br/>`scipy.linalg.eigh(a, eigvals_only=True)` | `rt::linalg::eigvalsh(&a)` | 普通对角化 $\mathbf{A} \bm{x} = \lambda \bm{x}$<br/>不输出本征向量 |
+
+#### 6.2.2 矩阵分解
+
+| NumPy | RSTSR | 说明 |
+|--|--|--|
+| `np.linalg.cholesky(a, upper=False)`<br/>`scipy.linalg.cholesky(a, lower=True)` | `rt::linalg::cholesky(&a)` | Cholesky 分解 |
+| `np.linalg.cholesky(a, upper)`<br/>`scipy.linalg.cholesky(a, lower)` | `rt::linalg::cholesky((&a, uplo))` | Cholesky 分解<br/>明确上三角或下三角 |
+| `np.linalg.svd(a)`<br/>`scipy.linalg.svd(a)` | `rt::linalg::svd(&a)` | SVD 分解<br/>结果依顺序是 $\mathbf{U}$, $\mathbf{s}$, $\mathbf{V}^\dagger$<br/>$\mathbf{U}$, $\mathbf{V}^\dagger$ 都为方阵 |
+| `np.linalg.svd(a, full_matrices=False)`<br/>`scipy.linalg.svd(a, full_matrices=False)` | `rt::linalg::svd((&a, false))` | SVD 分解<br/>结果依顺序是 $\mathbf{U}$, $\mathbf{s}$, $\mathbf{V}^\dagger$<br/>分解后仅较大矩阵为长方形 |
+| `np.linalg.svdvals(a)`<br/>`scipy.linalg.svdvals(a)` | `rt::linalg::svdvals(&a)` | SVD 分解<br/>结果仅包含 $\mathbf{s}$ |
+
+#### 6.2.3 矩阵求解
+
+下述问题都是求解 $\mathbf{A} \mathbf{X} = \mathbf{B}$。取决于 $\mathbf{A}$ 的特征，我们可以有如下函数的实现。
+
+目前 RSTSR 尚未将多种矩阵求解方式，并入同一函数处理。
+
+| NumPy | RSTSR | 说明 |
+|--|--|--|
+| `scipy.linalg.solve(a, b, assume_a="gen")` | `rt::linalg::solve_general((&a, &b))` | 任意方阵 $\mathbf{A}$ |
+| `scipy.linalg.solve(a, b, lower, assume_a="her")` | `rt::linalg::solve_symmetric((&a, &b, true, uplo))` | 厄米矩阵 $\mathbf{A}$ |
+| `scipy.linalg.solve(a, b, lower, assume_a="sym")` | `rt::linalg::solve_symmetric((&a, &b, false, uplo))` | 对称矩阵 $\mathbf{A}$ |
+| `scipy.linalg.solve(a, b, assume_a="lower triangular")` | `rt::linalg::solve_triangular((&a, &b, Lower))` | 下三角矩阵 $\mathbf{A}$ |
+| `scipy.linalg.solve(a, b, assume_a="upper triangular")` | `rt::linalg::solve_triangular((&a, &b, Upper))` | 上三角矩阵 $\mathbf{A}$ |
+| `scipy.linalg.solve(a, b, overwrite_b=True)` | `rt::linalg::solve_general((&a, b.view_mut()))`<br/>`rt::linalg::solve_general((&a, b))` | 任意方阵 $\mathbf{A}$<br/>写入 $\mathbf{B}$ 矩阵 |
+
+#### 6.2.4 其他线性代数运算
+
+| NumPy | RSTSR | 说明 |
+|--|--|--|
+| `np.linalg.inv(a)`<br/>`scipy.linalg.inv(a)` | `rt::linalg.inv(&a)` | 矩阵求逆 |
+| `scipy.linalg.inv(a, overwrite_a=True)` | `rt::linalg.inv(a.view_mut())`<br/>`rt::linalg.inv(a)` | 矩阵求逆<br/>明确对 `a` 写入 |
+| `np.linalg.pinv(a)`<br/>`scipy.linalg.pinv(a)` | `rt::linalg.pinv(&a)` | Moore-Penrose 伪逆 |
+| `scipy.linalg.pinv(a, atol, rtol)` | `rt::linalg.pinv((&a, atol, rtol))` | Moore-Penrose 伪逆<br/>给定 atol 与 rtol 以舍去 SVD 分解中较小的特征值 |
+| `np.linalg.det(a)`<br/>`scipy.linalg.det(a)` | `rt::linalg.det(&a)` | 行列式计算 |
+| `np.linalg.slogdet(a)` | `rt::linalg.slogdet(&a)` | 行列式计算<br/>返回 $\mathrm{det} = s \mathrm{e}^x$ 的 $(s, x)$ |
+
+## RSTSR 尚未实现的重要操作
+
+由于 RSTSR 程序刚刚起步，目前还有一些重要的操作尚未实现。这包括
+- Einstein summation 与 `tensordot`；
+- 高级索引 (advanced indexing)；
+- 排序操作；
+- 张量拼接 (`concate`, `stack` 等)；
+
+等等。除此之外，RSTSR 确实实现了诸如本征分解、SVD 等重要的线性代数 (linalg) 功能，但还有包括矩阵函数 (如 `expm`, `logm`) 在内的运算尚未实现。
