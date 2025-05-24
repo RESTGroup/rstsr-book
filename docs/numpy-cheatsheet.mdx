@@ -499,12 +499,12 @@ Currently RSTSR hasn't unified different matrix solving methods under one functi
 
 | NumPy | RSTSR | Description |
 |--|--|--|
-| `np.linalg.inv(a)`<br/>`scipy.linalg.inv(a)` | `rt::linalg.inv(&a)` | Matrix inversion |
-| `scipy.linalg.inv(a, overwrite_a=True)` | `rt::linalg.inv(a.view_mut())`<br/>`rt::linalg.inv(a)` | Matrix inversion<br/>Explicit write to `a` |
-| `np.linalg.pinv(a)`<br/>`scipy.linalg.pinv(a)` | `rt::linalg.pinv(&a)` | Moore-Penrose pseudoinverse |
-| `scipy.linalg.pinv(a, atol, rtol)` | `rt::linalg.pinv((&a, atol, rtol))` | Moore-Penrose pseudoinverse<br/>Given atol and rtol to discard small singular values |
-| `np.linalg.det(a)`<br/>`scipy.linalg.det(a)` | `rt::linalg.det(&a)` | Determinant calculation |
-| `np.linalg.slogdet(a)` | `rt::linalg.slogdet(&a)` | Determinant calculation<br/>Returns $(s, x)$ where $\mathrm{det} = s \mathrm{e}^x$ |
+| `np.linalg.inv(a)`<br/>`scipy.linalg.inv(a)` | `rt::linalg::inv(&a)` | Matrix inversion |
+| `scipy.linalg.inv(a, overwrite_a=True)` | `rt::linalg::inv(a.view_mut())`<br/>`rt::linalg::inv(a)` | Matrix inversion<br/>Explicit write to `a` |
+| `np.linalg.pinv(a)`<br/>`scipy.linalg.pinv(a)` | `rt::linalg::pinv(&a)` | Moore-Penrose pseudoinverse |
+| `scipy.linalg.pinv(a, atol, rtol)` | `rt::linalg::pinv((&a, atol, rtol))` | Moore-Penrose pseudoinverse<br/>Given atol and rtol to discard small singular values |
+| `np.linalg.det(a)`<br/>`scipy.linalg.det(a)` | `rt::linalg::det(&a)` | Determinant calculation |
+| `np.linalg.slogdet(a)` | `rt::linalg::slogdet(&a)` | Determinant calculation<br/>Returns $(s, x)$ where $\mathrm{det} = s \mathrm{e}^x$ |
 
 ## Unimplemented Important Operations in RSTSR
 

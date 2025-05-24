@@ -502,12 +502,12 @@ RSTSR 对部分常用函数，包括 `sin`, `exp`, `abs`, `floor`, `sign` 等函
 
 | NumPy | RSTSR | 说明 |
 |--|--|--|
-| `np.linalg.inv(a)`<br/>`scipy.linalg.inv(a)` | `rt::linalg.inv(&a)` | 矩阵求逆 |
-| `scipy.linalg.inv(a, overwrite_a=True)` | `rt::linalg.inv(a.view_mut())`<br/>`rt::linalg.inv(a)` | 矩阵求逆<br/>明确对 `a` 写入 |
-| `np.linalg.pinv(a)`<br/>`scipy.linalg.pinv(a)` | `rt::linalg.pinv(&a)` | Moore-Penrose 伪逆 |
-| `scipy.linalg.pinv(a, atol, rtol)` | `rt::linalg.pinv((&a, atol, rtol))` | Moore-Penrose 伪逆<br/>给定 atol 与 rtol 以舍去 SVD 分解中较小的特征值 |
-| `np.linalg.det(a)`<br/>`scipy.linalg.det(a)` | `rt::linalg.det(&a)` | 行列式计算 |
-| `np.linalg.slogdet(a)` | `rt::linalg.slogdet(&a)` | 行列式计算<br/>返回 $\mathrm{det} = s \mathrm{e}^x$ 的 $(s, x)$ |
+| `np.linalg.inv(a)`<br/>`scipy.linalg.inv(a)` | `rt::linalg::inv(&a)` | 矩阵求逆 |
+| `scipy.linalg.inv(a, overwrite_a=True)` | `rt::linalg::inv(a.view_mut())`<br/>`rt::linalg::inv(a)` | 矩阵求逆<br/>明确对 `a` 写入 |
+| `np.linalg.pinv(a)`<br/>`scipy.linalg.pinv(a)` | `rt::linalg::pinv(&a)` | Moore-Penrose 伪逆 |
+| `scipy.linalg.pinv(a, atol, rtol)` | `rt::linalg::pinv((&a, atol, rtol))` | Moore-Penrose 伪逆<br/>给定 atol 与 rtol 以舍去 SVD 分解中较小的特征值 |
+| `np.linalg.det(a)`<br/>`scipy.linalg.det(a)` | `rt::linalg::det(&a)` | 行列式计算 |
+| `np.linalg.slogdet(a)` | `rt::linalg::slogdet(&a)` | 行列式计算<br/>返回 $\mathrm{det} = s \mathrm{e}^x$ 的 $(s, x)$ |
 
 ## RSTSR 尚未实现的重要操作
 
