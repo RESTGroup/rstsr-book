@@ -32,11 +32,11 @@ RSTSR 的许多函数通过 trait 作重载：
 
 :::
 
-:::info 错误处理
+:::info 异常处理
 
-RSTSR 提供错误处理功能。
+RSTSR 提供异常处理功能。
 
-大多数错误处理函数都具有后缀 `_f`；举例而言，`rt::zeros` 遇到错误会 panic，但 `rt::zeros_f` 则将返回可以处理的错误。
+大多数异常处理函数都具有后缀 `_f`；举例而言，`rt::zeros` 遇到异常会 panic，但 `rt::zeros_f` 则将返回可以处理的 `rt::Result`。
 
 :::
 
