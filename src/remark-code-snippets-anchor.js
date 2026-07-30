@@ -1,26 +1,41 @@
 /*
-    This file is modified from
-    https://github.com/jknoxville/remark-code-snippets/blob/master/src/index.ts
+  Local remark plugin: import source-file snippets into fenced code blocks.
+
+  Forked from remark-code-snippets (https://github.com/jknoxville/remark-code-snippets)
+  with the added `anchor=` mechanism (compatible with The Rust Book's
+  `// ANCHOR: <name>` ... `// ANCHOR_END: <name>` markers), which is what the
+  RSTSR book relies on. The published npm package only supports `start=`/`end=`,
+  so this local copy must be kept.
+
+  Usage in a code fence:
+    ```rust file=../../listings/features-default/tests/foo.rs anchor=bar
+    ```
+  ...pulls the lines between `// ANCHOR: bar` and `// ANCHOR_END: bar`.
 */
 
 import fs from 'fs';
 import path from 'path';
 import visit from 'unist-util-visit';
-import {Node, Parent} from 'unist';
-import {Transformer} from 'unified';
-const {parseArgs} = require('./arguments');
 
-const referencedFiles = new Set<string>();
+function parseArgs(meta) {
+  const result = {};
+  meta.split(' ').forEach((arg) => {
+    const keyLength = arg.indexOf('=');
+    if (keyLength < 0) {
+      return;
+    }
+    const key = arg.slice(0, keyLength);
+    const value = arg.slice(keyLength + 1);
+    result[key] = value;
+  });
+  return result;
+}
 
-type Options = {
-  async?: Boolean,
-  baseDir?: string,
-  ignoreMissingFiles?: boolean,
-};
+const referencedFiles = new Set();
 
-export default function codeImport(options: Options = {}): Transformer {
-  return function transformer(tree, file): Promise<void> | void {
-    const codes: [Node, number, Parent | undefined][] = [];
+function codeImport(options = {}) {
+  return function transformer(tree, file) {
+    const codes = [];
     const promises = [];
 
     visit(tree, 'code', (node, index, parent) => {
@@ -28,12 +43,10 @@ export default function codeImport(options: Options = {}): Transformer {
     });
 
     for (const [node] of codes) {
-
-      // If someone tries to import a file, but forgets to add a language tag e.g ```json
-      // then the meta string will be interpreted as the language. So check the lang prop for file=
-      // and show a helpful error if this is the case, or else importing wont work for them.
+      // If someone forgets the language tag, the meta string is read as the
+      // language; detect `file=` there and give a helpful error.
       if (hasLang(node) && node.lang.startsWith('file=')) {
-        throw new Error(`Language tag missing on code block snippet in ${file.history}`)
+        throw new Error(`Language tag missing on code block snippet in ${file.history}`);
       }
       if (!node.meta) {
         continue;
@@ -47,7 +60,7 @@ export default function codeImport(options: Options = {}): Transformer {
 
       if (options.async) {
         promises.push(
-          new Promise<void>((resolve, reject) => {
+          new Promise((resolve, reject) => {
             fs.readFile(fileAbsPath, 'utf8', (err, fileContent) => {
               if (err) {
                 if (options.ignoreMissingFiles) {
@@ -58,11 +71,10 @@ export default function codeImport(options: Options = {}): Transformer {
                 reject(err);
                 return;
               }
-
               node.value = getSnippet(fileContent, args);
               resolve();
             });
-          })
+          }),
         );
       } else {
         if (!fs.existsSync(fileAbsPath)) {
@@ -83,7 +95,7 @@ export default function codeImport(options: Options = {}): Transformer {
   };
 }
 
-function getSnippet(fileContent: string, args: { anchor: any; file: any; }) {
+function getSnippet(fileContent, args) {
   let lines = fileContent.trim().split('\n');
 
   if (args.anchor === undefined) {
@@ -94,7 +106,7 @@ function getSnippet(fileContent: string, args: { anchor: any; file: any; }) {
   let endingLine = undefined;
 
   {
-    const numbers = getLineNumbersOfOccurrence(lines, "ANCHOR: " + args.anchor);
+    const numbers = getLineNumbersOfOccurrence(lines, 'ANCHOR: ' + args.anchor);
     if (numbers.length === 0) {
       throw new Error(`Code block start marker "${args.anchor}" not found in file ${args.file}`);
     }
@@ -105,7 +117,7 @@ function getSnippet(fileContent: string, args: { anchor: any; file: any; }) {
   }
 
   {
-    const numbers = getLineNumbersOfOccurrence(lines, "ANCHOR_END: " + args.anchor);
+    const numbers = getLineNumbersOfOccurrence(lines, 'ANCHOR_END: ' + args.anchor);
     if (numbers.length === 0) {
       throw new Error(`Code block end marker "${args.anchor}" not found in file ${args.file}`);
     }
@@ -116,13 +128,10 @@ function getSnippet(fileContent: string, args: { anchor: any; file: any; }) {
   }
 
   lines = lines.slice(startingLine, endingLine);
-
-  let lines_rmident = removeCommonIndentation(lines).join('\n');
-
-  return lines_rmident;
+  return removeCommonIndentation(lines).join('\n');
 }
 
-function removeCommonIndentation(lines: string[]): string[] {
+function removeCommonIndentation(lines) {
   const commonIndentation = lines.reduce((minIndentation, line) => {
     if (line === '') {
       return minIndentation;
@@ -134,29 +143,30 @@ function removeCommonIndentation(lines: string[]): string[] {
     return Math.min(m[1].length, minIndentation);
   }, Number.MAX_VALUE);
 
-  return lines.map(line => line.slice(commonIndentation));
+  return lines.map((line) => line.slice(commonIndentation));
 }
 
-function getLineNumbersOfOccurrence(lines: string[], searchTerm: string) {
-  let lineNumbers: number[] = [];
+function getLineNumbersOfOccurrence(lines, searchTerm) {
+  const lineNumbers = [];
   lines.forEach((line, index) => {
-    const searched = line.endsWith(searchTerm);
-    if (searched) {
+    if (line.endsWith(searchTerm)) {
       lineNumbers.push(index);
     }
   });
   return lineNumbers;
 }
 
-function hasLang(node: Node): node is Node & {lang: string} {
+function hasLang(node) {
   return Boolean(node.lang) && typeof node.lang === 'string';
 }
 
-function logReferencedFile(filepath: string): void {
+function logReferencedFile(filepath) {
   const relativePath = path.relative(process.cwd(), filepath);
   referencedFiles.add(relativePath);
 }
 
-export function getReferencedFiles(): string[] {
+export function getReferencedFiles() {
   return Array.from(referencedFiles);
 }
+
+export default codeImport;

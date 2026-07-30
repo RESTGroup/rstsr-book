@@ -74,7 +74,7 @@ let a: Tensor<f64> = rt::zeros([3, 4]);
 
 ### 2.2 张量与 `Vec<T>` 的转换
 
-我们已经在 [上一节](tensor_creation#2-converting-rust-slices-to-rstsr-tensorview) 中介绍了一些通过数组创建函数的方法。这里我们将进一步讨论这个话题。
+我们已经在 [上一节](tensor_creation#2-将-rust-切片转换为-rstsr-tensorview) 中介绍了一些通过数组创建函数的方法。这里我们将进一步讨论这个话题。
 
 在以下情况下，张量与 `Vec<T>` 或 `&[T]` 之间的转换可能很有用：
 - 将数据传输到其他对象 (如 candle、ndarray、nalgebra)；

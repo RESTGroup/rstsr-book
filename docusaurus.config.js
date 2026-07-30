@@ -7,7 +7,7 @@
 import { themes as prismThemes } from 'prism-react-renderer';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import parseArgs from './src/remark-code-spinnets';
+import codeImport from './src/remark-code-snippets-anchor.js';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
@@ -67,7 +67,7 @@ const config = {
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
           // editUrl: 'https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/',
-          remarkPlugins: [remarkMath, parseArgs],
+          remarkPlugins: [remarkMath, codeImport],
           rehypePlugins: [rehypeKatex],
         },
         blog: {
