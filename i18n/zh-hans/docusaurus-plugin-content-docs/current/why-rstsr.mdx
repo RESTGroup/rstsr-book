@@ -45,7 +45,7 @@ let d = &b * &a; // elementwise multiplication (依元素数乘)
 
 接口的形式与 NumPy 相似，是 RSTSR 编写的目标之一。Python 函数允许重载，Rust 函数非常严格地不允许直接重载；然而，基于 Trait 的重载仍然是可行的。以 `rt::asarray` 函数为例，我们可以用多种方式给出张量：
 
-```rust file=../listings/features-default/tests/why_rstsr.rs anchor=asarray_override
+```rust file=why_rstsr anchor=asarray_override
 ```
 
 不仅是 `rt::asarray`，RSTSR 中其他不少函数也具有重载实现。

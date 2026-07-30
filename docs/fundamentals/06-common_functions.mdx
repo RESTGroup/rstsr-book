@@ -15,12 +15,12 @@ In RSTSR, most functions required by the [Python Array API](https://data-apis.or
 
 For example, under row-major ordering, elementwise comparison between two tensors can be performed following broadcasting rules:
 
-```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_elem_01
+```rust file=common_functions anchor=example_elem_01
 ```
 
 Similarly, sine calculation can be applied to a tensor:
 
-```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_elem_02
+```rust file=common_functions anchor=example_elem_02
 ```
 
 :::info Some binary elementwise functions have shorthand names
@@ -29,7 +29,7 @@ Common binary functions include exponentiation `pow`, floor division `floor_divi
 
 Binary functions with shorthand names generally cannot be called as associated methods (to avoid conflicts with traits like `PartialOrd`), but can be called as regular Rust functions.
 
-```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_elem_03
+```rust file=common_functions anchor=example_elem_03
 ```
 
 :::
@@ -78,7 +78,7 @@ Although RSTSR implements many elementwise functions, we cannot possibly impleme
 
 Here's an example calculating the Gamma function. We use the `mapv` function for mapping. Note that while this function can be chained, RSTSR doesn't support lazy evaluation, so chained functional calls to `mapv` won't be more efficient:
 
-```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_map_01
+```rust file=common_functions anchor=example_map_01
 ```
 
 :::info Correspondence with NumPy
@@ -110,38 +110,38 @@ For NumPy, since Python's native for-loops are very slow, when mappings become m
 
 For mutable `Tensor` and `TensorMut` types, RSTSR also provides the `mapvi` function to perform in-place mapping without allocating new memory:
 
-```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_map_02
+```rust file=common_functions anchor=example_map_02
 ```
 
 ### 2.3 Binary Mapping
 
 For binary mapping, RSTSR provides the `mapvb` function:
 
-```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_map_03
+```rust file=common_functions anchor=example_map_03
 ```
 
 ## 3. Reduction Operations
 
 RSTSR currently supports several reduction operations, including summation, maximum value, standard deviation, etc. Adding the `_axes` suffix allows reduction along specific dimensions.
 
-```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_reduction_01
+```rust file=common_functions anchor=example_reduction_01
 ```
 
 For higher-dimensional tensors, the `_axes` functions can also accept arrays specifying which dimensions to reduce:
 
-```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_reduction_02
+```rust file=common_functions anchor=example_reduction_02
 ```
 
 As a special case, `Tensor<bool, B, D>` can also undergo `sum` or `sum_axes` operations, where `true` counts as 1 and `false` as 0:
 
-```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_reduction_03
+```rust file=common_functions anchor=example_reduction_03
 ```
 
 ## 4. Linear Algebra (linalg)
 
 Currently, RSTSR supports some linear algebra functionality from NumPy and SciPy. Typical linear algebra problems include Hermitian matrix eigenvalue problems, SVD decomposition, Cholesky decomposition, etc.
 
-```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_linalg_01
+```rust file=common_functions anchor=example_linalg_01
 ```
 
 :::info Slight differences in linear algebra capabilities across backends

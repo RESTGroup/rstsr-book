@@ -57,7 +57,7 @@ RSTSR 提供异常处理功能。
 
 [^1]: 对于较大的张量，如果不满足于大于 8 个元素 (`MAX_PRINT`) 时只打印前后 3 个数值 (`MIN_PRINT`)，那么可以通过更改 static 变量修改。以下是打印 10 个元素以上的示例程序：
 
-    ```rust file=../listings/features-default/tests/numpy_cheatsheet.rs anchor=example_print_set_max_print
+    ```rust file=numpy_cheatsheet anchor=example_print_set_max_print
     ```
 
 ### 1.2 输出 Layout 信息
@@ -127,13 +127,13 @@ let device = DeviceOpenBLAS::new(6);
     更准确地说，RSTSR 在面对下述代码时，并不会报错；但它将视 `Vec<T>` 类型作为张量的元素，即下述张量在 RSTSR 中是 1-D 向量而不是 $2 \times 3$ 的 2-D 矩阵。这一般不是用户所预期的行为：
 
     <div className="ferris-overlay">
-    ```rust file=../listings/features-default/tests/numpy_cheatsheet.rs anchor=example_asarray_nested
+    ```rust file=numpy_cheatsheet anchor=example_asarray_nested
     ```
     <img src={useBaseUrl("/img/ferris/not_desired_behavior.svg")} alt="not_desired_behavior" title="非预期行为！" /> </div>
 
     如果用户确实希望将嵌套列表传入 RSTSR 作为矩阵或张量，目前的解决方案是首先用户将嵌套列表压平到一维向量：
 
-    ```rust file=../listings/features-default/tests/numpy_cheatsheet.rs anchor=example_asarray_nested_flatten
+    ```rust file=numpy_cheatsheet anchor=example_asarray_nested_flatten
     ```
 
 export function CodeN4() {return <CodeBlock language="python">{`\
@@ -305,10 +305,10 @@ RSTSR 在处理张量形状调整时，`reshape` 函数、`to_` 与 `change_` �
     
     RSTSR 有两种实现方法：
 
-    ```rust file=../listings/features-default/tests/numpy_cheatsheet.rs anchor=example_reshape_order_f_01
+    ```rust file=numpy_cheatsheet anchor=example_reshape_order_f_01
     ```
 
-    ```rust file=../listings/features-default/tests/numpy_cheatsheet.rs anchor=example_reshape_order_f_02
+    ```rust file=numpy_cheatsheet anchor=example_reshape_order_f_02
     ```
 
 ### 4.2 不更改底层数据的张量操纵
@@ -400,7 +400,7 @@ RSTSR 也同样支持一些高级的矩阵乘法用法。
 - `c.matmul_from(&a, &b, alpha, beta)`：将结果输出到特定矩阵中，且执行的矩阵乘法是 $\mathbf{C} \leftarrow \alpha \mathbf{A} \mathbf{B} + \beta \mathbf{C}$。
 - 对于 BLAS 设备，可以使用 `rstsr-blas-traits` 提供的 BLAS 接口；该功能类似于 `scipy.linalg.blas.dgemm`。以 DGEMM 为例，该接口的使用方式为 (其中一部分参数是可选的)
 
-    ```rust file=../listings/features-default/tests/numpy_cheatsheet.rs anchor=example_blas_dgemm
+    ```rust file=numpy_cheatsheet anchor=example_blas_dgemm
     ```
 
 ### 5.3 赋值

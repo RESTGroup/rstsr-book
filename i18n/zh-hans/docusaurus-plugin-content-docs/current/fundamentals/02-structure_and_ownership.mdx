@@ -72,7 +72,7 @@ let a: Tensor<f64> = rt::zeros([3, 4]);
 
 以下是一个张量所有权转换的示例：
 
-```rust file=../../listings/features-default/tests/structure_and_ownership.rs anchor=tensor_ownership
+```rust file=structure_and_ownership anchor=tensor_ownership
 ```
 
 ### 2.2 张量与 `Vec<T>` 的转换
@@ -98,14 +98,14 @@ let a: Tensor<f64> = rt::zeros([3, 4]);
 
 作为一个示例，我们计算矩阵-向量乘法并返回 `Vec<f64>`：
 
-```rust file=../../listings/features-default/tests/structure_and_ownership.rs anchor=to_vec
+```rust file=structure_and_ownership anchor=to_vec
 ```
 
 :::warning
 
 函数 `as_ptr()` 与 `as_mut_ptr()` 会返回张量的内存的第一个元素的指针；但需要注意到，该指针指向的张量未必是连续的。RSTSR 在给出指针时，不会检查张量是否连续。
 
-```rust file=../../listings/features-default/tests/structure_and_ownership.rs anchor=as_ptr_additional
+```rust file=structure_and_ownership anchor=as_ptr_additional
 ```
 
 :::
@@ -116,19 +116,19 @@ RSTSR 不提供直接将 `T` 转换为 0-D 张量 `Tensor<T, Ix0, B>` 的方法�
 
 作为一个示例，我们计算内积并返回浮点数结果：
 
-```rust file=../../listings/features-default/tests/structure_and_ownership.rs anchor=to_scalar
+```rust file=structure_and_ownership anchor=to_scalar
 ```
 
 ## 3. 维度转换
 
 RSTSR 提供了固定维度和动态维度的张量。维度可以通过 `into_dim::<D>()` 或 `into_dyn` 进行转换。
 
-```rust file=../../listings/features-default/tests/structure_and_ownership.rs anchor=dim_conversion
+```rust file=structure_and_ownership anchor=dim_conversion
 ```
 
 我们只讨论了固定维度的数组创建。要创建动态维度的数组，请使用 `Vec<T>` 而不是 `[T; N]`：
 
-```rust file=../../listings/features-default/tests/structure_and_ownership.rs anchor=dyn_dim_construct
+```rust file=structure_and_ownership anchor=dyn_dim_construct
 ```
 
 固定维度比动态维度更高效。然而，在许多算术计算中，取决于张量的连续性，效率差异不会非常显著。同时，rstsr 提供了 `dispatch_dim_layout_iter` cargo 选项；这使得在较大张量的计算中，动态维度的计算效率与固定维度相当。

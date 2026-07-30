@@ -40,19 +40,19 @@ Crate `rstsr` 或 `rstsr-core` 中，其 cargo feature `row_major` 与 `col_majo
 
 RSTSR 还允许在运行时修改 row/col-major。这是通过 `device.set_default_order` 实现的：
 
-```rust file=../listings/features-default/tests/order_issue.rs anchor=example_device_change
+```rust file=order_issue anchor=example_device_change
 ```
 
 但需要注意，不同的 row/col-major 张量之间是禁止运算的；这不会在编译时报错，而只会在运行时报错：
 
 <div className="ferris-overlay">
-```rust file=../listings/features-default/tests/order_issue.rs anchor=example_device_change_panics
+```rust file=order_issue anchor=example_device_change_panics
 ```
 <img src={useBaseUrl("/img/ferris/panics.svg")} alt="panics" title="此代码会崩溃！" /> </div>
 
 一种解决方案，是活用 device 更换 (在这里可以是 trait 函数 `change_device`)，使得下述计算可以进行。在 CPU 设备下，`change_device` 函数会消耗变量 `b`，但不会对数据明确地复制，因此下述 device 更换没有计算代价。
 
-```rust file=../listings/features-default/tests/order_issue.rs anchor=example_device_change_to_device
+```rust file=order_issue anchor=example_device_change_to_device
 ```
 
 ## 3. 行/列优先会导致的结果差异
@@ -115,7 +115,7 @@ $$
 
 下述代码即对该例子的具体实现：
 
-```rust file=../listings/features-default/tests/order_issue.rs anchor=example_reshape
+```rust file=order_issue anchor=example_reshape
 ```
 
 ### 3.2 broadcast
@@ -152,16 +152,16 @@ $$
 
 <Tabs>
 <TabItem value="prob-setting" label="problem-setting">
-```rust file=../listings/features-default/tests/order_issue.rs anchor=example_broadcast_elementwise_setting_01
+```rust file=order_issue anchor=example_broadcast_elementwise_setting_01
 ```
 </TabItem>
 <TabItem value="row-major" label="row-major" default>
-```rust file=../listings/features-default/tests/order_issue.rs anchor=example_broadcast_elementwise_01
+```rust file=order_issue anchor=example_broadcast_elementwise_01
 ```
 </TabItem>
 <TabItem value="col-major" label="col-major">
 <div className="ferris-overlay">
-```rust file=../listings/features-default/tests/order_issue.rs anchor=example_broadcast_elementwise_fail_01
+```rust file=order_issue anchor=example_broadcast_elementwise_fail_01
 ```
 <img src={useBaseUrl("/img/ferris/panics.svg")} alt="panics" title="此代码会崩溃！" /> </div>
 </TabItem>
@@ -171,17 +171,17 @@ $$
 
 <Tabs>
 <TabItem value="prob-setting" label="problem-setting">
-```rust file=../listings/features-default/tests/order_issue.rs anchor=example_broadcast_elementwise_setting_02
+```rust file=order_issue anchor=example_broadcast_elementwise_setting_02
 ```
 </TabItem>
 <TabItem value="row-major" label="row-major">
 <div className="ferris-overlay">
-```rust file=../listings/features-default/tests/order_issue.rs anchor=example_broadcast_elementwise_fail_02
+```rust file=order_issue anchor=example_broadcast_elementwise_fail_02
 ```
 <img src={useBaseUrl("/img/ferris/panics.svg")} alt="panics" title="此代码会崩溃！" /> </div>
 </TabItem>
 <TabItem value="col-major" label="col-major" default>
-```rust file=../listings/features-default/tests/order_issue.rs anchor=example_broadcast_elementwise_02
+```rust file=order_issue anchor=example_broadcast_elementwise_02
 ```
 </TabItem>
 </Tabs>

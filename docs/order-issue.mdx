@@ -40,19 +40,19 @@ Additionally, users should be aware that cargo features are designed to be addit
 
 RSTSR also allows modifying row/column-major order at runtime through `device.set_default_order`:
 
-```rust file=../listings/features-default/tests/order_issue.rs anchor=example_device_change
+```rust file=order_issue anchor=example_device_change
 ```
 
 However, note that operations between row-major and column-major tensors are prohibited. This won't cause compile-time errors but will trigger runtime errors:
 
 <div className="ferris-overlay">
-```rust file=../listings/features-default/tests/order_issue.rs anchor=example_device_change_panics
+```rust file=order_issue anchor=example_device_change_panics
 ```
 <img src={useBaseUrl("/img/ferris/panics.svg")} alt="panics" title="This code will panic!" /> </div>
 
 One solution is to leverage device switching (using the `change_device` trait function). For CPU devices, `change_device` consumes variable `b` without explicitly copying data, making this device switch computationally cost-free.
 
-```rust file=../listings/features-default/tests/order_issue.rs anchor=example_device_change_to_device
+```rust file=order_issue anchor=example_device_change_to_device
 ```
 
 ## 3. Result Differences Caused by Row/Column Major
@@ -115,7 +115,7 @@ However, identical results don't imply identical processes. Under row-major, c-c
 
 The following code implements this example:
 
-```rust file=../listings/features-default/tests/order_issue.rs anchor=example_reshape
+```rust file=order_issue anchor=example_reshape
 ```
 
 ### 3.2 broadcast
@@ -152,16 +152,16 @@ The first problem works in row-major but fails in column-major:
 
 <Tabs>
 <TabItem value="prob-setting" label="Problem Setting">
-```rust file=../listings/features-default/tests/order_issue.rs anchor=example_broadcast_elementwise_setting_01
+```rust file=order_issue anchor=example_broadcast_elementwise_setting_01
 ```
 </TabItem>
 <TabItem value="row-major" label="Row-major" default>
-```rust file=../listings/features-default/tests/order_issue.rs anchor=example_broadcast_elementwise_01
+```rust file=order_issue anchor=example_broadcast_elementwise_01
 ```
 </TabItem>
 <TabItem value="col-major" label="Column-major">
 <div className="ferris-overlay">
-```rust file=../listings/features-default/tests/order_issue.rs anchor=example_broadcast_elementwise_fail_01
+```rust file=order_issue anchor=example_broadcast_elementwise_fail_01
 ```
 <img src={useBaseUrl("/img/ferris/panics.svg")} alt="panics" title="This code will panic!" /> </div>
 </TabItem>
@@ -171,17 +171,17 @@ The second problem works in column-major but fails in row-major:
 
 <Tabs>
 <TabItem value="prob-setting" label="Problem Setting">
-```rust file=../listings/features-default/tests/order_issue.rs anchor=example_broadcast_elementwise_setting_02
+```rust file=order_issue anchor=example_broadcast_elementwise_setting_02
 ```
 </TabItem>
 <TabItem value="row-major" label="Row-major">
 <div className="ferris-overlay">
-```rust file=../listings/features-default/tests/order_issue.rs anchor=example_broadcast_elementwise_fail_02
+```rust file=order_issue anchor=example_broadcast_elementwise_fail_02
 ```
 <img src={useBaseUrl("/img/ferris/panics.svg")} alt="panics" title="This code will panic!" /> </div>
 </TabItem>
 <TabItem value="col-major" label="Column-major" default>
-```rust file=../listings/features-default/tests/order_issue.rs anchor=example_broadcast_elementwise_02
+```rust file=order_issue anchor=example_broadcast_elementwise_02
 ```
 </TabItem>
 </Tabs>

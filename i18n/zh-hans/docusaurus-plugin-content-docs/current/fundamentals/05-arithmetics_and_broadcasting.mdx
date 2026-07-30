@@ -25,17 +25,17 @@ import useBaseUrl from '@docusaurus/useBaseUrl';
 
 RSTSR 可以处理 `+`、`-`、`*`、`/` 运算：
 
-```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=basic_arithmetics_01
+```rust file=arithmetics_and_broadcasting anchor=basic_arithmetics_01
 ```
 
 RSTSR 可以通过运算符 `%` 处理矩阵乘法运算（矩阵-矩阵、矩阵-向量或向量-向量内积，并且在某些设备如 `DeviceFaer` 与 `DeviceOpenBLAS` 中进行了优化）：
 
-```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=basic_arithmetics_02
+```rust file=arithmetics_and_broadcasting anchor=basic_arithmetics_02
 ```
 
 对于一些特殊情况，位运算和移位运算也是可用的：
 
-```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=basic_arithmetics_03
+```rust file=arithmetics_and_broadcasting anchor=basic_arithmetics_03
 ```
 
 上述示例应该已经涵盖了大多数张量算术运算的用法。本节接下来的文档将讨论一些高级主题。
@@ -46,7 +46,7 @@ RSTSR 可以通过运算符 `%` 处理矩阵乘法运算（矩阵-矩阵、矩�
 
 首先，我们遵循 NumPy 的惯例，`*` 始终是数乘，类似于 `+`，它不会进行矩阵乘法或向量内积。
 
-```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=star_as_elem_mult
+```rust file=arithmetics_and_broadcasting anchor=star_as_elem_mult
 ```
 
 NumPy 在 1.10 版本中通过 [PEP 465](https://peps.python.org/pep-0465/) 引入了 `@` 符号用于矩阵乘法。对于 Rust 来说，使用相同的 `@` 运算符作为矩阵乘法几乎是不可能的，这在 [Rust 内部论坛](https://internals.rust-lang.org/t/add-operator-for-matrix-multiplication/16026/17) 中已经充分讨论过（`@` 已经被用作 [模式绑定](https://doc.rust-lang.org/book/appendix-02-operators.html) 的二元运算符）。从 RSTSR 开发者的角度来看，这非常不幸。
@@ -57,20 +57,20 @@ NumPy 在 1.10 版本中通过 [PEP 465](https://peps.python.org/pep-0465/) 引�
 
 我们保留了函数 `rem` 用于取余运算，函数 `matmul` 用于矩阵乘法。
 
-```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=true_rem
+```rust file=arithmetics_and_broadcasting anchor=true_rem
 ```
 
 :::warning 不要将 `rem` 作为关联（结构体成员）函数使用
 
 我们已经展示了 `rt::rem` 是可以用于计算张量的余数：
 
-```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=confusing_percent_01
+```rust file=arithmetics_and_broadcasting anchor=confusing_percent_01
 ```
 
 然而，函数 `tensor.rem(other)` 并不是 `rt::rem` 的定义。它被定义为 Rust 的关联函数，通过 `core::ops::Rem` trait 实现。由于我们通过矩阵乘法重载了这个 trait，`tensor.rem(other)` 也会调用矩阵乘法运算。
 
 <div className="ferris-overlay">
-```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=confusing_percent_02
+```rust file=arithmetics_and_broadcasting anchor=confusing_percent_02
 ```
 <img src={useBaseUrl("/img/ferris/not_desired_behavior.svg")} alt="not_desired_behavior" title="非预期行为！" /> </div>
 
@@ -91,7 +91,7 @@ $$
 \mathcal{Y}_{Pia} = Y_{Pia} \epsilon_{i} \epsilon_{a}
 $$
 
-```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=lt_os_mp2_01
+```rust file=arithmetics_and_broadcasting anchor=lt_os_mp2_01
 ```
 
 这是 3-D 张量与 1-D 张量的数乘。在通常情况下，1-D 张量 $\epsilon_{i}$ 和 $\epsilon_{a}$ 应该被广播并重复为 3-D 对应 $E^\mathrm{occ}_{Pia} = \epsilon_i (\forall P, a)$ 和 $E^\mathrm{vir}_{Pia} = \epsilon_a (\forall P, i)$，然后执行乘法：
@@ -103,7 +103,7 @@ $$
 \mathcal{Y}_{Pia} = Y_{Pia} \epsilon_{\cdot i \cdot} \epsilon_{\cdot \cdot a}
 $$
 
-```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=lt_os_mp2_02
+```rust file=arithmetics_and_broadcasting anchor=lt_os_mp2_02
 ```
 
 这种乘法仍然可以简化。根据 NumPy 的广播规则定义，它总是在第一个维度添加省略号。因此，任何在第一个维度插入 axis 的操作都可以被移除：
@@ -111,7 +111,7 @@ $$
 \mathcal{Y}_{Pia} = Y_{Pia} \epsilon_{i \cdot} \epsilon_{a}
 $$
 
-```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=lt_os_mp2_03
+```rust file=arithmetics_and_broadcasting anchor=lt_os_mp2_03
 ```
 
 最后，出于内存和效率的考虑，建议先执行 $\epsilon_{i \cdot} \epsilon_{a}$ 的数乘：
@@ -119,7 +119,7 @@ $$
 \mathcal{Y}_{Pia} = Y_{Pia} (\epsilon_{i \cdot} \epsilon_{a})
 $$
 
-```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=lt_os_mp2_04
+```rust file=arithmetics_and_broadcasting anchor=lt_os_mp2_04
 ```
 
 ### 3.2 矩阵乘法的示例
@@ -130,12 +130,12 @@ Y_{P ai} = \sum_{\mu \nu} Y_{P \mu \nu} C_{\mu i} C_{\nu a}
 $$
 此操作涉及五个索引 $P, \mu, \nu, a, i$，其中索引 $a, i$ 的数量小于 $\mu, \nu$。
 
-```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=ao2mo_vo_01
+```rust file=arithmetics_and_broadcasting anchor=ao2mo_vo_01
 ```
 
 矩阵乘法的 [广播规则](https://data-apis.org/array-api/2023.12/API_specification/generated/array_api.matmul.html) 稍微复杂一些。然而，如果您熟悉广播规则，这个任务可以用非常简单的代码实现：
 
-```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=ao2mo_vo_02
+```rust file=arithmetics_and_broadcasting anchor=ao2mo_vo_02
 ```
 
 :::warning 此操作在效率上可以进一步优化
@@ -148,7 +148,7 @@ $$
 
 另一种解决方案是通过有限度的 unsafe 代码，并行地对指标 $P$ 进行迭代：
 
-```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=ao2mo_vo_03
+```rust file=arithmetics_and_broadcasting anchor=ao2mo_vo_03
 ```
 
 :::
@@ -187,12 +187,12 @@ help: consider cloning the value if the performance cost is acceptable
 - 使用张量的引用，
 - 使用张量的视图，
 
-```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=memory_aspects_01
+```rust file=arithmetics_and_broadcasting anchor=memory_aspects_01
 ```
 
 需要注意的是，除了生命周期限制外，拥有所有权的张量仍然可以传递给算术运算。此外，在可能的情况下会应用就地算术运算（类型约束和广播能力）。例如，对于 1-D 张量加法，变量 `c` 的内存不会被分配，而是从变量 `a` 中重用。因此，如果您确定 `a` 不会再被使用，可以通过值传递 `a`，这样会更高效。
 
-```rust file=../../listings/features-default/tests/arithmetics_and_broadcasting.rs anchor=memory_aspects_02
+```rust file=arithmetics_and_broadcasting anchor=memory_aspects_02
 ```
 
 ### 4.2 通过关联函数 (associated method) 进行计算

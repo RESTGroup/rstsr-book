@@ -15,12 +15,12 @@ import useBaseUrl from '@docusaurus/useBaseUrl';
 
 举例而言，在 row-major 前提下，依照 broadcast 规则可以进行两个张量之间的元素比较：
 
-```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_elem_01
+```rust file=common_functions anchor=example_elem_01
 ```
 
 也可以对一个张量作正弦值计算：
 
-```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_elem_02
+```rust file=common_functions anchor=example_elem_02
 ```
 
 :::info 部分二元 elementwise 函数具有简称
@@ -29,7 +29,7 @@ import useBaseUrl from '@docusaurus/useBaseUrl';
 
 具有简称的二元函数，通常不能通过 associated methods 调用 (为避免与 `PartialOrd` 等 trait 冲突)；但可以通过普通的 Rust 函数调用。
 
-```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_elem_03
+```rust file=common_functions anchor=example_elem_03
 ```
 
 :::
@@ -78,7 +78,7 @@ help: consider borrowing `b`
 
 下面是计算 Gamma 函数的例子。我们使用 `mapv` 函数作映射；该函数可以连续地执行，但需要注意，RSTSR 并不具备 lazy evaluation 的功能，因此连续地函数式地调用 `mapv` 迭代映射并不会更高效：
 
-```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_map_01
+```rust file=common_functions anchor=example_map_01
 ```
 
 :::info 与 NumPy 的对应
@@ -110,38 +110,38 @@ RSTSR 的 map 系列函数，单纯是进行函数映射，而不是作任何指
 
 对可变的 `Tensor` 与 `TensorMut` 类型，RSTSR 也提供了 `mapvi` 函数，以在不分配新的内存的前提下，原地映射变更数值：
 
-```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_map_02
+```rust file=common_functions anchor=example_map_02
 ```
 
 ### 2.3 二元映射
 
 对于二元映射，RSTSR 也提供了 `mapvb` 函数：
 
-```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_map_03
+```rust file=common_functions anchor=example_map_03
 ```
 
 ## 3. 归约运算
 
 RSTSR 目前支持一部分归约运算。这包括求和、最大值、标准差等。增加后缀 `_axes` 可以对特定维度作归约运算。
 
-```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_reduction_01
+```rust file=common_functions anchor=example_reduction_01
 ```
 
 对于高维张量，`_axes` 后缀函数也可以传入数组，作为被归约的维度：
 
-```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_reduction_02
+```rust file=common_functions anchor=example_reduction_02
 ```
 
 作为特例，`Tensor<bool, B, D>` 也可以作 `sum` 或 `sum_axes` 运算；对该张量求和时，`true` 当作 1、`false` 当作 0：
 
-```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_reduction_03
+```rust file=common_functions anchor=example_reduction_03
 ```
 
 ## 4. 线性代数 (linalg)
 
 目前，RSTSR 支持一部分 NumPy 与 SciPy 的线性代数功能。典型的线性代数问题包括 Hermite 矩阵的本征值问题、SVD 分解、Cholesky 分解等等。
 
-```rust file=../../listings/features-default/tests/common_functions.rs anchor=example_linalg_01
+```rust file=common_functions anchor=example_linalg_01
 ```
 
 :::info 不同后端的线性代数功能有少许差异

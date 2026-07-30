@@ -17,6 +17,39 @@ import fs from 'fs';
 import path from 'path';
 import visit from 'unist-util-visit';
 
+function resolveShortName(shortName, listingsDir) {
+  const results = [];
+  function walk(dir) {
+    if (!fs.existsSync(dir)) return;
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(fullPath);
+      } else if (entry.isFile()) {
+        const stem = path.basename(entry.name, path.extname(entry.name));
+        if (stem === shortName) {
+          results.push(fullPath);
+        }
+      }
+    }
+  }
+  walk(listingsDir);
+
+  if (results.length === 0) {
+    throw new Error(
+      `Short name "${shortName}" not found in listings directory "${listingsDir}"`,
+    );
+  }
+  if (results.length > 1) {
+    throw new Error(
+      `Ambiguous short name "${shortName}". Found multiple files:\n` +
+        results.map((r) => '  - ' + path.relative(listingsDir, r)).join('\n'),
+    );
+  }
+  return results[0];
+}
+
 function parseArgs(meta) {
   const result = {};
   meta.split(' ').forEach((arg) => {
@@ -55,7 +88,19 @@ function codeImport(options = {}) {
       if (!args.file) {
         continue;
       }
-      const fileAbsPath = path.resolve(options.baseDir ?? (file.dirname || ''), args.file);
+      // Short-name lookup: if file= has no path separator and listingsDir is
+      // configured, search the listings directory recursively for a unique
+      // file whose stem (name without extension) matches.
+      let fileAbsPath;
+      if (!args.file.includes('/') && options.listingsDir) {
+        const listingsAbsDir = path.resolve(
+          options.baseDir ?? process.cwd(),
+          options.listingsDir,
+        );
+        fileAbsPath = resolveShortName(args.file, listingsAbsDir);
+      } else {
+        fileAbsPath = path.resolve(options.baseDir ?? (file.dirname || ''), args.file);
+      }
       logReferencedFile(fileAbsPath);
 
       if (options.async) {

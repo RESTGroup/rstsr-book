@@ -87,7 +87,7 @@ Different ownerships can be converted to each other. However, some conversion fu
 
 An example for tensor ownership conversion follows:
 
-```rust file=../../listings/features-default/tests/structure_and_ownership.rs anchor=tensor_ownership
+```rust file=structure_and_ownership anchor=tensor_ownership
 ```
 
 ### 2.2 Tensor and `Vec<T>` conversion
@@ -116,14 +116,14 @@ For other devices (will implemented in future), you may wish to first convert te
 
 As an example, we compute matrix-vector multiplication and report `Vec<f64>`:
 
-```rust file=../../listings/features-default/tests/structure_and_ownership.rs anchor=to_vec
+```rust file=structure_and_ownership anchor=to_vec
 ```
 
 :::warning
 
 The functions `as_ptr()` and `as_mut_ptr()` return pointers to the first element of the tensor's memory; however, it should be noted that the tensor pointed to by these pointers is not necessarily contiguous. RSTSR does not check whether the tensor is contiguous when providing these pointers.
 
-```rust file=../../listings/features-default/tests/structure_and_ownership.rs anchor=as_ptr_additional
+```rust file=structure_and_ownership anchor=as_ptr_additional
 ```
 
 :::
@@ -135,19 +135,19 @@ For convertion of 0-D tensor `Tensor<T, Ix0, B>` to `T`, we provide `to_scalar` 
 
 As an example, we compute innerdot and report float result:
 
-```rust file=../../listings/features-default/tests/structure_and_ownership.rs anchor=to_scalar
+```rust file=structure_and_ownership anchor=to_scalar
 ```
 
 ## 3. Dimension Conversion
 
 RSTSR provides fixed dimension and dynamic dimension tensors. Dimensions can be converted by `into_dim::<D>()` or `into_dyn`.
 
-```rust file=../../listings/features-default/tests/structure_and_ownership.rs anchor=dim_conversion
+```rust file=structure_and_ownership anchor=dim_conversion
 ```
 
 We only touched array creation with fixed dimension. To create array with dynamic dimension, use `Vec<T>` instead of `[T; N]`:
 
-```rust file=../../listings/features-default/tests/structure_and_ownership.rs anchor=dyn_dim_construct
+```rust file=structure_and_ownership anchor=dyn_dim_construct
 ```
 
 Fixed dimension will be more efficient than dynamic dimension. However, in many arithmetic computations, depneding on contiguous of tensors, the efficiency difference will not be very notable. Meanwhile, RSTSR provides the `dispatch_dim_layout_iter` Cargo feature; this ensures that the computational efficiency of dynamic dimensions is comparable to that of fixed dimensions when performing calculations on larger tensors.

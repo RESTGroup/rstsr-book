@@ -44,7 +44,7 @@ Although implementing the remainder operation is relatively inconvenient (`rt::r
 
 One of RSTSR's goals is to have an interface form similar to NumPy. While Python functions allow overloading, Rust functions strictly do not allow direct overloading; however, overloading based on Traits is still feasible. Taking the `rt::asarray` function as an example, we can provide tensors in various ways:
 
-```rust file=../listings/features-default/tests/why_rstsr.rs anchor=asarray_override
+```rust file=why_rstsr anchor=asarray_override
 ```
 
 Not only `rt::asarray`, but many other functions in RSTSR also have overloaded implementations.

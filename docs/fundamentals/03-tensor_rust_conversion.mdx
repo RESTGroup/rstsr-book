@@ -24,7 +24,7 @@ This documentation only applies to CPU backends. Currently, other backend types 
 RSTSR's tensor `Tensor<T, B, D>` can be created from raw vector data, dimensions, and device information using the `rt::asarray` function. The `rt::asarray` function has multiple overloads, which will be detailed in future API documentation.
 
 The following program stores raw data as a (2, 3)-dimensional tensor on a 16-core parallel OpenBLAS device. Note that this program behaves differently under row-major and column-major layouts:
-```rust file=../../listings/features-default/tests/tensor_rust_conversion.rs anchor=example_from_vec_by_asarray
+```rust file=tensor_rust_conversion anchor=example_from_vec_by_asarray
 ```
 
 ### 1.2 From `Vec<T>`: Manual Construction
@@ -32,7 +32,7 @@ The following program stores raw data as a (2, 3)-dimensional tensor on a 16-cor
 As mentioned in the previous section, RSTSR tensors have a multi-layered structure. While the `rt::asarray` function is intuitive, it hides the specific process of constructing RSTSR tensors.
 
 The following program demonstrates how RSTSR step-by-step constructs a complete tensor from the basic `Vec<T>` data storage unit:
-```rust file=../../listings/features-default/tests/tensor_rust_conversion.rs anchor=example_from_vec_by_scratch
+```rust file=tensor_rust_conversion anchor=example_from_vec_by_scratch
 ```
 
 ### 1.3 Into `Vec<T>`: into_vec Function
@@ -44,7 +44,7 @@ Please note the following **side effects**:
 - This function prohibits converting higher-dimensional tensors (e.g., 2-D) into vectors:
 
     <div className="ferris-overlay">
-    ```rust file=../../listings/features-default/tests/tensor_rust_conversion.rs anchor=example_into_vec_by_into_vec_failed
+    ```rust file=tensor_rust_conversion anchor=example_into_vec_by_into_vec_failed
     ```
     <img src={useBaseUrl("/img/ferris/does_not_compile.svg")} alt="does_not_compile" title="Won't compile!" /> </div>
 
@@ -52,12 +52,12 @@ Please note the following **side effects**:
 
 - For `Tensor<T, B, D>` (tensors that own their data), this function typically does not copy data, meaning it has almost no runtime cost:
 
-    ```rust file=../../listings/features-default/tests/tensor_rust_conversion.rs anchor=example_into_vec_by_into_vec
+    ```rust file=tensor_rust_conversion anchor=example_into_vec_by_into_vec
     ```
 
     However, if the offset is non-zero, stride is not one, or the underlying data length does not match the dimension information, data will still be copied:
 
-    ```rust file=../../listings/features-default/tests/tensor_rust_conversion.rs anchor=example_into_vec_by_into_vec_cloned
+    ```rust file=tensor_rust_conversion anchor=example_into_vec_by_into_vec_cloned
     ```
 
 - For reference types (e.g., `TensorView<'_, T, B, D>`), this function will copy data.
@@ -68,12 +68,12 @@ This discussion only applies to `Tensor<T, B, D>` (tensors that own their data).
 
 RSTSR tensors can be constructed from scratch using `Vec<T>` or deconstructed top-down from `Tensor<T, B, D>`. Deconstructing a tensor requires calling `into_raw_parts` twice and `into_raw` once:
 
-```rust file=../../listings/features-default/tests/tensor_rust_conversion.rs anchor=example_into_vec_destruct
+```rust file=tensor_rust_conversion anchor=example_into_vec_destruct
 ```
 
 However, this function also has **side effects**. It only returns the underlying vector used for data storage, without considering how the vector's layout is stored. For tensors of any dimension (including higher-dimensional ones like 2-D), `into_raw_parts` can still extract the `Vec<T>` data, but this data may not match what the `into_vec` function returns. This can be demonstrated with tensors where the stride is not 1:
 
-```rust file=../../listings/features-default/tests/tensor_rust_conversion.rs anchor=example_into_vec_destruct_warn
+```rust file=tensor_rust_conversion anchor=example_into_vec_destruct_warn
 ```
 
 Therefore, if you want to obtain `Vec<T>` through top-down deconstruction, you must ensure that the tensor or vector's layout meets your expectations.
@@ -90,7 +90,7 @@ In Rust, `&[T]` (or `&mut [T]`) is very similar to pointer types: `&[T]` include
 
 Similar to `Vec<T>`, RSTSR's tensor view `TensorView<'_, T, B, D>` can be created using the `rt::asarray` function. However, unlike `Vec<T>`, it returns a tensor view `TensorView<'_, T, B, D>` rather than an owning tensor `Tensor<'_, T, B, D>`. Note that this program behaves differently under row-major and column-major layouts:
 
-```rust file=../../listings/features-default/tests/tensor_rust_conversion.rs anchor=example_from_ref_by_asarray
+```rust file=tensor_rust_conversion anchor=example_from_ref_by_asarray
 ```
 
 Similarly, `&mut [T]` can be used to create a mutable view `TensorMut<'_, T, B, D>` through a similar process.
@@ -99,7 +99,7 @@ Similarly, `&mut [T]` can be used to create a mutable view `TensorMut<'_, T, B, 
 
 The approach here is consistent with manually constructing from `Vec<T>`. However, note that RSTSR's CPU backend always processes reference types as `&Vec<T>` rather than `&[T]`[^1]. Therefore, in RSTSR, we require first constructing a `Vec<T>` from `&[T]`; this vector will not be automatically dropped and will have lifetime annotations. Specifically:
 
-```rust file=../../listings/features-default/tests/tensor_rust_conversion.rs anchor=example_from_ref_by_scratch
+```rust file=tensor_rust_conversion anchor=example_from_ref_by_scratch
 ```
 
 Similarly, `&mut [T]` can be used to create a mutable view `TensorMut<'_, T, B, D>` through a similar process.
@@ -133,7 +133,7 @@ Similarly, `&mut [T]` can be used to create a mutable view `TensorMut<'_, T, B, 
 
 We can return a reference to the underlying data:
 
-```rust file=../../listings/features-default/tests/tensor_rust_conversion.rs anchor=example_to_ref_by_raw
+```rust file=tensor_rust_conversion anchor=example_to_ref_by_raw
 ```
 
 This is essentially the same as top-down deconstruction to obtain `Vec<T>`, except that we only need a reference without deconstructing the tensor, so a simpler function `raw` can achieve this.
@@ -150,24 +150,24 @@ From this perspective, using the `raw` function is risky. However, since it does
 
 A common mistake (even made by library developers) is failing to properly add offsets to pointers. We use the following Cholesky decomposition example to illustrate this. Suppose we have the following $3 \times 3$ f-contiguous matrix:
 
-```rust file=../../listings/features-default/tests/tensor_rust_conversion.rs anchor=example_raw_error_usage_1
+```rust file=tensor_rust_conversion anchor=example_raw_error_usage_1
 ```
 
 If we want to perform a lower-triangular Cholesky decomposition on the bottom-right $2 \times 2$ submatrix, the standard approach in RSTSR is:
 
-```rust file=../../listings/features-default/tests/tensor_rust_conversion.rs anchor=example_raw_error_usage_2
+```rust file=tensor_rust_conversion anchor=example_raw_error_usage_2
 ```
 
 Suppose we need to pass this to the `lapack` crate for Cholesky decomposition using other Rust types. In RSTSR, this can be done using the `raw_mut` function. However, **without adding the correct offset to the slice generated by `raw_mut`, the following call is incorrect!**
 
 <div className="ferris-overlay">
-```rust file=../../listings/features-default/tests/tensor_rust_conversion.rs anchor=example_raw_error_usage_3
+```rust file=tensor_rust_conversion anchor=example_raw_error_usage_3
 ```
 <img src={useBaseUrl("/img/ferris/not_desired_behavior.svg")} alt="not_desired_behavior" title="Unexpected behavior!" /> </div>
 
 The correct approach requires adding an offset to the pointer returned by `raw_mut` to ensure the pointer passed to FFI points to the first element of `sub_mat`:
 
-```rust file=../../listings/features-default/tests/tensor_rust_conversion.rs anchor=example_raw_error_usage_4
+```rust file=tensor_rust_conversion anchor=example_raw_error_usage_4
 ```
 
 :::
@@ -178,5 +178,5 @@ Currently, RSTSR also supports conversions with a few other Rust types.
 
 For Faer's `MatRef` and `MatMut`, RSTSR supports bidirectional conversions. Taking `MatRef` as an example, since it is a reference type, the process does not involve memory copying:
 
-```rust file=../../listings/features-default/tests/tensor_rust_conversion.rs anchor=example_rstsr_faer_conversion
+```rust file=tensor_rust_conversion anchor=example_rstsr_faer_conversion
 ```
