@@ -45,10 +45,8 @@ RSTSR 还允许在运行时修改 row/col-major。这是通过 `device.set_defau
 
 但需要注意，不同的 row/col-major 张量之间是禁止运算的；这不会在编译时报错，而只会在运行时报错：
 
-<div className="ferris-overlay">
-```rust file=order_issue anchor=example_device_change_panics
+```rust file=order_issue anchor=example_device_change_panics ferris=panics
 ```
-<img src={useBaseUrl("/img/ferris/panics.svg")} alt="panics" title="此代码会崩溃！" /> </div>
 
 一种解决方案，是活用 device 更换 (在这里可以是 trait 函数 `change_device`)，使得下述计算可以进行。在 CPU 设备下，`change_device` 函数会消耗变量 `b`，但不会对数据明确地复制，因此下述 device 更换没有计算代价。
 
@@ -160,10 +158,8 @@ $$
 ```
 </TabItem>
 <TabItem value="col-major" label="col-major">
-<div className="ferris-overlay">
-```rust file=order_issue anchor=example_broadcast_elementwise_fail_01
+```rust file=order_issue anchor=example_broadcast_elementwise_fail_01 ferris=panics
 ```
-<img src={useBaseUrl("/img/ferris/panics.svg")} alt="panics" title="此代码会崩溃！" /> </div>
 </TabItem>
 </Tabs>
 
@@ -175,10 +171,8 @@ $$
 ```
 </TabItem>
 <TabItem value="row-major" label="row-major">
-<div className="ferris-overlay">
-```rust file=order_issue anchor=example_broadcast_elementwise_fail_02
+```rust file=order_issue anchor=example_broadcast_elementwise_fail_02 ferris=panics
 ```
-<img src={useBaseUrl("/img/ferris/panics.svg")} alt="panics" title="此代码会崩溃！" /> </div>
 </TabItem>
 <TabItem value="col-major" label="col-major" default>
 ```rust file=order_issue anchor=example_broadcast_elementwise_02

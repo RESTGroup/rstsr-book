@@ -126,10 +126,8 @@ let device = DeviceOpenBLAS::new(6);
 
     更准确地说，RSTSR 在面对下述代码时，并不会报错；但它将视 `Vec<T>` 类型作为张量的元素，即下述张量在 RSTSR 中是 1-D 向量而不是 $2 \times 3$ 的 2-D 矩阵。这一般不是用户所预期的行为：
 
-    <div className="ferris-overlay">
-    ```rust file=numpy_cheatsheet anchor=example_asarray_nested
+        ```rust file=numpy_cheatsheet anchor=example_asarray_nested ferris=not_desired_behavior
     ```
-    <img src={useBaseUrl("/img/ferris/not_desired_behavior.svg")} alt="not_desired_behavior" title="非预期行为！" /> </div>
 
     如果用户确实希望将嵌套列表传入 RSTSR 作为矩阵或张量，目前的解决方案是首先用户将嵌套列表压平到一维向量：
 

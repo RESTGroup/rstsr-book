@@ -64,7 +64,116 @@ function parseArgs(meta) {
   return result;
 }
 
+const FERRIS_TITLES = {
+  panics: {
+    en: 'This code will panic!',
+    'zh-hans': '此代码将会 panic！',
+  },
+  does_not_compile: {
+    en: 'This code does not compile!',
+    'zh-hans': '此代码无法编译！',
+  },
+  not_desired_behavior: {
+    en: 'Not desired behavior!',
+    'zh-hans': '非期望行为！',
+  },
+};
+
+function detectLocale(history) {
+  // history is an array of file paths; i18n files contain "i18n/<locale>/"
+  if (history && history.length) {
+    const m = history[0].match(/i18n\/([^/]+)\//);
+    if (m) return m[1];
+  }
+  return 'en';
+}
+
 const referencedFiles = new Set();
+
+function makeUseBaseUrlExpr(pathStr) {
+  return {
+    type: 'mdxJsxAttributeValueExpression',
+    value: `useBaseUrl("${pathStr}")`,
+    data: {
+      estree: {
+        type: 'Program',
+        body: [
+          {
+            type: 'ExpressionStatement',
+            expression: {
+              type: 'CallExpression',
+              callee: { type: 'Identifier', name: 'useBaseUrl' },
+              arguments: [
+                {
+                  type: 'Literal',
+                  value: pathStr,
+                  raw: JSON.stringify(pathStr),
+                },
+              ],
+              optional: false,
+            },
+          },
+        ],
+        sourceType: 'module',
+        comments: [],
+      },
+    },
+  };
+}
+
+function applyFerrisOverlay(node, ferrisType, parent, index, locale) {
+  if (!ferrisType) {
+    return;
+  }
+  if (!(ferrisType in FERRIS_TITLES)) {
+    throw new Error(
+      `Invalid ferris type "${ferrisType}". Valid types: ${Object.keys(FERRIS_TITLES).join(', ')}`,
+    );
+  }
+
+  const title = FERRIS_TITLES[ferrisType][locale] ?? FERRIS_TITLES[ferrisType].en;
+
+  const wrapper = {
+    type: 'mdxJsxFlowElement',
+    name: 'div',
+    attributes: [
+      { type: 'mdxJsxAttribute', name: 'className', value: 'ferris-overlay' },
+    ],
+    children: [
+      node,
+      {
+        type: 'mdxJsxFlowElement',
+        name: 'span',
+        attributes: [
+          { type: 'mdxJsxAttribute', name: 'className', value: 'ferris-icon' },
+          { type: 'mdxJsxAttribute', name: 'title', value: title },
+        ],
+        children: [
+          {
+            type: 'mdxJsxFlowElement',
+            name: 'img',
+            attributes: [
+              {
+                type: 'mdxJsxAttribute',
+                name: 'src',
+                value: makeUseBaseUrlExpr(`/img/ferris/${ferrisType}.svg`),
+              },
+              { type: 'mdxJsxAttribute', name: 'alt', value: ferrisType },
+            ],
+            children: [],
+          },
+        ],
+      },
+    ],
+  };
+
+  if (parent && typeof index === 'number') {
+    parent.children.splice(index, 1, wrapper);
+  } else {
+    // Should not happen for block-level code nodes, but handle gracefully.
+    throw new Error('Cannot apply ferris overlay: missing parent or index');
+  }
+}
 
 function codeImport(options = {}) {
   return function transformer(tree, file) {
@@ -75,7 +184,7 @@ function codeImport(options = {}) {
       codes.push([node, index, parent]);
     });
 
-    for (const [node] of codes) {
+    for (const [node, index, parent] of codes) {
       // If someone forgets the language tag, the meta string is read as the
       // language; detect `file=` there and give a helpful error.
       if (hasLang(node) && node.lang.startsWith('file=')) {
@@ -86,6 +195,10 @@ function codeImport(options = {}) {
       }
       const args = parseArgs(node.meta);
       if (!args.file) {
+        // Standalone ferris overlay (no file import) — wrap inline code block
+        if (args.ferris) {
+          applyFerrisOverlay(node, args.ferris, parent, index, detectLocale(file.history));
+        }
         continue;
       }
       // Short-name lookup: if file= has no path separator and listingsDir is
@@ -117,6 +230,7 @@ function codeImport(options = {}) {
                 return;
               }
               node.value = getSnippet(fileContent, args);
+              applyFerrisOverlay(node, args.ferris, parent, index, detectLocale(file.history));
               resolve();
             });
           }),
@@ -131,6 +245,7 @@ function codeImport(options = {}) {
         }
         const fileContent = fs.readFileSync(fileAbsPath, 'utf8');
         node.value = getSnippet(fileContent, args);
+        applyFerrisOverlay(node, args.ferris, parent, index, detectLocale(file.history));
       }
     }
 

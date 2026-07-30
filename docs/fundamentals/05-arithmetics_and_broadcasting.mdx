@@ -77,10 +77,8 @@ However, function `tensor.rem(other)` is not `rt::rem` by definition.
 It is defined as rust's associated function, by trait `core::ops::Rem`.
 Since we overrided this trait by matmul, `tensor.rem(other)` will also call matmul operation.
 
-<div className="ferris-overlay">
-```rust file=arithmetics_and_broadcasting anchor=confusing_percent_02
+```rust file=arithmetics_and_broadcasting anchor=confusing_percent_02 ferris=not_desired_behavior
 ```
-<img src={useBaseUrl("/img/ferris/not_desired_behavior.svg")} alt="not_desired_behavior" title="Not desired behavior!" /> </div>
 
 Since this kind of code will cause confusion, we advice API users not using `rem` as associated function.
 
@@ -176,15 +174,13 @@ This is related to how value is passed to arithmetic operations.
 
 In rust, variable ownership and lifetime rule is strict. The following code will give compiler error:
 
-<div className="ferris-overlay">
-```rust
+```rust ferris=does_not_compile
 let a = rt::arange(5.0);
 let b = rt::arange(5.0) + 1.0;
 
 let c = a + b;
 let d = a * b;
 ```
-<img src={useBaseUrl("/img/ferris/does_not_compile.svg")} alt="does_not_compile" title="Does Not Compile!" /> </div>
 
 ```console
     |     let c = a + b;
@@ -224,8 +220,7 @@ In RSTSR, there are three ways to perform arithmetic operations:
 You may found that code of usage of associated function is somehow weird.
 In fact, `a.add(&b)` is also valid in RSTSR, but this will consumes variable `a`.
 The following code will not compile due to this problem:
-<div className="ferris-overlay">
-```rust
+```rust ferris=does_not_compile
 let a = rt::arange(5.0);
 let b = rt::arange(5.0) + 1.0;
 
@@ -237,4 +232,3 @@ let d = a.div(&b);
 //      ^ value used here after move
 // note: `std::ops::Add::add` takes ownership of the receiver `self`, which moves `a`
 ```
-<img src={useBaseUrl("/img/ferris/does_not_compile.svg")} alt="does_not_compile" title="Does Not Compile!" /> </div>

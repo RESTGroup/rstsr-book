@@ -126,10 +126,8 @@ For column-major, due to indexing differences, asarray with shape parameters yie
 
     Specifically, RSTSR treats `Vec<T>` as tensor elements, making the following a 1-D vector rather than 2×3 matrix:
 
-    <div className="ferris-overlay">
-    ```rust file=numpy_cheatsheet anchor=example_asarray_nested
+        ```rust file=numpy_cheatsheet anchor=example_asarray_nested ferris=not_desired_behavior
     ```
-    <img src={useBaseUrl("/img/ferris/not_desired_behavior.svg")} alt="not_desired_behavior" title="Undesired behavior!" /> </div>
 
     Current workaround is flattening nested lists first:
 

@@ -69,10 +69,8 @@ NumPy 在 1.10 版本中通过 [PEP 465](https://peps.python.org/pep-0465/) 引�
 
 然而，函数 `tensor.rem(other)` 并不是 `rt::rem` 的定义。它被定义为 Rust 的关联函数，通过 `core::ops::Rem` trait 实现。由于我们通过矩阵乘法重载了这个 trait，`tensor.rem(other)` 也会调用矩阵乘法运算。
 
-<div className="ferris-overlay">
-```rust file=arithmetics_and_broadcasting anchor=confusing_percent_02
+```rust file=arithmetics_and_broadcasting anchor=confusing_percent_02 ferris=not_desired_behavior
 ```
-<img src={useBaseUrl("/img/ferris/not_desired_behavior.svg")} alt="not_desired_behavior" title="非预期行为！" /> </div>
 
 由于这种代码会引起混淆，我们建议 API 用户不要将 `rem` 作为关联函数使用。
 
@@ -161,15 +159,13 @@ $$
 
 在 Rust 中，变量的所有权和生命周期规则非常严格。以下代码将导致编译错误：
 
-<div className="ferris-overlay">
-```rust
+```rust ferris=does_not_compile
 let a = rt::arange(5.0);
 let b = rt::arange(5.0) + 1.0;
 
 let c = a + b;
 let d = a * b;
 ```
-<img src={useBaseUrl("/img/ferris/does_not_compile.svg")} alt="does_not_compile" title="无法编译！" /> </div>
 
 ```console
     |     let c = a + b;
@@ -203,8 +199,7 @@ help: consider cloning the value if the performance cost is acceptable
 - 通过关联函数：`(&a).add(&b)` 或 `a.view().add(&b)`。
 
 您可能会发现关联函数的使用代码有些奇怪。实际上，`a.add(&b)` 在 RSTSR 中也是有效的，但这会消耗变量 `a`。以下代码由于这个问题将无法编译：
-<div className="ferris-overlay">
-```rust
+```rust ferris=does_not_compile
 let a = rt::arange(5.0);
 let b = rt::arange(5.0) + 1.0;
 
@@ -216,4 +211,3 @@ let d = a.div(&b);
 //      ^ value used here after move
 // note: `std::ops::Add::add` takes ownership of the receiver `self`, which moves `a`
 ```
-<img src={useBaseUrl("/img/ferris/does_not_compile.svg")} alt="does_not_compile" title="无法编译！" /> </div>

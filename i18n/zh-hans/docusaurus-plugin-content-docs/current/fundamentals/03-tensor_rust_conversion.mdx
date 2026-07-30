@@ -41,10 +41,8 @@ RSTSR 的张量 `Tensor<T, B, D>` 可以通过 `rt::asarray` 函数，读入向�
 
 - 该函数禁止处理 2-D 等高维张量转为向量：
 
-    <div className="ferris-overlay">
-    ```rust file=tensor_rust_conversion anchor=example_into_vec_by_into_vec_failed
+        ```rust file=tensor_rust_conversion anchor=example_into_vec_by_into_vec_failed ferris=does_not_compile
     ```
-    <img src={useBaseUrl("/img/ferris/does_not_compile.svg")} alt="does_not_compile" title="无法编译！" /> </div>
 
     如果您确实希望将 2-D 等高维张量转为向量，您首先需要先进行 `into_shape` 或 `into_contig` 以转为 1-D 张量。
 
@@ -158,10 +156,8 @@ RSTSR 的张量可以以 `Vec<T>` 为起点从头构建，也可以从 `Tensor<T
 
 假设我们出于其他原因，需要通过其他 Rust 类型，传到 crate `lapack` 中作 Cholesky 分解。这件事在 RSTSR 中，通过 `raw_mut` 函数也是容易做到的；但**由于没有向 `raw_mut` 生成的切片增加合理的 offset，下述调用过程是错误的！**
 
-<div className="ferris-overlay">
-```rust file=tensor_rust_conversion anchor=example_raw_error_usage_3
+```rust file=tensor_rust_conversion anchor=example_raw_error_usage_3 ferris=not_desired_behavior
 ```
-<img src={useBaseUrl("/img/ferris/not_desired_behavior.svg")} alt="not_desired_behavior" title="非预期行为！" /> </div>
 
 正确的做法需要向 `raw_mut` 后增加 offset，以保证传入 FFI 的指针指向了 `sub_mat` 的第一个元素：
 

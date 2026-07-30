@@ -103,8 +103,7 @@ Not only range types (like `1..3`) is accepted in RSTSR, but also range to (`..3
 
 But as a remainder, rust does not allow two different types to be merged as rust array `[T]`:
 
-<div className="ferris-overlay">
-```rust
+```rust ferris=does_not_compile
 // generate 3-D tensor A_ijk
 let a = rt::arange(24).into_shape([4, 3, 2]).into_owned();
 
@@ -114,7 +113,6 @@ let a = rt::arange(24).into_shape([4, 3, 2]).into_owned();
 // - `..2` is RangeTo
 let b = a.slice([.., 1..3, ..2]);
 ```
-<img src={useBaseUrl('/img/ferris/does_not_compile.svg')} alt="does_not_compile" title="Does Not Compile!" /> </div>
 
 To resolve this problem, you may pass tuple `(T1, T2)` instead of rust array `[T]`:
 
@@ -152,10 +150,8 @@ You can insert axes by `None` or `NewAxis` (by definition `Indexer::Insert`). Th
 
 Using `None` can be elegent, however, we do not accept `Some(val)` for indexing. So although the following code compiles, it simply does not work.
 
-<div className="ferris-overlay">
-```rust file=indexing anchor=example_insert_axes_02
+```rust file=indexing anchor=example_insert_axes_02 ferris=panics
 ```
-<img src={useBaseUrl("/img/ferris/panics.svg")} alt="panics" title="This code panics!" /> </div>
 
 ### 3.3 Ellipsis
 
@@ -198,10 +194,8 @@ To perform indexing, you may use rust's bracket `[]`:
 
 If you provides index out-of-bound, RSTSR will panic:
 
-<div className="ferris-overlay">
-```rust file=indexing anchor=example_elementwise_safe_panic
+```rust file=indexing anchor=example_elementwise_safe_panic ferris=panics
 ```
-<img src={useBaseUrl("/img/ferris/panics.svg")} alt="panics" title="This code panics!" /> </div>
 
 It is different in RSTSR in slicing (to tensor view) and elementwise indexing (to reference of value). If you wish to obtain a scalar value instead of scalar tensor, then please do not use `slice`.
 
@@ -218,10 +212,8 @@ To perform indexing, you may use unsafe function `index_uncheck`:
 
 If you provides index out-of-bound, and the pointer to that index is still valid in underlying memory, RSTSR will not panic and give wrong value:
 
-<div className="ferris-overlay">
-```rust file=indexing anchor=example_elementwise_unchecked_not_desired
+```rust file=indexing anchor=example_elementwise_unchecked_not_desired ferris=not_desired_behavior
 ```
-<img src={useBaseUrl("/img/ferris/not_desired_behavior.svg")} alt="not_desired_behavior" title="Not desired behavior!" /> </div>
 
 This function is marked `unsafe` in order to avoid such kind of out-of-bound (but not out-of-memory).
 In most cases it is still memory safe, in that out-of-memory accessing `Vec<T>` will gracefully panics.

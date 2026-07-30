@@ -42,13 +42,11 @@ However, for certain computations (including arithmetic operations covered in th
 
 Take the sine function as an example:
 
-<div className="ferris-overlay">
-```rust
+```rust ferris=does_not_compile
 let b = rt::asarray(vec![3., 4.]);
 let c = rt::sin(b);
 let d = rt::cos(b);
 ```
-<img src={useBaseUrl("/img/ferris/does_not_compile.svg")} alt="does_not_compile" title="Won't compile!" /> </div>
 
 This will trigger an error message, where the compiler's hint is valuable:
 

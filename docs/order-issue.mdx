@@ -45,10 +45,8 @@ RSTSR also allows modifying row/column-major order at runtime through `device.se
 
 However, note that operations between row-major and column-major tensors are prohibited. This won't cause compile-time errors but will trigger runtime errors:
 
-<div className="ferris-overlay">
-```rust file=order_issue anchor=example_device_change_panics
+```rust file=order_issue anchor=example_device_change_panics ferris=panics
 ```
-<img src={useBaseUrl("/img/ferris/panics.svg")} alt="panics" title="This code will panic!" /> </div>
 
 One solution is to leverage device switching (using the `change_device` trait function). For CPU devices, `change_device` consumes variable `b` without explicitly copying data, making this device switch computationally cost-free.
 
@@ -160,10 +158,8 @@ The first problem works in row-major but fails in column-major:
 ```
 </TabItem>
 <TabItem value="col-major" label="Column-major">
-<div className="ferris-overlay">
-```rust file=order_issue anchor=example_broadcast_elementwise_fail_01
+```rust file=order_issue anchor=example_broadcast_elementwise_fail_01 ferris=panics
 ```
-<img src={useBaseUrl("/img/ferris/panics.svg")} alt="panics" title="This code will panic!" /> </div>
 </TabItem>
 </Tabs>
 
@@ -175,10 +171,8 @@ The second problem works in column-major but fails in row-major:
 ```
 </TabItem>
 <TabItem value="row-major" label="Row-major">
-<div className="ferris-overlay">
-```rust file=order_issue anchor=example_broadcast_elementwise_fail_02
+```rust file=order_issue anchor=example_broadcast_elementwise_fail_02 ferris=panics
 ```
-<img src={useBaseUrl("/img/ferris/panics.svg")} alt="panics" title="This code will panic!" /> </div>
 </TabItem>
 <TabItem value="col-major" label="Column-major" default>
 ```rust file=order_issue anchor=example_broadcast_elementwise_02

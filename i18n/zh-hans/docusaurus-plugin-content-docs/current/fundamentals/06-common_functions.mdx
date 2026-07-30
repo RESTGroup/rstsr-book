@@ -42,13 +42,11 @@ RSTSR 中，几乎所有函数都允许传入 `&TensorAny` 或 `TensorView` 作�
 
 以正弦函数为例，
 
-<div className="ferris-overlay">
-```rust
+```rust ferris=does_not_compile
 let b = rt::asarray(vec![3., 4.]);
 let c = rt::sin(b);
 let d = rt::cos(b);
 ```
-<img src={useBaseUrl("/img/ferris/does_not_compile.svg")} alt="does_not_compile" title="无法编译！" /> </div>
 
 这会跳出报错信息；对于该错误，编译器给出的提示是有价值的：
 
