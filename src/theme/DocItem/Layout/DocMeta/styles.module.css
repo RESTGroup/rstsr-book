@@ -1,0 +1,105 @@
+.metaBar {
+  margin: 1.2em 0 2em 0;
+  padding: 0.6em 1em;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--ifm-color-secondary-darkest);
+  border-top: 1px solid var(--ifm-color-secondary-light);
+  border-bottom: 1px solid var(--ifm-color-secondary-light);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.4em 1.2em;
+  line-height: 1.6;
+}
+
+.metaField {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  white-space: nowrap;
+}
+
+.metaLabel {
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ifm-color-secondary-darkest);
+}
+
+.metaValue {
+  color: var(--ifm-color-secondary-darkest);
+}
+
+/* ── Badge styles ──────────────────────────────────────────────────── */
+.badge {
+  display: inline-block;
+  padding: 0.15em 0.5em;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* OK / positive — green */
+.badgeOk {
+  background-color: var(--ifm-color-success-lightest);
+  color: var(--ifm-color-success-darkest);
+  border: 1px solid var(--ifm-color-success-light);
+}
+
+/* Warning / needs attention — amber */
+.badgeWarn {
+  background-color: var(--ifm-color-warning-lightest);
+  color: var(--ifm-color-warning-darkest);
+  border: 1px solid var(--ifm-color-warning-light);
+}
+
+/* Info / neutral — blue */
+.badgeInfo {
+  background-color: var(--ifm-color-info-lightest);
+  color: var(--ifm-color-info-darkest);
+  border: 1px solid var(--ifm-color-info-light);
+}
+
+/* ── Separator ─────────────────────────────────────────────────────── */
+.separator {
+  color: var(--ifm-color-secondary-light);
+  user-select: none;
+}
+
+/* ── Dark mode adjustments ─────────────────────────────────────────── */
+[data-theme='dark'] .metaBar {
+  color: var(--ifm-color-secondary-lightest);
+  border-color: var(--ifm-color-secondary-dark);
+}
+
+[data-theme='dark'] .metaLabel {
+  color: var(--ifm-color-secondary-lightest);
+}
+
+[data-theme='dark'] .metaValue {
+  color: var(--ifm-color-secondary-lightest);
+}
+
+[data-theme='dark'] .badgeOk {
+  background-color: rgba(0, 200, 0, 0.15);
+  color: var(--ifm-color-success-lightest);
+}
+
+[data-theme='dark'] .badgeWarn {
+  background-color: rgba(255, 170, 0, 0.15);
+  color: var(--ifm-color-warning-lightest);
+}
+
+[data-theme='dark'] .badgeInfo {
+  background-color: rgba(0, 150, 255, 0.15);
+  color: var(--ifm-color-info-lightest);
+}
+
+[data-theme='dark'] .separator {
+  color: var(--ifm-color-secondary-dark);
+}
