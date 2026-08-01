@@ -9,7 +9,7 @@ import useBaseUrl from '@docusaurus/useBaseUrl';
 
 # 常用函数
 
-## 1. 常用依元素映射 (Elementwise) 函数
+## 常用依元素映射 (Elementwise) 函数
 
 在 RSTSR 中，许多 [Python Array API](https://data-apis.org/array-api/2023.12/API_specification/elementwise_functions.html) 所要求的函数都已经实现。它们大部分可以通过常规的 Rust 函数、或作为 associated methods 可以被调用。
 
@@ -68,11 +68,11 @@ help: consider borrowing `b`
 
 :::
 
-## 2. 映射函数
+## 映射函数
 
 尽管 RSTSR 实现了许多 elementwise 函数；但我们不太可能对所有函数作实现。对于在 CPU 设备上的张量，我们提供了映射函数 (名称中含有 map 的函数)，以满足用户个性化的映射需求。
 
-### 2.1 一元映射
+### 一元映射
 
 下面是计算 Gamma 函数的例子。我们使用 `mapv` 函数作映射；该函数可以连续地执行，但需要注意，RSTSR 并不具备 lazy evaluation 的功能，因此连续地函数式地调用 `mapv` 迭代映射并不会更高效：
 
@@ -104,21 +104,21 @@ RSTSR 的 map 系列函数，单纯是进行函数映射，而不是作任何指
 
 :::
 
-### 2.2 一元可变映射
+### 一元可变映射
 
 对可变的 `Tensor` 与 `TensorMut` 类型，RSTSR 也提供了 `mapvi` 函数，以在不分配新的内存的前提下，原地映射变更数值：
 
 ```rust file=common_functions anchor=example_map_02
 ```
 
-### 2.3 二元映射
+### 二元映射
 
 对于二元映射，RSTSR 也提供了 `mapvb` 函数：
 
 ```rust file=common_functions anchor=example_map_03
 ```
 
-## 3. 归约运算
+## 归约运算
 
 RSTSR 目前支持一部分归约运算。这包括求和、最大值、标准差等。增加后缀 `_axes` 可以对特定维度作归约运算。
 
@@ -135,7 +135,7 @@ RSTSR 目前支持一部分归约运算。这包括求和、最大值、标准�
 ```rust file=common_functions anchor=example_reduction_03
 ```
 
-## 4. 线性代数 (linalg)
+## 线性代数 (linalg)
 
 目前，RSTSR 支持一部分 NumPy 与 SciPy 的线性代数功能。典型的线性代数问题包括 Hermite 矩阵的本征值问题、SVD 分解、Cholesky 分解等等。
 

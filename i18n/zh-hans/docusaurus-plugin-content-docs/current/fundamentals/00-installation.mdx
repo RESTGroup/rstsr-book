@@ -25,7 +25,7 @@ use rstsr::prelude::*;
 
 ## 库导入 (prelude) 指南
 
-### 1. prelude 结构
+### prelude 结构
 
 在主库 rstsr 及一些重要子库 (譬如 rstsr-core)，其 prelude 主要分为四个模块：
 - 函数 `prelude::rstsr_funcs`；
@@ -49,7 +49,7 @@ use rstsr::prelude::*;
 let b: Tensor<f64, _> = rt::sin(&a);
 ```
 
-### 2. 命名冲突的解决方案
+### 命名冲突的解决方案
 
 在一些情况下，您可能因为命名冲突，不希望导入所有 `rstsr::prelude` 里的内容：
 - 您需要使用多个张量库，而其他张量库占用了 `Tensor` 等常见的类型名称；
@@ -63,7 +63,7 @@ let b: Tensor<f64, _> = rt::sin(&a);
 
 RSTSR 框架由许多子库构成。
 
-### 1. 整合库 rstsr
+### 整合库 rstsr
 
 rstsr 库作为整合其他子库的项目，它的代码仅仅是 `prelude.rs`。该库提供了一些 cargo features，以在 rstsr 中也可以设置一些子库 (如 rstsr-core、rstsr-openblas 等) 的编译选项。
 
@@ -77,7 +77,7 @@ rstsr 库作为整合其他子库的项目，它的代码仅仅是 `prelude.rs`�
 ```rust file=installation anchor=rstsr_2
 ```
 
-### 2. 核心库 rstsr-core
+### 核心库 rstsr-core
 
 rstsr-core 的主要功能是
 - 定义基本的张量数据结构；
@@ -87,19 +87,19 @@ rstsr-core 的主要功能是
 
 rstsr-core 从设计上，预期需要实现 Python array API standard 中大部分的功能，相当于 NumPy 的基本功能 (不涉及线性代数、稀疏等高级功能)。
 
-### 3. 拓展库
+### 拓展库
 
 拓展库是在核心库 rstsr-core 的基础上，进行功能的补充。目前的拓展库包括
 - rstsr-linalg-traits：接近于 NumPy 或 SciPy 风格的线性代数接口、以及对 BLAS 后端的部分实现；
 - rstsr-blas-traits：BLAS 后端接口与部分实现。
 
-### 4. 后端库
+### 后端库
 
 后端库具体实现了核心库 rstsr-core 与拓展库接口。目前的后端库包括
 - rstsr-openblas：实现 OpenBLAS 后端，该后端将是 RSTSR 现在主要发展的后端；
 - rstsr-hdf5：目前尚未完成实现；该后端将仅支持读写功能，不支持运算。
 
-### 5. 其他支持库
+### 其他支持库
 
 上述四类是 RSTSR 主要的分类。其余在 RSTSR 框架下的库包括
 - rstsr-dtype-traits：用于 [num](https://docs.rs/num/latest/num/) crate 无法或难以处理的数据类型接口。
@@ -117,7 +117,7 @@ rstsr-core 从设计上，预期需要实现 Python array API standard 中大部
 
 :::
 
-### 1. rstsr
+### rstsr
 
 整合库 rstsr 与核心库 rstsr-core 都具有的 feature 包括
 
@@ -133,7 +133,7 @@ rstsr-core 从设计上，预期需要实现 Python array API standard 中大部
 
 rstsr-core 默认支持的后端，都是以纯 Rust 实现；这种情况下不需要特别设置 build.rs。
 
-### 2. rstsr-openblas
+### rstsr-openblas
 
 该库并不是用户必须选择的。当用户对 BLAS 后端有需求时，才需要将 rstsr-openblas 纳入 Cargo.toml 作为依赖。
 

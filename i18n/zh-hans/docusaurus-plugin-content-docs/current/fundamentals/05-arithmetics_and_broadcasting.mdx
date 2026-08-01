@@ -21,7 +21,7 @@ import useBaseUrl from '@docusaurus/useBaseUrl';
 
 :::
 
-## 1. 算术运算示例
+## 算术运算示例
 
 RSTSR 可以处理 `+`、`-`、`*`、`/` 运算：
 
@@ -40,7 +40,7 @@ RSTSR 可以通过运算符 `%` 处理矩阵乘法运算（矩阵-矩阵、矩�
 
 上述示例应该已经涵盖了大多数张量算术运算的用法。本节接下来的文档将讨论一些高级主题。
 
-## 2. 重载运算符 `%`
+## 重载运算符 `%`
 
 我们已经展示了 `%` 是矩阵乘法的运算符。这是 RSTSR 特有的用法。这可能会引起一些混淆，我们将讨论这个话题。
 
@@ -76,13 +76,13 @@ NumPy 在 1.10 版本中通过 [PEP 465](https://peps.python.org/pep-0465/) 引�
 
 :::
 
-## 3. 广播 (broadcasting)
+## 广播 (broadcasting)
 
 [广播](https://numpy.org/doc/stable/user/basics.broadcasting.html) 使许多张量操作变得非常简单。RSTSR 采用了 NumPy 或 [Python Array API](https://data-apis.org/array-api/2023.12/API_specification/broadcasting.html) 的大部分广播规则。我们建议感兴趣的用户参考 NumPy 和 Python Array API 文档。
 
 RSTSR 的初始开发者是一名计算化学家。我们将使用化学编程中的一个示例，展示如何在实际情况中使用广播。
 
-### 3.1 数乘的示例
+### 数乘的示例
 
 RI-MP2（resolution-identity Moller-Plesset 二阶微扰）的指数和近似（也称为 LT-OS-MP2）涉及以下计算：
 $$
@@ -120,7 +120,7 @@ $$
 ```rust file=arithmetics_and_broadcasting anchor=lt_os_mp2_04
 ```
 
-### 3.2 矩阵乘法的示例
+### 矩阵乘法的示例
 
 许多后 HF 方法涉及积分基变换，主要是从原始基（原子基或称为 AO）到分子轨道基（称为 MO）：
 $$
@@ -151,11 +151,11 @@ $$
 
 :::
 
-## 4. 内存问题
+## 内存问题
 
 这与值如何传递给算术运算有关。
 
-### 4.1 通过算术运算符 (operator) 进行计算
+### 通过算术运算符 (operator) 进行计算
 
 在 Rust 中，变量的所有权和生命周期规则非常严格。以下代码将导致编译错误：
 
@@ -191,7 +191,7 @@ help: consider cloning the value if the performance cost is acceptable
 ```rust file=arithmetics_and_broadcasting anchor=memory_aspects_02
 ```
 
-### 4.2 通过关联函数 (associated method) 进行计算
+### 通过关联函数 (associated method) 进行计算
 
 在 RSTSR 中，有三种方式执行算术运算：
 - 通过运算符：`&a + &b`；

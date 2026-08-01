@@ -15,7 +15,7 @@ In vulgar words, `numpy` is convenient, and one may hope to code pythonicly in r
 
 In this section, we will try to show how RSTSR constructs tensor struct and different ownerships of tensors works.
 
-## 1. Tensor Structure
+## Tensor Structure
 
 RSTSR tensor learns a lot from rust crate ndarray.
 Structure and usage of RSTSR's `TensorBase` is similar to ndarray's `ArrayBase`; however, they are different in many key points.
@@ -59,9 +59,9 @@ let a: Tensor<f64> = rt::zeros([3, 4]);
       RSTSR also allows virtaully all kinds of element types (you can take `rug` or even `Vec<T>` as tensor element, as they implemented `Clone`), similar to ndarray.
       However, RSTSR will probably not implement autodiff in future, which is drawback compared to candle and burn.
 
-## 2. Ownership Conversion
+## Ownership Conversion
 
-### 2.1 Tensor to tensor ownership conversion
+### Tensor to tensor ownership conversion
 
 Different ownerships can be converted to each other. However, some conversion functions may have some costs (explicit memory copy).
 
@@ -90,7 +90,7 @@ An example for tensor ownership conversion follows:
 ```rust file=structure_and_ownership anchor=tensor_ownership
 ```
 
-### 2.2 Tensor and `Vec<T>` conversion
+### Tensor and `Vec<T>` conversion
 
 We have already touched some array creation functions in [previous section](tensor_creation#2-converting-rust-slices-to-rstsr-tensorview). 
 Here we will cover more on this topic.
@@ -128,7 +128,7 @@ The functions `as_ptr()` and `as_mut_ptr()` return pointers to the first element
 
 :::
 
-### 2.3 Tensor and scalar conversion
+### Tensor and scalar conversion
 
 RSTSR do not provide method that directly convert `T` to 0-D tensor `Tensor<T, Ix0, B>`.
 For convertion of 0-D tensor `Tensor<T, Ix0, B>` to `T`, we provide `to_scalar` function.
@@ -138,7 +138,7 @@ As an example, we compute innerdot and report float result:
 ```rust file=structure_and_ownership anchor=to_scalar
 ```
 
-## 3. Dimension Conversion
+## Dimension Conversion
 
 RSTSR provides fixed dimension and dynamic dimension tensors. Dimensions can be converted by `into_dim::<D>()` or `into_dyn`.
 

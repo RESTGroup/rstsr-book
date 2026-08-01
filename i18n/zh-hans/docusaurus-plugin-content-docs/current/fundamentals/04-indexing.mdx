@@ -49,7 +49,7 @@ RSTSR 提供了 NumPy 中称为“基础索引”(basic indexing) 的大部分�
 
 RSTSR 遵循 Rust、C 和 Python 的 0 基索引惯例，这与 Fortran 不同。
 
-## 1. 通过数字索引
+## 通过数字索引
 
 例如，一个 3-D 张量 $A_{ijk}$ 可以通过索引变为 2-D 张量 $B_{jk} = A_{2jk}$：
 
@@ -66,9 +66,9 @@ RSTSR 也接受负索引以从数组末尾开始索引：
 ```rust file=indexing anchor=example_index_by_num_03
 ```
 
-## 2. 普通索引
+## 普通索引
 
-### 2.1 通过 slice
+### 通过 slice
 
 例如，我们希望从张量 $A_{ijk}$ 中提取 $1 \leq i < 3$：
 
@@ -85,7 +85,7 @@ RSTSR 也接受负索引以从数组末尾开始索引：
 ```rust file=indexing anchor=example_index_by_range_03
 ```
 
-### 2.2 通过 range
+### 通过 range
 
 RSTSR 不仅接受 Range 类型 (如 `1..3`)，还接受 RangeTo (`..3`) 或 RangeFrom (`1..`)。
 
@@ -112,9 +112,9 @@ let b = a.slice([.., 1..3, ..2]);
 
 我们目前只实现了最多 10 个元素的元组；如果您的张量维度非常高，您可能需要使用 `s!`。
 
-## 3. 特殊索引
+## 特殊索引
 
-### 3.1 带步长的 slice 
+### 带步长的 slice 
 
 要进行带步长的 slice ，您可以使用 `slice!` 宏。`slice!` 宏的用法类似于 Python 的内置函数 `slice`[^1]：
 - `slice!(stop)`：类似于范围到 `..stop`；
@@ -131,7 +131,7 @@ let b = a.slice([.., 1..3, ..2]);
 ```rust file=indexing anchor=example_slice_with_strides_02
 ```
 
-### 3.2 插入 axis
+### 插入 axis
 
 您可以通过 `None` 或 `NewAxis` (定义为 `Indexer::Insert`) 插入 axis。这类似于 NumPy 的 `None` 或 `np.newaxis`。
 
@@ -143,14 +143,14 @@ let b = a.slice([.., 1..3, ..2]);
 ```rust file=indexing anchor=example_insert_axes_02 ferris=panics
 ```
 
-### 3.3 省略号
+### 省略号
 
 在 RSTSR 中，您可以使用 `Ellipsis` (定义为 `Indexer::Ellipsis`) 来跳过一些索引：
 
 ```rust file=indexing anchor=example_ellipsis_01
 ```
 
-### 3.4 混合索引和 slice 
+### 混合索引和 slice 
 
 如前所述，使用数组类型 `[T]` 不适合表示各种类型的索引和 slice 。然而，您可以使用宏 `s!` 或元组来执行此任务[^2]。
 
@@ -159,7 +159,7 @@ let b = a.slice([.., 1..3, ..2]);
 ```rust file=indexing anchor=example_mixed_indexing
 ```
 
-## 4. 元素索引
+## 元素索引
 
 :::warning 元素索引效率不高
 
@@ -171,7 +171,7 @@ let b = a.slice([.., 1..3, ..2]);
 
 :::
 
-### 4.1 安全的元素索引
+### 安全的元素索引
 
 要执行索引，您可以使用 Rust 的方括号 `[]`：
 
@@ -188,7 +188,7 @@ let b = a.slice([.., 1..3, ..2]);
 ```rust file=indexing anchor=example_elementwise_by_tensor_index
 ```
 
-### 4.2 未检查的元素索引
+### 未检查的元素索引
 
 未检查的元素索引会比安全的元素索引稍快一些。要执行索引，您可以使用不安全的函数 `index_uncheck`：
 

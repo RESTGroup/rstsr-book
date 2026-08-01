@@ -26,7 +26,7 @@ That's it! Following this process, you can try out the example code on the [Welc
 
 ## Prelude Import Guide
 
-### 1. Prelude Structure
+### Prelude Structure
 
 The main library `rstsr` and some important sub-libraries (such as `rstsr-core`) have their prelude divided into four modules:
 - **Functions** (`prelude::rstsr_funcs`):
@@ -50,7 +50,7 @@ use rstsr::prelude::*;
 let b: Tensor<f64, _> = rt::sin(&a);
 ```
 
-### 2. Resolving Naming Conflicts
+### Resolving Naming Conflicts
 
 In some cases, you might want to avoid importing everything from `rstsr::prelude` due to naming conflicts:
 - You are using multiple tensor libraries, and another library uses common type names like `Tensor`.
@@ -64,7 +64,7 @@ In these cases, you can:
 
 The RSTSR framework consists of many sub-libraries.
 
-### 1. Integration Library: rstsr
+### Integration Library: rstsr
 
 The `rstsr` library serves as an integration of other sub-libraries. Its code is primarily in `prelude.rs`. This library provides some Cargo features to set compilation options for sub-libraries (e.g., `rstsr-core`, `rstsr-openblas`, etc.) within `rstsr`.
 
@@ -78,7 +78,7 @@ Using sub-libraries yields equivalent results:
 ```rust file=installation anchor=rstsr_2
 ```
 
-### 2. Core Library: rstsr-core
+### Core Library: rstsr-core
 
 The main functionalities of `rstsr-core` include:
 - Defining the basic tensor data structure.
@@ -88,19 +88,19 @@ The main functionalities of `rstsr-core` include:
 
 Design-wise, `rstsr-core` aims to implement most of the Python Array API standard, equivalent to NumPy's basic functionalities (excluding advanced features like linear algebra or sparse matrices).
 
-### 3. Extension Libraries
+### Extension Libraries
 
 Extension libraries supplement the functionalities of the core library `rstsr-core`. Current extension libraries include:
 - `rstsr-linalg-traits`: Linear algebra interfaces similar to NumPy or SciPy, along with partial implementations of BLAS backends.
 - `rstsr-blas-traits`: BLAS backend interfaces and partial implementations.
 
-### 4. Backend Libraries
+### Backend Libraries
 
 Backend libraries implement the interfaces of the core library `rstsr-core` and extension libraries. Current backend libraries include:
 - `rstsr-openblas`: Implements the OpenBLAS backend, which is the primary backend under development for RSTSR.
 - `rstsr-hdf5`: Currently not fully implemented; this backend will only support read/write functionalities, not computations.
 
-### 5. Other Support Libraries
+### Other Support Libraries
 
 The above four categories are the main classifications of RSTSR. Other libraries within the RSTSR framework include:
 - `rstsr-dtype-traits`: For handling data type interfaces that the [num](https://docs.rs/num/latest/num/) crate cannot or struggles to handle.
@@ -118,7 +118,7 @@ As RSTSR evolves, we will further improve its features, which may affect how use
 
 :::
 
-### 1. rstsr
+### rstsr
 
 The integration library `rstsr` and the core library `rstsr-core` share the following features:
 
@@ -134,7 +134,7 @@ Features exclusive to the integration library `rstsr` include:
 
 The default backends supported by `rstsr-core` are implemented purely in Rust, so no special build.rs setup is required.
 
-### 2. rstsr-openblas
+### rstsr-openblas
 
 This library is not mandatory for users. It is only required if the user needs a BLAS backend.
 

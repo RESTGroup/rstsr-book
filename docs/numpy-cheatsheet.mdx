@@ -43,11 +43,11 @@ Most error-handling functions have an `_f` suffix; for example, `rt::zeros` will
 
 :::
 
-## 1. Common Non-computational Operations
+## Common Non-computational Operations
 
 These are operations frequently needed by users.
 
-### 1.1 Printing Tensors
+### Printing Tensors
 
 | NumPy | RSTSR | Description |
 |--|--|--|
@@ -60,7 +60,7 @@ These are operations frequently needed by users.
     ```rust file=numpy_cheatsheet anchor=example_print_set_max_print
     ```
 
-### 1.2 Outputting Layout Information
+### Outputting Layout Information
 
 | NumPy | RSTSR | Description |
 |--|--|--|
@@ -79,11 +79,11 @@ These are operations frequently needed by users.
 [^3]: Pointer handling differs between RSTSR and NumPy. NumPy pointers always point to tensor's first element. RSTSR pointers point to underlying data's first element, offset by `a.offset()` from tensor's first element.
 [^4]: "Strided continuity" means while the tensor itself isn't contiguous, each dimension is contiguous. Submatrices of large contiguous matrices are strided-contiguous; in column-major BLAS calls, this appears as leading dimension being larger than actual row count. Thus, column-major strided-contiguous (`f_prefer`) matrices can be used directly in BLAS without copying. Some BLAS routines like GEMM can also handle row-major strided-contiguous (`c_prefer`) cases via transpose parameters.
 
-## 2. Tensor Creation
+## Tensor Creation
 
 Tensor creation includes three scenarios: creating special tensors, creating new tensors from existing ones, and creating from Rust types like `Vec<T>`, `&[T]`, `&mut [T]`. For the latter, see [Tensor-Rust Type Conversion](./fundamentals/tensor_rust_conversion) for details.
 
-### 2.0 Device Parameter `device`
+### Device Parameter `device`
 
 For device parameters, users typically use default constructors. For `DeviceFaer`:
 
@@ -101,7 +101,7 @@ Most functions allow omitting `&device` overload; in such cases `DeviceFaer::def
 
 For Rayon-parallel devices, use `device.get_current_pool` to get thread pool; if it returns None, it means current call is already in Rayon parallel region and should run serially.
 
-### 2.1 Creating Tensors from Lists
+### Creating Tensors from Lists
 
 :::warning Row/Column Major Differences in asarray and reshape
 
@@ -139,7 +139,7 @@ l = [[0, 1, 2], [3, 4, 5]]
 a = np.array(l)
 `}</CodeBlock>}
 
-### 2.2 Creating Special Tensors
+### Creating Special Tensors
 
 | NumPy | RSTSR | Description |
 |--|--|--|
@@ -170,7 +170,7 @@ let a: Tensor<f64, _> = rt::zeros(([2, 3], &device))
     - It cannot be used with types having destructors (like `Vec<T>` tensors) to avoid double-free or illegal instructions.
     - Future versions may introduce `uninit` returning `MaybeUninit<T>` tensors for safer handling.
 
-### 2.3 Creating Tensors from Existing Tensors
+### Creating Tensors from Existing Tensors
 
 | NumPy / PySCF | RSTSR | Description |
 |--|--|--|
@@ -182,9 +182,9 @@ let a: Tensor<f64, _> = rt::zeros(([2, 3], &device))
 
 [^7]: These functions behave differently for row/column major. Generally, row-major favors lower triangle, column-major upper triangle.
 
-## 3. Indexing
+## Indexing
 
-### 3.1 Element Indexing
+### Element Indexing
 
 Indexing `Tensor<T, B, D>` (or variants) yields `T`, `&T` or `&mut T`.
 
@@ -197,7 +197,7 @@ Indexing `Tensor<T, B, D>` (or variants) yields `T`, `&T` or `&mut T`.
 | | `unsafe { a.index_mut_uncheck([0, 1]) }` | Unsafe unchecked `&mut T` reference |
 | `a[1, 4] += 3.14` | `a[[1, 4]] += 3.14` | In-place addition |
 
-### 3.2 Basic Indexing
+### Basic Indexing
 
 Basic indexing on `Tensor<T, B, D>` (or variants):
 - `slice`/`i` returns `TensorView<'_, T, B, D>`
@@ -227,7 +227,7 @@ Row/column major basic indexing behaves consistently: dimensions are indexed lef
 | `a[np.newaxis]`<br/>`a[None]`<br/>`torch.unsqueeze(a, 0)` | `a.i(None)` | Inserts dimension before axis=0 (4D) |
 | Complex example | `a.i((-1, None, slice!(-1, 1, -2), Ellipsis, None, 2..))` | Complex basic indexing |
 
-### 3.3 Diagonal Indexing
+### Diagonal Indexing
 
 `diagonal`, `diagonal_mut`, `into_diagonal` are special cases similar to basic indexing, returning views/mutable views/original types respectively.
 
@@ -241,7 +241,7 @@ Row/column major basic indexing behaves consistently: dimensions are indexed lef
 [^8]: "Left"/"down" depends on axes order. For axes=(0,1), positive offset goes left; for (1,0), positive goes down.
 [^9]: Higher-dim diagonal assignment works in RSTSR, but differs from NumPy's `fill_diagonal`. RSTSR's `diagonal`/`diagonal_mut` matches NumPy's `diagonal` behavior.
 
-### 3.4 Advanced Indexing
+### Advanced Indexing
 
 :::info
 
@@ -255,9 +255,9 @@ RSTSR currently lacks full advanced indexing support but provides `index_select`
 |--|--|--|
 | `a[:, [1, 8, 7]]`<br/>`a.take([1, 8, 7], axis=1)` | `a.index_select(1, [1, 8, 7])` | Selects elements [1,8,7] along axis=1 into new tensor |
 
-## 4. Tensor Manipulation
+## Tensor Manipulation
 
-### 4.1 Reshaping Tensors
+### Reshaping Tensors
 
 :::warning Row/Column Major Differences in asarray and reshape
 
@@ -306,7 +306,7 @@ For column-major, RSTSR's `shape`-suffixed functions match Julia's `reshape(a, (
     ```rust file=numpy_cheatsheet anchor=example_reshape_order_f_02
     ```
 
-### 4.2 Non-Data-Changing Tensor Manipulation
+### Non-Data-Changing Tensor Manipulation
 
 :::info
 
@@ -331,7 +331,7 @@ This prefix behavior differs from reshaping. Here `into_` is more similar to res
 | `a.mT`<br/>`a.swapaxes(-1, -2)` | `a.swapaxes(-1, -2)`<br/>`a.into_swapaxes(-1, -2)` | Swaps last two dimensions |
 | `a.squeeze(2)` | `a.squeeze(2)`<br/>`a.into_squeeze(2)` | Removes length-1 dimension |
 
-### 4.3 Data-Creating Tensor Manipulation
+### Data-Creating Tensor Manipulation
 
 :::info
 
@@ -341,9 +341,9 @@ These aren't yet implemented in RSTSR but planned for future.
 
 :::
 
-## 5. Tensor Operations
+## Tensor Operations
 
-### 5.1 Rust Built-in Operator Overloading
+### Rust Built-in Operator Overloading
 
 Rust built-in operators include:
 - Arithmetic operations (`+`, `-`, `*`, `/`)
@@ -379,7 +379,7 @@ If you need to perform remainder operations:
 
 :::
 
-### 5.2 Matrix Multiplication
+### Matrix Multiplication
 
 Currently RSTSR only uses the `matmul` function as the unified symbol for matrix multiplication. Its behavior matches `np.matmul`, including broadcasting rules, but differs from functions like `np.dot` for higher-dimensional tensors.
 
@@ -398,7 +398,7 @@ RSTSR also supports some advanced matrix multiplication operations:
     ```rust file=numpy_cheatsheet anchor=example_blas_dgemm
     ```
 
-### 5.3 Assignment
+### Assignment
 
 | NumPy | RSTSR | Description |
 |--|--|--|
@@ -407,13 +407,13 @@ RSTSR also supports some advanced matrix multiplication operations:
 | `a[2:] = 0.5` | `a.i_mut(2..).fill(0.5)` | Element-wise assignment |
 | `np.fill_diagonal(a, d)` | `a.diagonal_mut(0).assign(&d)` | Only works for 2-D matrices[^9]<br/>Diagonal element assignment |
 
-### 5.4 Common Functions
+### Common Functions
 
 RSTSR has native implementations for common functions including `sin`, `exp`, `abs`, `floor`, `sign`, etc.
 
 Some Python built-in comparison operators like `>`, `>=` cannot be implemented as similar operators in RSTSR. However, RSTSR provides equivalent functions like `rt::greater`, `rt::greater_equal` (abbreviated as `rt::gt` and `rt::ge`).
 
-### 5.5 Element-wise Tensor Mapping
+### Element-wise Tensor Mapping
 
 For computations not natively implemented in RSTSR, you can often use functions with the `map` prefix.
 
@@ -424,7 +424,7 @@ For computations not natively implemented in RSTSR, you can often use functions 
 | `a**b` | `a.mapvb(&b, libm::pow)`<br/>`rt::pow(&a, &b)` | Binary power operation, outputs `f64` tensor |
 | `a.astype(np.float32)` | `a.mapv(\|x\| x as f32)` | Data type conversion |
 
-### 5.6 Reduction Operations
+### Reduction Operations
 
 Note there are slight differences between RSTSR and NumPy usage. RSTSR's `sum`, `mean` etc. perform reduction over all elements by default. For reduction along specific dimensions, use functions with the `_axes` suffix. The table below shows general usage of reduction operations.
 
@@ -438,13 +438,13 @@ Currently implemented reduction methods include `sum`, `min`, `max`, `prod`, `me
 
 [^11]: For boolean tensors, summation via `a.sum()` etc. counts the number of `true` values. Note that `rt::sum` cannot be used in this case as the trait implementation differs.
 
-## 6. Linear Algebra (linalg)
+## Linear Algebra (linalg)
 
-### 6.1 BLAS and LAPACK Interfaces (BLAS Devices)
+### BLAS and LAPACK Interfaces (BLAS Devices)
 
 The `rstsr-blas-traits` crate provides BLAS function interfaces for RSTSR tensors. The [Matrix Multiplication](#52-matrix-multiplication) section shows `DGEMM` usage. Similarly, BLAS/LAPACK functions like `DSYRK`, `DSYEVD`, `DGESDD` are available.
 
-### 6.2 `rt::linalg` Functions
+### `rt::linalg` Functions
 
 :::info
 
@@ -458,7 +458,7 @@ The following tables assume `DeviceOpenBLAS` device with row-major tensors. Note
 - For row-major: Default is `FlagUpLo::Lower`
 - For column-major: Default is `FlagUpLo::Upper`
 
-#### 6.2.1 Hermitian Eigenvalue Problems
+#### Hermitian Eigenvalue Problems
 
 | NumPy | RSTSR | Description |
 |--|--|--|
@@ -471,7 +471,7 @@ The following tables assume `DeviceOpenBLAS` device with row-major tensors. Note
 | `scipy.linalg.eigh(a, overwrite_a=True)` | `rt::linalg::eigh(a.view_mut())`<br/>`rt::linalg::eigh(a)` | Standard diagonalization $\mathbf{A} \bm{x} = \lambda \bm{x}$<br/>Explicitly writes eigenvectors to `a` |
 | `np.linalg.eigvalsh(a)`<br/>`scipy.linalg.eigvalsh(a)`<br/>`scipy.linalg.eigh(a, eigvals_only=True)` | `rt::linalg::eigvalsh(&a)` | Standard diagonalization $\mathbf{A} \bm{x} = \lambda \bm{x}$<br/>No eigenvector output |
 
-#### 6.2.2 Matrix Decomposition
+#### Matrix Decomposition
 
 | NumPy | RSTSR | Description |
 |--|--|--|
@@ -481,7 +481,7 @@ The following tables assume `DeviceOpenBLAS` device with row-major tensors. Note
 | `np.linalg.svd(a, full_matrices=False)`<br/>`scipy.linalg.svd(a, full_matrices=False)` | `rt::linalg::svd((&a, false))` | SVD decomposition<br/>Output order: $\mathbf{U}$, $\mathbf{s}$, $\mathbf{V}^\dagger$<br/>Only larger matrix is rectangular |
 | `np.linalg.svdvals(a)`<br/>`scipy.linalg.svdvals(a)` | `rt::linalg::svdvals(&a)` | SVD decomposition<br/>Only $\mathbf{s}$ output |
 
-#### 6.2.3 Matrix Solving
+#### Matrix Solving
 
 These operations solve $\mathbf{A} \mathbf{X} = \mathbf{B}$. Depending on $\mathbf{A}$'s properties, we have different implementations.
 
@@ -496,7 +496,7 @@ Currently RSTSR hasn't unified different matrix solving methods under one functi
 | `scipy.linalg.solve(a, b, assume_a="upper triangular")` | `rt::linalg::solve_triangular((&a, &b, Upper))` | Upper triangular matrix $\mathbf{A}$ |
 | `scipy.linalg.solve(a, b, overwrite_b=True)` | `rt::linalg::solve_general((&a, b.view_mut()))`<br/>`rt::linalg::solve_general((&a, b))` | General square matrix $\mathbf{A}$<br/>Writes to $\mathbf{B}$ matrix |
 
-#### 6.2.4 Other Linear Algebra Operations
+#### Other Linear Algebra Operations
 
 | NumPy | RSTSR | Description |
 |--|--|--|

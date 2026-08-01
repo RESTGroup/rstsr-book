@@ -9,7 +9,7 @@ import useBaseUrl from '@docusaurus/useBaseUrl';
 
 # Common Functions
 
-## 1. Common Elementwise Functions
+## Common Elementwise Functions
 
 In RSTSR, most functions required by the [Python Array API](https://data-apis.org/array-api/2023.12/API_specification/elementwise_functions.html) have been implemented. They can mostly be called either as regular Rust functions or as associated methods.
 
@@ -68,11 +68,11 @@ help: consider borrowing `b`
 
 :::
 
-## 2. Mapping Functions
+## Mapping Functions
 
 Although RSTSR implements many elementwise functions, we cannot possibly implement them all. For tensors on CPU devices, we provide mapping functions (with names containing "map") to meet users' customized mapping needs.
 
-### 2.1 Unary Mapping
+### Unary Mapping
 
 Here's an example calculating the Gamma function. We use the `mapv` function for mapping. Note that while this function can be chained, RSTSR doesn't support lazy evaluation, so chained functional calls to `mapv` won't be more efficient:
 
@@ -104,21 +104,21 @@ For NumPy, since Python's native for-loops are very slow, when mappings become m
 
 :::
 
-### 2.2 Mutable Unary Mapping
+### Mutable Unary Mapping
 
 For mutable `Tensor` and `TensorMut` types, RSTSR also provides the `mapvi` function to perform in-place mapping without allocating new memory:
 
 ```rust file=common_functions anchor=example_map_02
 ```
 
-### 2.3 Binary Mapping
+### Binary Mapping
 
 For binary mapping, RSTSR provides the `mapvb` function:
 
 ```rust file=common_functions anchor=example_map_03
 ```
 
-## 3. Reduction Operations
+## Reduction Operations
 
 RSTSR currently supports several reduction operations, including summation, maximum value, standard deviation, etc. Adding the `_axes` suffix allows reduction along specific dimensions.
 
@@ -135,7 +135,7 @@ As a special case, `Tensor<bool, B, D>` can also undergo `sum` or `sum_axes` ope
 ```rust file=common_functions anchor=example_reduction_03
 ```
 
-## 4. Linear Algebra (linalg)
+## Linear Algebra (linalg)
 
 Currently, RSTSR supports some linear algebra functionality from NumPy and SciPy. Typical linear algebra problems include Hermitian matrix eigenvalue problems, SVD decomposition, Cholesky decomposition, etc.
 

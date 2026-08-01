@@ -30,7 +30,7 @@ RSTSR's internal implementation of operators **considers parallelism, ensuring h
 
 ## Special Features
 
-### 1. Syntactic Sugar for Matrix Multiplication
+### Syntactic Sugar for Matrix Multiplication
 
 We allow the use of the `%` symbol for matrix (or tensor broadcasting) multiplication, while the `*` symbol is used for element-wise multiplication.
 
@@ -40,7 +40,7 @@ let d = &b * &a; // element-wise multiplication
 ```
 Although implementing the remainder operation is relatively inconvenient (`rt::rem(&b, &a)`), using `%` for programs primarily involving matrix multiplication enhances convenience and code readability.
 
-### 2. Overloading
+### Overloading
 
 One of RSTSR's goals is to have an interface form similar to NumPy. While Python functions allow overloading, Rust functions strictly do not allow direct overloading; however, overloading based on Traits is still feasible. Taking the `rt::asarray` function as an example, we can provide tensors in various ways:
 
@@ -59,11 +59,11 @@ The double parentheses notation might confuse both Rust users and those coming f
 
 :::
 
-### 3. Multi-Backend Device Support
+### Multi-Backend Device Support
 
 We currently support a single-threaded CPU backend (`DeviceCpuSerial`, basic operations and matrix multiplication), a Faer CPU backend (`DeviceFaer`, basic operations, matrix multiplication, and linear algebra), and an OpenBLAS CPU backend (`DeviceOpenBLAS`, basic operations, matrix multiplication, and linear algebra). Design-wise, we have left interfaces for other backends, hoping to implement GPU backends, disk read/write backends, etc., under a unified framework in the future.
 
-### 4. Parallel Invocation of Matrix Multiplication or BLAS
+### Parallel Invocation of Matrix Multiplication or BLAS
 
 In our supported CPU backends (Faer, OpenBLAS), operations recognize whether they are within a Rayon thread pool and appropriately allocate the number of cores BLAS needs to call. This means that invoking matrix multiplication inside or outside parallel regions can efficiently parallelize operations on the specified number of CPU cores:
 ```rust
@@ -76,7 +76,7 @@ let c = &a % &b;
 });
 ```
 
-### 5. Support for Row-Major and Column-Major Layouts  
+### Support for Row-Major and Column-Major Layouts  
 
 RSTSR supports both **row-major** (C-style) and **column-major** (Fortran-style) memory layouts. The default data arrangement can be configured using the crate features `row_major` or `col_major`. Additionally, the layout can be dynamically set at runtime via `device.set_default_order`.  
 

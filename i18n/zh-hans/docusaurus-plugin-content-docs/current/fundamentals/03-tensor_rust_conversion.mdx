@@ -15,9 +15,9 @@ import useBaseUrl from '@docusaurus/useBaseUrl';
 
 该文档仅针对 CPU 后端成立。目前尚未实现其他类型后端；对于未来的 RSTSR，下述文档不一定适用于其他类型后端。
 
-## 1. 与 `Vec<T>` 的相互转换
+## 与 `Vec<T>` 的相互转换
 
-### 1.1 From `Vec<T>`：asarray
+### From `Vec<T>`：asarray
 
 RSTSR 的张量 `Tensor<T, B, D>` 可以通过 `rt::asarray` 函数，读入向量原始数据、维度、设备等信息给出。`rt::asarray` 函数具有多种重载，我们未来会在 API 文档中作详细说明。
 
@@ -25,7 +25,7 @@ RSTSR 的张量 `Tensor<T, B, D>` 可以通过 `rt::asarray` 函数，读入向�
 ```rust file=tensor_rust_conversion anchor=example_from_vec_by_asarray
 ```
 
-### 1.2 From `Vec<T>`：从头构建
+### From `Vec<T>`：从头构建
 
 如前一节所述，RSTSR 的张量实际上具有多层结构。`rt::asarray` 函数尽管非常直观，但它掩盖了构造 RSTSR 张量的具体过程。
 
@@ -33,7 +33,7 @@ RSTSR 的张量 `Tensor<T, B, D>` 可以通过 `rt::asarray` 函数，读入向�
 ```rust file=tensor_rust_conversion anchor=example_from_vec_by_scratch
 ```
 
-### 1.3 Into `Vec<T>`：into_vec 函数
+### Into `Vec<T>`：into_vec 函数
 
 对于 CPU 后端，该函数可以将 1-D 张量存储为 `Vec<T>` 向量。
 
@@ -58,7 +58,7 @@ RSTSR 的张量 `Tensor<T, B, D>` 可以通过 `rt::asarray` 函数，读入向�
 
 - 对于引用类型 (如 `TensorView<'_, T, B, D>`)，该函数会复制数据。
 
-### 1.4 Into `Vec<T>`：自顶解构
+### Into `Vec<T>`：自顶解构
 
 这部分讨论仅针对 `Tensor<T, B, D>` 即占有数据的张量类型。
 
@@ -74,15 +74,15 @@ RSTSR 的张量可以以 `Vec<T>` 为起点从头构建，也可以从 `Tensor<T
 
 因此，如果要通过自顶解构的方式得到 `Vec<T>`，用户需要自行保证该张量或向量的 layout 也是符合预期的。
 
-### 1.5 To `Vec<T>`：to_vec 函数
+### To `Vec<T>`：to_vec 函数
 
 该函数与 `into_vec` 函数基本一致，包括其使用方式与副作用。该函数不破坏传入的张量，但必然会复制内存。
 
-## 2. 与 `&[T]`/`&mut [T]` 或指针类型的相互转换
+## 与 `&[T]`/`&mut [T]` 或指针类型的相互转换
 
 在 Rust 中，`&[T]` (或 `&mut [T]`) 与指针类型是非常相似的：`&[T]` 相对于指针多一个长度的保证。因此，在具有 Rust 下 `*const T` 与 `usize` 的长度的信息的情况下，其处理的思路与 `&[T]` 是完全一致的。
 
-### 2.1 From `&[T]`：asarray
+### From `&[T]`：asarray
 
 与 `Vec<T>` 类似地，RSTSR 的张量视窗 `TensorView<'_, T, B, D>` 可以通过 `rt::asarray` 函数给出。但与 `Vec<T>` 不同地，它返回的是张量视窗 `TensorView<'_, T, B, D>` 而非占有数据的张量本身 `Tensor<'_, T, B, D>`。需要注意，该程序在 row-major 与 col-major 下有不同的行为：
 
@@ -91,7 +91,7 @@ RSTSR 的张量可以以 `Vec<T>` 为起点从头构建，也可以从 `Tensor<T
 
 同样地，`&mut [T]` 通过类似程序可以给出可变视窗 `TensorMut<'_, T, B, D>`。
 
-### 2.2 From `&[T]`：从头构建
+### From `&[T]`：从头构建
 
 这里的思路与 `Vec<T>` 从头构建是一致的。但需要注意，RSTSR 的 CPU 后端在面对引用类型时，始终是 `&Vec<T>` 而非 `&[T]` 进行处理[^1]。因此，在 RSTSR 中，我们要求首先自 `&[T]` 类型构建 `Vec<T>`；该向量将不自动进行析构、且有声明周期标注。具体来说，
 
@@ -125,7 +125,7 @@ RSTSR 的张量可以以 `Vec<T>` 为起点从头构建，也可以从 `Tensor<T
 
     :::
 
-### 2.3 To `&Vec<T>`：raw 函数
+### To `&Vec<T>`：raw 函数
 
 我们可以返回底层数据所对应的引用：
 
@@ -166,7 +166,7 @@ RSTSR 的张量可以以 `Vec<T>` 为起点从头构建，也可以从 `Tensor<T
 
 :::
 
-## 3. 与 Faer 类型的相互转换
+## 与 Faer 类型的相互转换
 
 目前，RSTSR 也支持与少部分其他 Rust 类型作相互转换。
 

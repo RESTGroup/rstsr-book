@@ -21,7 +21,7 @@ For more discussion on this problem, refer to section [Row/Column Major Order Is
 
 :::
 
-## 1. Examples of Arithmetics Operations
+## Examples of Arithmetics Operations
 
 RSTSR can handle `+`, `-`, `*`, `/` operations:
 
@@ -41,7 +41,7 @@ For some special cases, bit operations and shift are also available:
 The aforementioned examples should have coverd most usages of tensor arithmetics.
 The following document in this section will cover some advanced topics.
 
-## 2. Overrided Operator `%`
+## Overrided Operator `%`
 
 We have already shown that `%` is the operator for matrix multiplication. This is RSTSR specific usage.
 This may cause some confusion, and we will discuss this topic.
@@ -84,7 +84,7 @@ Since this kind of code will cause confusion, we advice API users not using `rem
 
 :::
 
-## 3. Broadcasting
+## Broadcasting
 
 [Broadcasting](https://numpy.org/doc/stable/user/basics.broadcasting.html) makes many tensor operations very simple.
 RSTSR applies most broadcasting rules from numpy or [Python Array API](https://data-apis.org/array-api/2023.12/API_specification/broadcasting.html).
@@ -92,7 +92,7 @@ We refer interested users to numpy and Python Array API documents.
 
 RSTSR initial developer is a computational chemist. We will use an example in chemistry programming, to show how to use broadcasting in real-world situations.
 
-### 3.1 Example of elementwise multiplication
+### Example of elementwise multiplication
 
 Sum-of-exponent approximation to RI-MP2 (resolution-identity Moller-Plesset second order perturbation), also termed as LT-OS-MP2, involves the following computation:
 $$
@@ -132,7 +132,7 @@ $$
 ```rust file=arithmetics_and_broadcasting anchor=lt_os_mp2_04
 ```
 
-### 3.2 Example of matrix multiplication
+### Example of matrix multiplication
 
 Many post-HF methods involve integral basis transformation, mostly from raw basis (atomic basis or denoted AO, for example) to molecular orbital basis (denoted MO):
 $$
@@ -166,11 +166,11 @@ Another way to resolve this problem, is using limited unsafe code, and iterate f
 
 :::
 
-## 4. Memory Aspects
+## Memory Aspects
 
 This is related to how value is passed to arithmetic operations.
 
-### 4.1 Computation by arithmetic operators
+### Computation by arithmetic operators
 
 In rust, variable ownership and lifetime rule is strict. The following code will give compiler error:
 
@@ -210,7 +210,7 @@ So if you are sure that `a` will not be used anymore, you can pass `a` by value,
 ```rust file=arithmetics_and_broadcasting anchor=memory_aspects_02
 ```
 
-### 4.2 Computation by associated functions
+### Computation by associated functions
 
 In RSTSR, there are three ways to perform arithmetic operations:
 - by operator: `&a + &b`;

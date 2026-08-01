@@ -17,7 +17,7 @@ RSTSR 与 Python 语言下的 NumPy 有许多相似之处。但 RSTSR 是基于 
 
 同时，Rust 语言下的 [ndarray](https://github.com/rust-ndarray/ndarray/) 库与 RSTSR 都是 $n$-D 张量库。RSTSR 从 ndarray 库中参考了许多概念，特别是关于生命周期与引用规则。
 
-## 1. 与 NumPy 的相似之处
+## 与 NumPy 的相似之处
 
 RSTSR 与 NumPy 在很多方面是相似的：
 - 是动态 $n$-D 维度张量库，基础索引 (包括 slice) 不会产生数据的移动与复制 (即没有计算代价)；
@@ -26,7 +26,7 @@ RSTSR 与 NumPy 在很多方面是相似的：
 - RSTSR 实现的功能中，函数名与参数签名尽可能与 NumPy 保持一致；
 - 在一部分后端的支持下，RSTSR 与 NumPy 都可以利用外部的高性能库处理线性代数计算。
 
-## 2. 与 NumPy 的部分差异与比较
+## 与 NumPy 的部分差异与比较
 
 该话题也与其他文档 [为何选择 RSTSR](./why-rstsr) 与 [为何不使用 RSTSR](./warning) 有关。
 

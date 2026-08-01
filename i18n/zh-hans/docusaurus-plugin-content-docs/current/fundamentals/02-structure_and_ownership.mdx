@@ -13,7 +13,7 @@ rstsr_meta:
 
 在本节中，我们将尝试展示 RSTSR 如何构建张量结构，以及不同所有权的张量是如何工作的。
 
-## 1. 张量结构
+## 张量结构
 
 RSTSR 张量从 Rust 库 ndarray 中学到了很多。RSTSR 的 `TensorBase` 的结构和使用方式与 ndarray 的 `ArrayBase` 类似；然而，它们在许多关键点上有所不同。
 
@@ -46,9 +46,9 @@ let a: Tensor<f64> = rt::zeros([3, 4]);
 
 [^4]: 这是 RSTSR 与 candle 的区别之一。RSTSR 允许外部实现后端，希望可以轻松扩展到其他类型的设备，类似于 burn。RSTSR 还允许几乎所有类型的元素类型 (您可以将 `rug` 甚至 `Vec<T>` 作为张量元素，只要它们实现了 `Clone`)，类似于 ndarray。然而，RSTSR 可能不会在未来实现自动微分，这是与 candle 和 burn 相比的缺点。
 
-## 2. 所有权转换
+## 所有权转换
 
-### 2.1 张量所有权之间的转换
+### 张量所有权之间的转换
 
 不同的所有权可以相互转换。然而，某些转换函数可能会有一些成本 (显式的内存复制) 。
 
@@ -75,7 +75,7 @@ let a: Tensor<f64> = rt::zeros([3, 4]);
 ```rust file=structure_and_ownership anchor=tensor_ownership
 ```
 
-### 2.2 张量与 `Vec<T>` 的转换
+### 张量与 `Vec<T>` 的转换
 
 我们已经在 [上一节](tensor_creation#2-将-rust-切片转换为-rstsr-tensorview) 中介绍了一些通过数组创建函数的方法。这里我们将进一步讨论这个话题。
 
@@ -110,7 +110,7 @@ let a: Tensor<f64> = rt::zeros([3, 4]);
 
 :::
 
-### 2.3 张量与标量的转换
+### 张量与标量的转换
 
 RSTSR 不提供直接将 `T` 转换为 0-D 张量 `Tensor<T, Ix0, B>` 的方法。对于将 0-D 张量 `Tensor<T, Ix0, B>` 转换为 `T`，我们提供了 `to_scalar` 函数。
 
@@ -119,7 +119,7 @@ RSTSR 不提供直接将 `T` 转换为 0-D 张量 `Tensor<T, Ix0, B>` 的方法�
 ```rust file=structure_and_ownership anchor=to_scalar
 ```
 
-## 3. 维度转换
+## 维度转换
 
 RSTSR 提供了固定维度和动态维度的张量。维度可以通过 `into_dim::<D>()` 或 `into_dyn` 进行转换。
 

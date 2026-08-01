@@ -17,9 +17,9 @@ When using tensor libraries, users often need to interact with other Rust types 
 
 This documentation only applies to CPU backends. Currently, other backend types have not been implemented. For future versions of RSTSR, this documentation may not apply to other backend types.
 
-## 1. Conversions with `Vec<T>`
+## Conversions with `Vec<T>`
 
-### 1.1 From `Vec<T>`: asarray
+### From `Vec<T>`: asarray
 
 RSTSR's tensor `Tensor<T, B, D>` can be created from raw vector data, dimensions, and device information using the `rt::asarray` function. The `rt::asarray` function has multiple overloads, which will be detailed in future API documentation.
 
@@ -27,7 +27,7 @@ The following program stores raw data as a (2, 3)-dimensional tensor on a 16-cor
 ```rust file=tensor_rust_conversion anchor=example_from_vec_by_asarray
 ```
 
-### 1.2 From `Vec<T>`: Manual Construction
+### From `Vec<T>`: Manual Construction
 
 As mentioned in the previous section, RSTSR tensors have a multi-layered structure. While the `rt::asarray` function is intuitive, it hides the specific process of constructing RSTSR tensors.
 
@@ -35,7 +35,7 @@ The following program demonstrates how RSTSR step-by-step constructs a complete 
 ```rust file=tensor_rust_conversion anchor=example_from_vec_by_scratch
 ```
 
-### 1.3 Into `Vec<T>`: into_vec Function
+### Into `Vec<T>`: into_vec Function
 
 For CPU backends, this function can convert a 1-D tensor into a `Vec<T>` vector.
 
@@ -60,7 +60,7 @@ Please note the following **side effects**:
 
 - For reference types (e.g., `TensorView<'_, T, B, D>`), this function will copy data.
 
-### 1.4 Into `Vec<T>`: Top-down Deconstruction
+### Into `Vec<T>`: Top-down Deconstruction
 
 This discussion only applies to `Tensor<T, B, D>` (tensors that own their data).
 
@@ -76,15 +76,15 @@ However, this function also has **side effects**. It only returns the underlying
 
 Therefore, if you want to obtain `Vec<T>` through top-down deconstruction, you must ensure that the tensor or vector's layout meets your expectations.
 
-### 1.5 To `Vec<T>`: to_vec Function
+### To `Vec<T>`: to_vec Function
 
 This function is essentially the same as `into_vec`, including its usage and side effects. It does not consume the input tensor but will always copy memory.
 
-## 2. Conversions with `&[T]`/`&mut [T]` or Pointer Types
+## Conversions with `&[T]`/`&mut [T]` or Pointer Types
 
 In Rust, `&[T]` (or `&mut [T]`) is very similar to pointer types: `&[T]` includes a length guarantee compared to pointers. Therefore, when you have a `*const T` pointer and a `usize` length in Rust, the approach is identical to working with `&[T]`.
 
-### 2.1 From `&[T]`: asarray
+### From `&[T]`: asarray
 
 Similar to `Vec<T>`, RSTSR's tensor view `TensorView<'_, T, B, D>` can be created using the `rt::asarray` function. However, unlike `Vec<T>`, it returns a tensor view `TensorView<'_, T, B, D>` rather than an owning tensor `Tensor<'_, T, B, D>`. Note that this program behaves differently under row-major and column-major layouts:
 
@@ -93,7 +93,7 @@ Similar to `Vec<T>`, RSTSR's tensor view `TensorView<'_, T, B, D>` can be create
 
 Similarly, `&mut [T]` can be used to create a mutable view `TensorMut<'_, T, B, D>` through a similar process.
 
-### 2.2 From `&[T]`: Manual Construction
+### From `&[T]`: Manual Construction
 
 The approach here is consistent with manually constructing from `Vec<T>`. However, note that RSTSR's CPU backend always processes reference types as `&Vec<T>` rather than `&[T]`[^1]. Therefore, in RSTSR, we require first constructing a `Vec<T>` from `&[T]`; this vector will not be automatically dropped and will have lifetime annotations. Specifically:
 
@@ -127,7 +127,7 @@ Similarly, `&mut [T]` can be used to create a mutable view `TensorMut<'_, T, B, 
 
     :::
 
-### 2.3 To `&Vec<T>`: raw Function
+### To `&Vec<T>`: raw Function
 
 We can return a reference to the underlying data:
 
@@ -168,7 +168,7 @@ The correct approach requires adding an offset to the pointer returned by `raw_m
 
 :::
 
-## 3. Conversions with Faer Types
+## Conversions with Faer Types
 
 Currently, RSTSR also supports conversions with a few other Rust types.
 

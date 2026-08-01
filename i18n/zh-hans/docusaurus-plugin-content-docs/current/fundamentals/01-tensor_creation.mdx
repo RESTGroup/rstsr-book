@@ -7,9 +7,9 @@ rstsr_meta:
 
 # 张量创建
 
-## 1. 将 Rust 向量转换为 RSTSR 张量
+## 将 Rust 向量转换为 RSTSR 张量
 
-### 1.1 从 Rust 向量创建 1-D 张量
+### 从 Rust 向量创建 1-D 张量
 
 RSTSR 张量可以通过 (拥有所有权的) 向量对象创建。
 
@@ -26,7 +26,7 @@ RSTSR 张量可以通过 (拥有所有权的) 向量对象创建。
     ```rust file=tensor_creation anchor=example_02
     ```
 
-### 1.2 从 Rust 向量创建 $n$-D 张量
+### 从 Rust 向量创建 $n$-D 张量
 
 对于 $n$-D 张量，推荐从现有向量创建而不进行显式内存复制的方法是：
 - 首先，从连续的内存创建 1-D 张量；
@@ -39,7 +39,7 @@ RSTSR 张量可以通过 (拥有所有权的) 向量对象创建。
 ```rust file=tensor_creation anchor=example_04
 ```
 
-## 2. 将 Rust 切片转换为 RSTSR TensorView
+## 将 Rust 切片转换为 RSTSR TensorView
 
 Rust 语言对变量的所有权非常敏感，这与 Python 不同。在 Rust 中，数据的连续内存引用通常表示为切片 `&[T]`。对于 RSTSR，这由 `TensorView` 存储[^2]。
 
@@ -53,9 +53,9 @@ Rust 语言对变量的所有权非常敏感，这与 Python 不同。在 Rust �
 
 [^2]: 通过 Rust 切片 `&[T]` 初始化 `TensorView` 是通过 `ManuallyDrop` 内部实现的。对于科学计算通常关注的数据类型 `T` (例如 `f64`、`Complex<f64>`)，它不会导致内存泄漏。然而，如果类型 `T` 有自己的析构函数 (`drop` 函数)，您可能需要仔细检查内存泄漏的安全性。这也适用于通过可变 Rust 切片 `&mut [T]` 初始化的 `TensorMut`。
 
-## 3. 内置的 RSTSR 张量创建函数
+## 内置的 RSTSR 张量创建函数
 
-### 3.1 1-D 张量创建函数
+### 1-D 张量创建函数
 
 最常用的 1-D 张量创建函数是 `arange` 和 `linspace`。
 
@@ -71,7 +71,7 @@ Rust 语言对变量的所有权非常敏感，这与 Python 不同。在 Rust �
 ```rust file=tensor_creation anchor=example_linspace
 ```
 
-### 3.2 2-D 张量创建函数
+### 2-D 张量创建函数
 
 最常用的 2-D 张量创建函数是 `eye` 和 `diag`。
 
@@ -85,7 +85,7 @@ Rust 语言对变量的所有权非常敏感，这与 Python 不同。在 Rust �
 ```rust file=tensor_creation anchor=example_diag
 ```
 
-### 3.3 通用的 $n$-D 张量创建函数
+### 通用的 $n$-D 张量创建函数
 
 最常用的 $n$-D 张量创建函数是 `zeros`、`ones` 和 `empty`。这些函数可以构建具有任何所需 shape (或 layout) 的张量。
 

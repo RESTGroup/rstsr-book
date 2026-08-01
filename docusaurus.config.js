@@ -8,6 +8,7 @@ import { themes as prismThemes } from 'prism-react-renderer';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import codeImport from './src/remark-code-snippets-anchor.js';
+import remarkHeadingNumbering from './src/remark-heading-numbering.js';
 
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
@@ -72,6 +73,9 @@ const config = {
           // Remove this to remove the "edit this page" links.
           // editUrl: 'https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/',
           remarkPlugins: [remarkMath, [codeImport, { listingsDir: 'listings' }]],
+          // Must run before Docusaurus' default heading/toc plugins so the
+          // injected numbers end up in anchor ids and the on-page TOC too.
+          beforeDefaultRemarkPlugins: [remarkHeadingNumbering],
           rehypePlugins: [rehypeKatex],
         },
         blog: {
@@ -102,6 +106,7 @@ const config = {
         path: 'dev',
         routeBasePath: 'dev',
         sidebarPath: require.resolve('./sidebars-dev.js'),
+        beforeDefaultRemarkPlugins: [remarkHeadingNumbering],
       },
     ],
   ],

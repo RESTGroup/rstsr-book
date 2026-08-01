@@ -26,7 +26,7 @@ RSTSR 在一般情况下使用 row-major。但对于高级用户，他们可能�
 
 :::
 
-## 1. Cargo feature 决定默认行/列优先
+## Cargo feature 决定默认行/列优先
 
 Crate `rstsr` 或 `rstsr-core` 中，其 cargo feature `row_major` 与 `col_major` 将决定整个张量库的默认 row/col-major。但用户可能还需要了解，
 - 若不指定 cargo feature `row_major` 或 `col_major`，则 RSTSR 会默认使用 row-major；
@@ -36,7 +36,7 @@ Crate `rstsr` 或 `rstsr-core` 中，其 cargo feature `row_major` 与 `col_majo
 - 一方面，若您的程序没有指定 `row_major` 还是 `col_major` (即您本意上是想使用默认的 row-major)，但上下游依赖的库指定了 `col-major`，那么您的程序就会按照 `col-major` 运行。这可能与您的本意有出入。
 - 另一方面，若您的程序指定了 `row_major` 还是 `col_major` 的其中一者，但上下游依赖的库指定了另一者，那么您的程序会在编译时报错。
 
-## 2. 运行时通过修改 device 更改张量的行/列优先
+## 运行时通过修改 device 更改张量的行/列优先
 
 RSTSR 还允许在运行时修改 row/col-major。这是通过 `device.set_default_order` 实现的：
 
@@ -53,9 +53,9 @@ RSTSR 还允许在运行时修改 row/col-major。这是通过 `device.set_defau
 ```rust file=order_issue anchor=example_device_change_to_device
 ```
 
-## 3. 行/列优先会导致的结果差异
+## 行/列优先会导致的结果差异
 
-### 3.1 reshape 与 asarray
+### reshape 与 asarray
 
 :::warning
 
@@ -116,7 +116,7 @@ $$
 ```rust file=order_issue anchor=example_reshape
 ```
 
-### 3.2 broadcast
+### broadcast
 
 :::warning
 
@@ -184,7 +184,7 @@ $$
 - 维度为 `(2, 3, 4)` 与 `(4, 5)` 的两个张量相乘，row-major 将给出 `(2, 3, 5)` 的张量，col-major 则将报错；
 - 维度为 `(2, 3, 4)` 与 `(5, 2)` 的两个张量相乘，row-major 将报错，col-major 则将给出 `(5, 3, 4)` 的张量。
 
-## 4. 行/列优先是否有效率上的差异？
+## 行/列优先是否有效率上的差异？
 
 一句话总结：一般不会。
 
@@ -202,7 +202,7 @@ $$
 
 RSTSR 目前的开发者认为，在用户使用程序与算法合理的情况下，row/col-major 的差异，更多时候是一种约定俗成与习惯上的不同，而不认同在性能上存在明显差异。
 
-## 5. 动机：为什么要支持行/列优先？
+## 动机：为什么要支持行/列优先？
 
 - 以 PySCF、Psi4 为代表的电子结构程序使用 (或部分使用) NumPy，以 TiledArray 为代表的张量库 (作为电子结构程序的支撑库)，以 PyTorch、JAX 为代表的绝大多数机器学习框架，它们通常基于 row-major 开发。
 - GAMESS、Gaussian、FHI-Aims 等 Fortran 电子结构程序，都是基于 col-major 开发的。对于更为一般的科学计算群体，很多人都使用 Matlab 与 Julia；这些语言也是 col-major 的。

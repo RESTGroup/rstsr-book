@@ -26,7 +26,7 @@ When row-major and column-major differ, **even with identical input data and cod
 
 :::
 
-## 1. Default Row/Column Major Determined by Cargo Feature
+## Default Row/Column Major Determined by Cargo Feature
 
 In the `rstsr` or `rstsr-core` crates, the cargo features `row_major` and `col_major` determine the default storage layout for the entire tensor library. Users should also note:
 - If neither `row_major` nor `col_major` is specified, RSTSR defaults to row-major;
@@ -36,7 +36,7 @@ Additionally, users should be aware that cargo features are designed to be addit
 - If your program doesn't specify `row_major` or `col_major` (intending to use the default row-major), but upstream/downstream dependencies specify `col_major`, your program will run in column-major mode, which may differ from your intention.
 - Conversely, if your program specifies one layout while dependencies specify the other, a compilation error will occur.
 
-## 2. Runtime Modification of Tensor Layout via Device Settings
+## Runtime Modification of Tensor Layout via Device Settings
 
 RSTSR also allows modifying row/column-major order at runtime through `device.set_default_order`:
 
@@ -53,9 +53,9 @@ One solution is to leverage device switching (using the `change_device` trait fu
 ```rust file=order_issue anchor=example_device_change_to_device
 ```
 
-## 3. Result Differences Caused by Row/Column Major
+## Result Differences Caused by Row/Column Major
 
-### 3.1 reshape and asarray
+### reshape and asarray
 
 :::warning
 
@@ -116,7 +116,7 @@ The following code implements this example:
 ```rust file=order_issue anchor=example_reshape
 ```
 
-### 3.2 broadcast
+### broadcast
 
 :::warning
 
@@ -184,7 +184,7 @@ Matrix multiplication behaves similarly. For example:
 - Multiplying `(2, 3, 4)` with `(4, 5)` tensors yields `(2, 3, 5)` in row-major but fails in column-major;
 - Multiplying `(2, 3, 4)` with `(5, 2)` tensors fails in row-major but yields `(5, 3, 4)` in column-major.
 
-## 4. Performance Differences Between Row/Column Major?
+## Performance Differences Between Row/Column Major?
 
 In short: generally no.
 
@@ -202,7 +202,7 @@ Fifth, for very small tensors where layout handling becomes significant, column-
 
 RSTSR developers maintain that with proper usage, row/column-major differences primarily reflect conventions rather than performance gaps.
 
-## 5. Motivation: Why Support Both Layouts?
+## Motivation: Why Support Both Layouts?
 
 - Quantum chemistry programs like PySCF/Psi4 (using NumPy), tensor libraries like TiledArray, and ML frameworks like PyTorch/JAX typically use row-major.
 - Fortran-based programs (GAMESS, Gaussian, FHI-Aims) and languages like Matlab/Julia use column-major.
