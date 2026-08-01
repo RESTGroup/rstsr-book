@@ -165,9 +165,9 @@ fn example_ao2mo_vo() {
     // ANCHOR: ao2mo_vo_01
     // task definition
     let (naux, nocc, nvir, nao, _) = (8, 2, 4, 6, 6); // subscripts (P, i, a, μ, ν)
-    let y_ao = rt::arange(naux * nao * nao).into_shape([naux, nao, nao]);
-    let c_occ = rt::arange(nao * nocc).into_shape([nao, nocc]);
-    let c_vir = rt::arange(nao * nvir).into_shape([nao, nvir]);
+    let y_ao = rt::arange((naux * nao * nao) as f64).into_shape([naux, nao, nao]);
+    let c_occ = rt::arange((nao * nocc) as f64).into_shape([nao, nocc]);
+    let c_vir = rt::arange((nao * nvir) as f64).into_shape([nao, nvir]);
     // ANCHOR_END: ao2mo_vo_01
 
     // ANCHOR: ao2mo_vo_02
@@ -177,7 +177,7 @@ fn example_ao2mo_vo() {
 
     // ANCHOR: ao2mo_vo_03
     use rayon::prelude::*;
-    let y_mo = unsafe { rt::empty([naux, nocc, nvir]) };
+    let y_mo: Tensor<f64> = unsafe { rt::empty([naux, nocc, nvir]) };
     (0..naux).into_par_iter().for_each(|p| {
         let mut y_mo = unsafe { y_mo.force_mut() };
         y_mo.i_mut(p).assign(&c_occ.t() % &y_ao.i(p) % &c_vir);
