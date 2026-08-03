@@ -6,25 +6,23 @@ import styles from './styles.module.css';
 // ── i18n labels ─────────────────────────────────────────────────────────
 const LABELS = {
   en: {
-    written: 'Written',
+    date: 'Date',
     version: 'Version',
-    generated: 'Generated',
+    aiUsage: 'AI usage',
     translated: 'Translated from',
+    translatedByAI: 'Translated',
     reviewed: 'Reviewed',
-    ai: 'AI',
-    human: 'Human',
     partial: 'Partial',
     yes: 'Yes',
     no: 'No',
   },
   'zh-hans': {
-    written: '编写时间',
+    date: '日期',
     version: '版本',
-    generated: '生成方式',
+    aiUsage: 'AI 使用情况',
     translated: '翻译自',
+    translatedByAI: '翻译',
     reviewed: '审阅状态',
-    ai: 'AI',
-    human: '人工',
     partial: '部分',
     yes: '是',
     no: '否',
@@ -77,13 +75,16 @@ function Badge({ value, kind }) {
   let text, cls;
   if (kind === 'generated') {
     if (value === true || value === 'true') {
-      text = 'ai';
+      text = 'yes';
       cls = styles.badgeWarn;
     } else if (value === false || value === 'false') {
-      text = 'human';
+      text = 'no';
       cls = styles.badgeOk;
     } else if (value === 'partial') {
       text = 'partial';
+      cls = styles.badgeInfo;
+    } else if (value === 'translated') {
+      text = 'translatedByAI';
       cls = styles.badgeInfo;
     } else {
       return <span className={styles.metaValue}>{String(value)}</span>;
@@ -114,7 +115,7 @@ function Badge({ value, kind }) {
 function extractMeta(frontMatter) {
   const m = frontMatter.rstsr_meta || {};
   return {
-    written: m.written ?? frontMatter.rstsr_written ?? null,
+    date: m.date ?? frontMatter.rstsr_date ?? null,
     version: m.rstsr_version ?? frontMatter.rstsr_version ?? null,
     translated: m.translated ?? frontMatter.translated ?? null,
     reviewed: m.reviewed ?? frontMatter.reviewed ?? null,
@@ -131,10 +132,10 @@ export default function DocMeta() {
   // Fields are built in display order; null values are skipped.
   const fields = [];
 
-  if (meta.written) {
+  if (meta.date) {
     fields.push(
-      <Field key="written" label={t.written}>
-        <span className={styles.metaValue}>{formatDate(meta.written)}</span>
+      <Field key="date" label={t.date}>
+        <span className={styles.metaValue}>{formatDate(meta.date)}</span>
       </Field>,
     );
   }
@@ -149,7 +150,7 @@ export default function DocMeta() {
 
   if (meta.ai_generated !== null) {
     fields.push(
-      <Field key="ai_generated" label={t.generated}>
+      <Field key="ai_generated" label={t.aiUsage}>
         <Badge value={meta.ai_generated} kind="generated" />
       </Field>,
     );
