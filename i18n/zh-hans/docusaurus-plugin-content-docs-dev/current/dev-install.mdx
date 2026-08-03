@@ -1,0 +1,201 @@
+---
+sidebar_label: 安装指南 (开发者)
+sidebar_position: 1
+rstsr_meta:
+  written: 2026-08-03
+  rstsr_version: "0.7.9"
+  ai_generated: false
+---
+
+# 安装指南 (开发者)
+
+现在的 AI 能力已经很强了。如果在开发过程中遇到问题，相信都是可以用一些廉价的 AI 模型 (如 Deepseek-flash 或 ChatGPT-luna 扫一遍项目)。
+
+这里仅作一些必要的、或偏个性化的说明。
+
+## 开发环境
+
+- **操作系统**：建议 Linux 系统，可以使用 Mac OS。尽管 RSTSR 已经被验证在 Windows 上运行，但不推荐使用 Windows 系统开发。
+- **Rust 工具链**：建议使用 nightly (同时也定义在各个项目的 `rust-toolchain.toml` 中)。但需要留意，使用 nightly 的目的是更好地提供 rustfmt 与 clippy 的支持；对于 RSTSR 项目整体，目前要求 rust edition 2021 与 MSRV 1.82。
+
+## 常用测试命令
+
+下列命令参考自 rstsr 的 GitHub Actions 工作流 (`.github/workflows/`)，开发者可以直接使用。
+
+### 核心库测试 (不涉及 BLAS)
+
+```bash
+# 核心库单元测试
+cargo test -p rstsr-core --lib --release
+cargo test -p rstsr-common --lib --release
+
+# 列优先配置下的核心库测试 (col_major 与 row_major 是互斥 feature)
+cargo test -p rstsr-core --lib --release \
+  --no-default-features \
+  --features="std backtrace faer rayon col_major faer_as_default"
+
+# 集成测试
+cargo test -p rstsr-core --test "*" --release
+```
+
+### OpenBLAS 后端测试
+
+OpenBLAS 测试需要额外的前置准备 (安装库、生成测试数据)：
+
+```bash
+# 1. 安装 OpenBLAS (含 OpenMP 支持)
+sudo apt-get install -y libopenblas-openmp-dev
+
+# 2. 准备 conda 环境与测试数据 (测试依赖 numpy/scipy 生成的 .npy 数据)
+conda install -y numpy scipy
+cd rstsr-test-manifest/resources && python gen_rand_vec.py
+
+# 3. 运行测试 (注意 --test-threads=1，见下文说明)
+RSTSR_DEV=1 cargo test -p rstsr-openblas --release --features="openmp linalg" -- --test-threads=1
+```
+
+### Linalg (faer 后端) 测试
+
+```bash
+cargo test -p rstsr-linalg-traits --test "*" --release --features="faer"
+```
+
+### 代码风格检查
+
+```bash
+cargo fmt --all -- --check
+cargo clippy --all-targets --all-features -- -D warnings
+```
+
+### cargo test 注意选项
+
+一般来说，不涉及 BLAS 后端的部分，普通的 `cargo test` 经常是足够的 (已验证 `cargo test -p rstsr-core --lib` 可以正常并行运行)。
+
+但涉及 BLAS 后端的部分，`cargo test` 默认会在同一测试二进制内以多线程并行运行各个测试函数，而每个测试函数可能各自 spawn rayon 线程池与 BLAS 线程池，从而导致线程调度竞争或线程栈溢出。请在 BLAS 后端 (特别是 matmul 与 linalg 部分) 的测试中使用 `cargo test -- --test-threads=1` 来避免并行运行测试。
+
+RSTSR 一般只能保证在主线程、以及来自主线程 spawn 的子线程的安全性 (即将 RSTSR 库嵌入 binary 执行的情形)。`cargo test` 的并行测试线程及其子线程并非 RSTSR 设计时所考虑到的工作环境。
+
+为了方便与安全起见，一般**请引入 `--test-threads=1` 参数**。
+
+## AI Coding 协助
+
+RSTSR 可以是单独的一个项目，但如果要使用 AI 作辅助开发，则最好需要将整个项目族放到一起：
+- rstsr: https://github.com/RESTGroup/rstsr
+  - RSTSR 核心项目，所有重要的代码都在那边开发，同时用于 docs.rs 的 API 文档也写在对应程序里。
+- rstsr-book: https://github.com/RESTGroup/rstsr-book
+  - RSTSR 的文档项目，它包含不同于 API 文档的用户文档、开发者文档和技术文档与博客。
+- rstsr-agents: https://github.com/RESTGroup/rstsr-agents
+  - RSTSR 的 code agent 项目。目前该项目仍然在开发中，将包含 `AGENTS.md` 与 `.agents` 等 AI 协助开发所需要的标准部件。
+- rstsr-ffi: https://github.com/RESTGroup/rstsr-ffi
+  - RSTSR 的 FFI 项目，它包含与 C/C++ 库的绑定代码。
+
+如果需要使用 AI 协助开发，请建议参考 rstsr-agents 项目的 `AGENTS.md` 文件。我们目前对 AI 在 RSTSR 的应用还处于探索阶段，基调是允许但谨慎、在集成测试与 FFI 以外的部分一般需要明确的审核。
+
+**整个 RSTSR 项目** (除 rstsr-agents 外) **都将常见的 AI 协助开发文件路径加入到 .gitignore 中**。开发者可以依据自己的需求配置 local AI agent 设置，而不会影响其他开发者。
+
+## BLAS 后端与 OpenBLAS 的使用
+
+对于普通的 RSTSR 用户，使用 faer 作为并行的计算与线性代数后端是足够使用的。大多数普通用户不需要额外的配置。
+
+但对于需要高性能开发计算需求的用户，一般需要支持 BLAS 的后端。RSTSR 支持许多主流 BLAS 后端，譬如 OpenBLAS, MKL, AOCL, KML, BLIS/FLAME。
+
+不同的 BLAS 后端会有少许不同的实现 (或未来会引入差异化的实现)，特别是处理并行线程数控制、GEMM 调用等。但绝大多数情况下不同的 BLAS 后端会共享相同的实现。因此，如果开发者注意到一个 BLAS 后端的实现有问题、或需要引入新的特性，建议对所有 BLAS 后端都作出相同的修改。
+
+OpenBLAS 是目前支持操作系统与微架构最多的 BLAS 后端。我们建议一般的开发者优先使用 OpenBLAS 作为 BLAS 开发后端，且需要开启 OpenMP 支持。其他的 BLAS 后端仅作为适配、或在现实应用作为性能更好的 BLAS 后端替代 OpenBLAS 使用。
+
+为在开发中使用 OpenBLAS 后端，
+
+- **设置环境变量 `RSTSR_DEV=1`**。这将会在编译库 `rstsr-openblas` 时链接 openblas 与 gomp。
+- **设置环境变量 `LD_LIBRARY_PATH`**，对其加入 OpenBLAS 库的路径 (必须要有 `libopenblas.so/dylib` 文件，不能是 `libopenblas.a` 或 `libopenblas.so.0`)。
+- **请保证 OpenBLAS 链接了 OpenMP**。Crate `rstsr-openblas` 对 OpenBLAS 是否链接 OpenMP 是区别对待的；对于 linux 请 `ldd libopenblas.so` 确认一下是否 libgomp.so 或 libomp.so 被链接到 OpenBLAS 上。
+- **请确认 libgomp.so 或 libomp.so 是否在系统库路径或 `LD_LIBRARY_PATH` 中**。
+- **请对 crate rstsr-openblas 开启 feature `openmp`**。开启该选项后，RSTSR 的 OpenBLAS 后端能正常地识别并使用 OpenMP 线程池。
+- **或开启 feature `dynamic_loading` 作为替代**。该选项在运行时动态加载 `libopenblas` 并检测其并行方式，无需在编译时链接 OpenMP 库；适合不便配置 `RSTSR_DEV` 与 libgomp 链接的环境。但开启后需要在运行时提供 `libopenblas.so/dylib` 路径。需要留意，`dynamic_loading` 有可能会引入过多 debug 信息，导致编译产物太大或第一次编译耗时过长。
+
+:::info
+
+Crate rstsr-openblas 目前默认不开启 feature `openmp`；这是因为在 conda 或 apt 等发行版中，默认的 OpenBLAS 版本有时是串行或 pthreads 并行的。
+
+但我们认为，不论从线程调度便利性、还是性能上，OpenMP 相对于 pthreads 都是更好的选择。RSTSR 的 OpenBLAS 可以在运行时控制 OpenMP 线程数，从而达到可以串行运行 BLAS 函数的能力。因此，在设定 `device.set_num_threads(1)` 后，RSTSR 的 API 用户可以要求 BLAS 后端在单线程下运行 BLAS 函数，而不需要特意链接串行的 BLAS 库。
+
+我们以后有可能会更改 rstsr-openblas crate 的默认 feature 设置；以后 `openmp` feature 可能会默认开启。
+
+:::
+
+对于其他后端，也可以类似地作设置。环境变量 `RSTSR_DEV=1` 设计上作为开发后门。作为库而非二进制程序，我们一般不提供 build.rs，而要求用户在自行在自己的二进制项目中作链接。但为了开发方便，有一些库设置了一般用户不会启用、但 `RSTSR_DEV=1` 后门选项可调整的 build.rs；此时的 `RSTSR_DEV=1` 将会开启专门用于开发模式的链接过程。
+
+## VS Code 协助
+
+我们的程序是在 VS Code 上开发的。开发者可以通过 workspace 打开所有 RSTSR 项目，或仅打开单独的 RSTSR 项目。我们在所有项目通过 .gitignore 排除了 .vscode 的配置文件，因此开发者可以自行配置 VS Code 的工作环境。
+
+下面是 workspace 的一个示例配置文件，开发者可以参考该配置文件来设置自己的 VS Code 工作环境。
+
+需要注意的是
+- 请在 VS Code 中安装 rust-analyzer 插件。
+- 请将 rstsr, rstsr-book, rstsr-ffi, rstsr-agents 放在同一个文件夹下 (譬如 `rstsr-pack`)，将下述 json 配置文件保存为 `rstsr-pack.code-workspace`，然后在 VS Code 中打开该 workspace 文件。
+- 对于使用 AI code agent 的开发者，根据您使用的 code agent (OpenCode 系或 Claude 系)，请将文件夹 `rstsr-agents` 链接到 workspace 目录下的 `.agents` 或 `.claude`，将关键提示词文件 `rstsr-agents/AGENTS.md` 链接到 workspace 目录下的 `AGENTS.md` 或 `CLAUDE.md`。
+
+对下述配置文件的说明：
+- `RAYON_NUM_THREADS` 设置为物理核心数 (而不是逻辑核心数)，以避免线程调度竞争。
+- `CARGO_TARGET_DIR` 设置为 `debug`。由于 VS Code 的环境变量很可能与您在 terminal 中设置的环境变量不同；为了避免 VS Code 与 terminal 编译设置不同导致增量编译经常被破坏的情况，我们建议 VS Code 与 terminal 使用不同的 cargo target 目录；terminal 使用通常的 `target` 目录，而 VS Code 使用 `debug` 目录。这两者都被 .gitignore 排除在外，不会影响其他开发者。
+- `RSTSR_DEV` 设置为 1。该环境变量用于在开发模式中链接合适的库 (需要开发者手动指定 `LD_LIBRARY_PATH` 等环境变量提供这些库的位置)。
+- 我们加了大量 `check.extraArgs` 的 `--exclude` 选项。大多数时候，我们只需要保证 OpenBLAS 后端的正确性，其余的 BLAS 后端只要最终能适配即可。如果这些库不被排除，那么 rust-analyzer 会花大量的时间在检查这些 BLAS 后端的代码上，导致 rust-analyzer 的响应速度变慢。我们建议只有在最终适配这些 BLAS 后端时，才去 clippy check 这些 BLAS 后端的代码。
+- `--no-deps` 选项传给 `cargo metadata`，使 rust-analyzer 不获取依赖包的元数据。这可以避免依赖包的 feature 冲突导致 rust-analyzer 报错。譬如在 `rstsr-book` 的 `Cargo.toml` 中，并没有声明下述配置中提到的 feature (`backtrace`, `openmp`, `faer`)；如果不引入该选项，rust-analyzer 会因无法解析这些 feature 而无法正常工作。
+- 该项目要求使用 rustfmt 格式化代码。
+
+```json
+{
+  "folders": [
+    {"path": "rstsr"},
+    {"path": "rstsr-book"},
+    {"path": "rstsr-ffi"},
+    {"path": "rstsr-agents"}
+  ],
+  "settings": {
+    "rust-analyzer.server.extraEnv": {
+      "RAYON_NUM_THREADS": "16", // set to physical core count
+      "CARGO_TARGET_DIR": "debug",
+      "RSTSR_DEV": "1"
+    },
+    "rust-analyzer.cargo.extraEnv": {
+      "RAYON_NUM_THREADS": "16", // set to physical core count
+      "CARGO_TARGET_DIR": "debug",
+      "RSTSR_DEV": "1"
+    },
+    "rust-analyzer.runnables.extraEnv": {
+      "RAYON_NUM_THREADS": "16", // set to physical core count
+      "CARGO_TARGET_DIR": "debug",
+      "RSTSR_DEV": "1"
+    },
+    "rust-analyzer.cargo.targetDir": "debug",
+    "rust-analyzer.check.command": "clippy",
+    "rust-analyzer.check.overrideCommand": [
+      "cargo",
+      "clippy",
+      "--workspace",
+      "--message-format=json",
+      "--all-targets",
+    ],
+    "rust-analyzer.check.extraArgs": [
+      // leave openblas to still be clippy checked
+      "--exclude", "rstsr-mkl",
+      "--exclude", "rstsr-aocl",
+      "--exclude", "rstsr-kml",
+      "--exclude", "rstsr-blis",
+      "--exclude", "rstsr-tblis",
+    ],
+    "rust-analyzer.cargo.features": [
+      "backtrace", // better debugging in rstsr
+      "openmp",    // enable OpenMP in rstsr-openblas
+      "faer"       // enable faer for multi-threading device tests
+    ],
+    "rust-analyzer.cargo.metadataExtraArgs": [
+      "--no-deps"
+    ],
+    "[rust]": {
+      "editor.defaultFormatter": "rust-lang.rust-analyzer",
+      "editor.formatOnSave": true
+    },
+  }
+}
+```
