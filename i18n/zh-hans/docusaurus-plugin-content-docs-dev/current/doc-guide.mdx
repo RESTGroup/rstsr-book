@@ -1,0 +1,187 @@
+---
+sidebar_label: 文档指南
+sidebar_position: 2
+rstsr_meta:
+  date: 2026-08-04
+  rstsr_version: 0.7.9
+  ai_generated: partial
+  reviewed: true
+---
+
+import useBaseUrl from '@docusaurus/useBaseUrl';
+
+# 文档指南
+
+这里我们将讨论 RSTSR 文档项目的一些规范与约定。
+
+## 文档编译
+
+在开始文档编译前，首先安装 npm。建议 Node.js 版本不低于 22。
+
+一些常用的 npm 命令如下：
+
+```bash
+npm install                      # install dependencies, should run at `rstsr-book` root directory
+npm start                        # dev server, default locale (English)
+npm start -- --locale zh-hans    # dev server, Simplified Chinese
+npm run build                    # production build of ALL locales (en + zh-hans)
+npm run serve                    # serve the production build locally
+npm run clear                    # clear the .docusaurus cache (fixes stale builds)
+npm run write-translations -- --locale zh-hans   # regenerate i18n JSON files
+```
+
+## 文档翻译与路径
+
+当前文档的默认语言是英文 (en)。我们也提供了简体中文 (zh-hans) 版本。
+- 英文文档的源文件位于 `docs`, `dev` 目录下；
+- 中文文档是 docusaurus i18n，源文件路径层级较多，具体在 `i18n/zh-hans/docusaurus-plugin-content-docs/current` 与 `i18n/zh-hans/docusaurus-plugin-content-docs-dev/current` 目录下。
+
+## mdx 元数据
+
+项目 rstsr-book 的文档源文件使用 mdx 格式。以下是一些常用的 mdx 元数据约定：
+
+```yaml
+---
+sidebar_label: # string, title of the page
+sidebar_position: # numeric, index of the page in the sidebar
+description: # string, short SEO description
+rstsr_meta:
+  date: # YYYY-MM-DD, the date when the page was last updated
+  rstsr_version: # major.minor.patch, Version of rstsr when the page was last updated
+  ai_generated: # true/false/partial/translated
+  translated: # en/zh-hans
+  reviewed: # true/false/partial
+---
+```
+
+尽管上面的元数据字段都是可选的，但我们建议至少包含以下几个字段：
+- `sidebar_label` 与 `sidebar_position` 必须包含；
+- `date` 与 `rstsr_version` 建议包含；
+- 目前除了翻译的情形，不建议使用 AI 直接生成文档。
+  - 对于 `ai_generated: translated`，这是指该文档是从人工编写或部分编写翻译过来的，需要在 `translated` 字段中标明翻译的源语言 (en/zh-hans)。
+- 其他字段根据实际情况选择性包含。
+
+## 嵌入源码
+
+### 文档代码嵌入规则
+
+我们一般要求，在文档中嵌入的源码是可以编译与测试的，这样可以防止文档中的示例代码随着 crate 更新而过时。我们不建议在文档中直接插入 rust 代码，而是通过引用其他文件嵌入。
+
+rstsr-book 项目中，用于文档演示的代码在文件夹 `listings` 下。目前有子 crate `features-default`，即默认 cargo feature 的代码示例。我们以后会增加新的 crates，用以更新其他 cargo feature 的代码示例。
+
+在 `listings` 目录下的代码需要使用 `ANCHOR` 与 `ANCHOR_END` 注释标记来标记代码片段的起始与结束位置。譬如，在 `arithmetics_and_broadcasting.rs` 文件中有如下代码片段：
+
+```rust
+// ANCHOR: basic_arithmetics_01
+let a = rt::arange(5.0);
+let b = rt::arange(5.0) + 1.0;
+
+let c = &a + &b;
+println!("{:}", c);
+// output: [ 1 3 5 7 9]
+
+let d = &a / &b;
+println!("{:6.3}", d);
+// output: [ 0.000 0.500 0.667 0.750 0.800]
+// ANCHOR_END: basic_arithmetics_01
+```
+
+那么在文档中，就可以用下述方式嵌入该代码片段：
+
+````mdx
+```rust file=arithmetics_and_broadcasting anchor=basic_arithmetics_01
+```
+````
+
+如果输出内容是多行的，建议在 `// output:` 后面加上换行符，并在每一行输出前加上两个空格。譬如：
+
+```rust
+// output:
+// [[  14  38  62]
+//  [  38 126 214]
+//  [  62 214 366]]
+```
+
+### 嵌入代码的文件路径
+
+在前面嵌入代码的例子中，我们使用 `file=arithmetics_and_broadcasting` 直接引用文件，但没有指定文件后缀 `.rs` 或目录路径。这是因为 docusaurus 配置了一个简写查找规则：
+
+- **简写名称**：当 `file=` 的值不包含 `/` 时 (例如 `file=arithmetics_and_broadcasting`)，插件会在 `listings/` 目录下递归搜索文件名 (不含后缀) 与该名称**唯一匹配**的文件。因此，请保证当前创建的文件名在 `listings` 目录下是唯一的。
+- **相对路径**：当 `file=` 的值包含 `/` 时，插件将其视为相对于 rstsr-book 项目根目录的相对路径。例如 `file=listings/features-default/tests/foo.rs`。
+
+:::warning
+
+如果简写名称找不到文件，或找到多个同名文件，docusaurus 构建将会报错。因此请在创建新文件时确保文件名唯一。
+
+:::
+
+### 测试代码要求
+
+我们注意到上面演示的代码中有 `// output:` 打印的结果。请留意，这段输出需要是真实的，而不能依据猜测给出。因此，生成 `// output:` 的方式是
+
+1. 先在 `listings` 目录下的代码中，使用 `cargo test <other-options> -- --nocapture` 测试当前嵌入代码的输出
+
+    ```rust
+    let c = &a + &b;
+    println!("{:}", c);
+    ```
+
+    你会在命令行中看到输出是
+
+    ```
+    [ 1 3 5 7 9]
+    ```
+
+2. 然后将输出复制到 `// output:` 后面，形成完整的代码片段
+
+    ```rust
+    let c = &a + &b;
+    println!("{:}", c);
+    // output: [ 1 3 5 7 9]
+    ```
+
+3. (未来可能会作为强制要求) 在一些条件下 (譬如输出数值确定、或浮点数截断到特定数量的前提下) `ANCHOR_END` 后再加上判断语句，确保输出的字符串与预期完全一致。
+
+### 错误代码的 Ferris 图标
+
+与 rust-book 一样，我们也在 rstsr-book 中引入 Ferris 图标：
+
+````mdx
+```rust file=<...> anchor=<...> ferris=panics
+```
+````
+
+我们支持的 Ferris 图标有：
+
+| 图标 | 文字 | 说明 |
+| --- | --- | --- |
+| <img src={useBaseUrl('img/ferris/panics.svg')} width="60" height="60" /> | `panics` | 此代码将会 panic！ |
+| <img src={useBaseUrl('img/ferris/does_not_compile.svg')} width="60" height="60" /> | `does_not_compile` | 此代码无法编译！ |
+| <img src={useBaseUrl('img/ferris/not_desired_behavior.svg')} width="60" height="60" /> | `not_desired_behavior` | 非期望行为！ |
+
+### 文档简要检查
+
+对于文档内容，请尝试作以下检查。这也或许可以更好地规范 AI 生成的文档。
+
+- [ ] 在 mdx 文档中引入合适的 yaml 头；必须引入 `sidebar_label`, `sidebar_position`，建议加入 `rstsr_meta` 的部分选项。
+- [ ] 如果您用其中一种语言生成文档 (native en 或 i18n zh-hans)，请在合适的位置生成对应的翻译文件。翻译文件的内容需要与源文档一一对应 (允许在中文对不容易翻译、或惯用的情景使用英文，或括号内作英文注释)。
+- [ ] 运行 `npm run build` 确认编译后的文档是否有警告。我们要求文档的编译没有警告内容。如果解决警告需要通过编辑 json, js 或 css 等非文档配置文件，请格外小心。
+
+对于需要引入新的代码例子的情况，可以参考下述流程。
+- [ ] 在 `listings` 目录下的 crates 中创建新的 rust 测试文件 (默认的 feature 在 `listings/features-default/tests` 下)。考虑到文件索引规则，请保证当前创建的文件名在 listings 目录下是唯一的。
+- [ ] 增加的新的测试函数，并使用 `// ANCHOR: <anchor_name>` 与 `// ANCHOR_END: <anchor_name>` 注释标记来标记代码片段的起始与结束位置。如果该函数是 `ferris=panics` 或 `ferris=not_desired_behavior`，请对测试函数加上 `#[should_panic]`。对于 `ferris=does_not_compile` 的情况，可以直接写在 mdx 文档内部而不需要在 listings 中创建 rust 测试文件。
+- [ ] 测试您写的程序。若程序在 crate features-default 中，
+    ```bash
+    cargo test -p <crate-name> --test <test-name> -- <func-name> --exact --nocapture
+    ```
+- [ ] 获取程序的输出，并将其写入 `// output:` 注释中。请注意，输出必须是实际的，而不能主观推测。
+- [ ] (可选) 在 `// ANCHOR_END:` 后面，增加测试以保证程序输出与预期完全一致。譬如
+    ```rust
+    assert_eq!(format!("{:}", c), "[ 1 3 5 7 9]");
+    ```
+- [ ] 在 mdx 文档中嵌入代码片段。请注意，嵌入的代码片段必须是可以编译与测试的。
+    ````mdx
+    ```rust file=<test-file-name> anchor=<anchor-name>
+    ```
+    ````
+    如果是有意展示存在问题的代码，请同时加上 ` ferris=<ferris-icon>`。
