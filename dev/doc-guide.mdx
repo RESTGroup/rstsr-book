@@ -1,7 +1,187 @@
 ---
-sidebar_label: User Document Guidelines
+sidebar_label: Documentation Guide
 sidebar_position: 2
 rstsr_meta:
+  date: 2026-08-04
   rstsr_version: "0.7.9"
-  ai_generated: false
+  ai_generated: translated
+  translated: zh-hans
 ---
+
+import useBaseUrl from '@docusaurus/useBaseUrl';
+
+# Documentation Guide
+
+Here we discuss the conventions and guidelines for the RSTSR documentation project.
+
+## Building the Documentation
+
+Before building the documentation, first install npm. Node.js version 22 or higher is recommended.
+
+Some commonly used npm commands are as follows:
+
+```bash
+npm install                      # install dependencies, should run at `rstsr-book` root directory
+npm start                        # dev server, default locale (English)
+npm start -- --locale zh-hans    # dev server, Simplified Chinese
+npm run build                    # production build of ALL locales (en + zh-hans)
+npm run serve                    # serve the production build locally
+npm run clear                    # clear the .docusaurus cache (fixes stale builds)
+npm run write-translations -- --locale zh-hans   # regenerate i18n JSON files
+```
+
+## Documentation Translation and Paths
+
+The default language of the documentation is English (en). We also provide a Simplified Chinese (zh-hans) version.
+- The source files for the English documentation are located in the `docs` and `dev` directories.
+- The Chinese documentation uses Docusaurus i18n, and its source files are nested deeper in the directory hierarchy, specifically under `i18n/zh-hans/docusaurus-plugin-content-docs/current` and `i18n/zh-hans/docusaurus-plugin-content-docs-dev/current`.
+
+## mdx Metadata
+
+The documentation source files of the rstsr-book project use the mdx format. The following are some commonly used mdx metadata conventions:
+
+```yaml
+---
+sidebar_label: # string, title of the page
+sidebar_position: # numeric, index of the page in the sidebar
+description: # string, short SEO description
+rstsr_meta:
+  date: # YYYY-MM-DD, the date when the page was last updated
+  rstsr_version: # major.minor.patch, Version of rstsr when the page was last updated
+  ai_generated: # true/false/partial/translated
+  translated: # en/zh-hans
+  reviewed: # true/false/partial
+---
+```
+
+Although all the metadata fields above are optional, we recommend including at least the following fields:
+- `sidebar_label` and `sidebar_position` must be included.
+- `date` and `rstsr_version` are recommended.
+- Currently, except for the case of translation, it is not recommended to use AI to directly generate documentation.
+  - For `ai_generated: translated`, this means the document was translated from a human-written or partially human-written source, and the source language of the translation must be indicated in the `translated` field (en/zh-hans).
+- Other fields may be included selectively depending on the actual situation.
+
+## Embedding Source Code
+
+### Rules for Embedding Code in Documentation
+
+We generally require that the source code embedded in the documentation be compilable and testable, so that the example code in the documentation does not become outdated as the crate is updated. We do not recommend inserting Rust code directly into the documentation; instead, embed it by referencing other files.
+
+In the rstsr-book project, the code used for documentation demonstrations is located under the `listings` folder. Currently there is a sub-crate `features-default`, which contains code examples for the default cargo features. We will add new crates in the future to provide code examples for other cargo features.
+
+The code under the `listings` directory needs to use `ANCHOR` and `ANCHOR_END` comments to mark the start and end of code snippets. For example, in the `arithmetics_and_broadcasting.rs` file there is the following code snippet:
+
+```rust
+// ANCHOR: basic_arithmetics_01
+let a = rt::arange(5.0);
+let b = rt::arange(5.0) + 1.0;
+
+let c = &a + &b;
+println!("{:}", c);
+// output: [ 1 3 5 7 9]
+
+let d = &a / &b;
+println!("{:6.3}", d);
+// output: [ 0.000 0.500 0.667 0.750 0.800]
+// ANCHOR_END: basic_arithmetics_01
+```
+
+Then in the documentation, you can embed that code snippet in the following way:
+
+````mdx
+```rust file=arithmetics_and_broadcasting anchor=basic_arithmetics_01
+```
+````
+
+If the output content spans multiple lines, it is recommended to add a newline after `// output:` and prefix each output line with two spaces. For example:
+
+```rust
+// output:
+// [[  14  38  62]
+//  [  38 126 214]
+//  [  62 214 366]]
+```
+
+### File Paths for Embedded Code
+
+In the previous example of embedding code, we used `file=arithmetics_and_broadcasting` to reference the file directly, without specifying the `.rs` extension or the directory path. This is because Docusaurus is configured with a shorthand lookup rule:
+
+- **Shorthand name**: When the value of `file=` does not contain `/` (for example, `file=arithmetics_and_broadcasting`), the plugin recursively searches under the `listings/` directory for a file whose name (without extension) **uniquely** matches that name. Therefore, please ensure that the file name you create is unique under the `listings` directory.
+- **Relative path**: When the value of `file=` contains `/`, the plugin treats it as a path relative to the root directory of the rstsr-book project. For example, `file=listings/features-default/tests/foo.rs`.
+
+:::warning
+
+If the shorthand name cannot find a file, or finds multiple files with the same name, the Docusaurus build will fail. Therefore, please ensure the file name is unique when creating a new file.
+
+:::
+
+### Test Code Requirements
+
+We note that the code demonstrated above contains the result printed after `// output:`. Please note that this output must be real, and must not be given based on guessing. Therefore, the way to generate `// output:` is
+
+1. First, in the code under the `listings` directory, use `cargo test <other-options> -- --nocapture` to test the output of the embedded code
+
+    ```rust
+    let c = &a + &b;
+    println!("{:}", c);
+    ```
+
+    You will see the output in the command line as
+
+    ```
+    [ 1 3 5 7 9]
+    ```
+
+2. Then copy the output after `// output:` to form the complete code snippet
+
+    ```rust
+    let c = &a + &b;
+    println!("{:}", c);
+    // output: [ 1 3 5 7 9]
+    ```
+
+3. (May become a mandatory requirement in the future) Under certain conditions (for example, when the output values are deterministic, or under the premise of truncating floating-point numbers to a specific number of digits), add an assertion statement after `ANCHOR_END` to ensure that the output string is exactly consistent with what is expected.
+
+### Ferris Icons for Erroneous Code
+
+Just like the rust-book, we also introduce Ferris icons in rstsr-book:
+
+````mdx
+```rust file=<...> anchor=<...> ferris=panics
+```
+````
+
+The Ferris icons we support are:
+
+| Icon | Text | Description |
+| --- | --- | --- |
+| <img src={useBaseUrl('img/ferris/panics.svg')} width="60" height="60" /> | `panics` | This code will panic! |
+| <img src={useBaseUrl('img/ferris/does_not_compile.svg')} width="60" height="60" /> | `does_not_compile` | This code does not compile! |
+| <img src={useBaseUrl('img/ferris/not_desired_behavior.svg')} width="60" height="60" /> | `not_desired_behavior` | Not desired behavior! |
+
+### Documentation Checklist
+
+For the documentation content, please try to perform the following checks. This may also help better regulate AI-generated documentation.
+
+- [ ] Include an appropriate yaml header in the mdx document; `sidebar_label` and `sidebar_position` must be included, and some options of `rstsr_meta` are recommended.
+- [ ] If you generate the documentation in one language (native en or i18n zh-hans), please generate the corresponding translation file in the appropriate location. The content of the translation file needs to correspond one-to-one with the source document (it is allowed to use English in the Chinese version for terms that are difficult to translate or are customary, or to add English annotations in parentheses).
+- [ ] Run `npm run build` to confirm whether the compiled documentation has any warnings. We require the documentation build to have no warnings. If resolving a warning requires editing non-documentation configuration files such as json, js, or css, please be extra careful.
+
+For cases where new code examples need to be introduced, you can refer to the following workflow.
+- [ ] Create a new Rust test file in the crates under the `listings` directory (the default feature is under `listings/features-default/tests`). Considering the file indexing rule, please ensure that the file name you create is unique under the `listings` directory.
+- [ ] Add the new test function, and use `// ANCHOR: <anchor_name>` and `// ANCHOR_END: <anchor_name>` comments to mark the start and end of the code snippet. If the function is `ferris=panics` or `ferris=not_desired_behavior`, add `#[should_panic]` to the test function. For the `ferris=does_not_compile` case, you can write it directly inside the mdx document without creating a Rust test file in listings.
+- [ ] Test the program you wrote. If the program is in the crate features-default,
+    ```bash
+    cargo test -p <crate-name> --test <test-name> -- <func-name> --exact --nocapture
+    ```
+- [ ] Obtain the program output and write it into the `// output:` comment. Please note that the output must be actual, and must not be subjectively guessed.
+- [ ] (Optional) After `// ANCHOR_END:`, add a test to ensure that the program output is exactly consistent with what is expected. For example
+    ```rust
+    assert_eq!(format!("{:}", c), "[ 1 3 5 7 9]");
+    ```
+- [ ] Embed the code snippet in the mdx document. Please note that the embedded code snippet must be compilable and testable.
+    ````mdx
+    ```rust file=<test-file-name> anchor=<anchor-name>
+    ```
+    ````
+    If the intention is to demonstrate problematic code, also add ` ferris=<ferris-icon>`.
