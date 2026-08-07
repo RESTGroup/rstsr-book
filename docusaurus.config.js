@@ -80,6 +80,8 @@ const config = {
         },
         blog: {
           showReadingTime: true,
+          remarkPlugins: [remarkMath],
+          rehypePlugins: [rehypeKatex],
           feedOptions: {
             type: ['rss', 'atom'],
             xslt: true,
@@ -142,7 +144,7 @@ const config = {
             position: 'left',
             label: 'Dev Document',
           },
-          // {to: '/blog', label: 'Blog', position: 'left'},
+          {to: '/blog', label: 'Blog', position: 'left'},
           {
             type: 'localeDropdown',
             position: 'right',
@@ -187,10 +189,10 @@ const config = {
           {
             title: 'Git Repo Links',
             items: [
-              /* {
+              {
                 label: 'Blog',
                 to: '/blog',
-              }, */
+              },
               { label: 'RSTSR', href: 'https://github.com/RESTGroup/rstsr' },
               { label: 'RSTSR Document', href: 'https://github.com/RESTGroup/rstsr-book' },
               { label: 'REST', href: 'https://gitee.com/RESTGroup/rest' },

@@ -1,5 +1,4 @@
 import React from 'react';
-import {useDoc} from '@docusaurus/plugin-content-docs/client';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import styles from './styles.module.css';
 
@@ -123,8 +122,7 @@ function extractMeta(frontMatter) {
   };
 }
 
-export default function DocMeta() {
-  const { frontMatter } = useDoc();
+export default function DocMeta({frontMatter = {}} = {}) {
   const meta = extractMeta(frontMatter);
   const t = useT();
   const langNames = LANG_NAMES[useDocusaurusContext().i18n?.currentLocale || 'en'] || LANG_NAMES.en;
