@@ -1,0 +1,23 @@
+---
+sidebar_label: 0001 - Symlink to rstsr-agents
+sidebar_position: 1
+rstsr_meta:
+  date: 2026-08-08
+  rstsr_version: "0.7.9"
+  ai_generated: true
+---
+
+# ADR 0001 - Ecosystem-wide agent config via symlink to rstsr-agents
+
+All repos in the rstsr ecosystem (rstsr, rstsr-book, rstsr-ffi, device crates) share one agent configuration by symlinking `.agents/`, `.claude/`, and `AGENTS.md` to the single `rstsr-agents` repo (`/scratch/rstsr_pack/.agents` and `.claude` both resolve to `rstsr-agents`). No repo keeps local agent config, skills, or rules.
+
+Chosen over copying (drifts out of sync) or a workspace-include (agent runtimes do not resolve Cargo-style paths): a relative `../` symlink is the one mechanism every agent runtime follows, and skills are auto-discovered through `.claude/skills/`.
+
+## Considered
+
+- Copy-on-bootstrap - rejected (drift).
+- Per-repo config - rejected (no single source of truth).
+
+## Consequences
+
+A broken upstream `rstsr-agents` breaks every repo at once; per-repo overrides need a separate layer (none exists yet). Accepted for simplicity.

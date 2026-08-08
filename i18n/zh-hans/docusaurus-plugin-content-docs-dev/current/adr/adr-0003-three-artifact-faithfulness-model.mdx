@@ -1,0 +1,25 @@
+---
+sidebar_label: 0003 - 三件式忠实度模型
+sidebar_position: 3
+rstsr_meta:
+  date: 2026-08-08
+  rstsr_version: "0.7.9"
+  ai_generated: translated
+  translated: en
+---
+
+# ADR 0003 - 三件式 NumPy 忠实度模型
+
+"行为与 NumPy 一致"被拆分为三个相互独立的产物来追踪，而非一份单一的追踪文档：
+
+- **(a) Parity test（一致性测试）** -- 位于代码中、在 `core_func/`。以注释形式的 NumPy Python 代码作为参考预言机（reference oracle）；用 `assert_equal` 校验 rstsr 一致。本质上是 row-major 的（NumPy 默认 C-order）。
+- **(b) Coverage checklist（覆盖清单）** -- `rstsr-core/tests/tracking/numpy_coverage.csv`，机器可读。每个 NumPy 测试函数一行：path、class、method、version、status（`transferred`/`partial`/`not-applicable`/`skipped`）、映射的 `rstsr_test`、`numpy_source_hash` 以及 note。机器可读是为了在 NumPy 版本升级时能对其做 diff。
+- **(c) Differences report（差异报告）** -- `rstsr-core/tests/tracking/numpy_differences.md`，人类可读。每条差异标注 `intentional` / `bug` / `col-major-transfer`。
+
+## 纪律
+
+在 (a) 中发现的差异，要么作为 bug 提交，要么记录到 (c) -- 绝不只在代码注释里沉默地留下。
+
+## 理由
+
+之所以拆分而非使用单一追踪文件，是因为 checklist 必须机器可读（用于半自动的 NumPy 漂移检测），而 report 必须人类可读，且 parity test 本身天然就在代码里。Col-major 的迁移困难并入 (c) 的 `col-major-transfer` 标签，而不是新增第四个文件。

@@ -1,0 +1,25 @@
+---
+sidebar_label: 0002 - entry binary 测试矩阵
+sidebar_position: 2
+rstsr_meta:
+  date: 2026-08-08
+  rstsr_version: "0.7.9"
+  ai_generated: translated
+  translated: en
+---
+
+# ADR 0002 - 所有测试通过 per-(order, device) entry binary 在所有 device 上运行
+
+rstsr-core 的测试套件是一个与 device 无关的共享 body（`core_func/`、`doc_draft/`、`test_issues/`），由多个 entry binary -- `entry_row_cpu.rs`、`entry_row_faer.rs`、`entry_col_cpu.rs` -- 通过 `mod` 引入。每个 entry 定义自己的 `type DeviceType` 与 `static TESTCFG`，然后引入共享 body。order × device 矩阵由 entry binary 构成，**而非**通过复制测试代码。
+
+刻意**没有**把 layout/manipulation 测试（结果与 device 无关）与 compute 测试（对 device 敏感）拆分、只让后者在 Faer 上运行。一致性与 Faer tensor 创建路径的覆盖优先于编译期效率 -- 每个测试都在它所编译的每个 device 上运行。`col_major` 与 `row_major` 在编译期互斥（见 `rstsr-core/Cargo.toml`），因此 row/col 天然必须是不同的 binary。
+
+Device crate 通过符号链接 `test_utils/` + `core_func/` + `doc_draft/`，并编写自己的 `entry_<device>.rs`（带自定义 `TESTCFG` skip 列表）来复用该 body。目前仅接入了 `DeviceCpuSerial` 与 `DeviceFaer`；该结构对 `DeviceOpenBLAS` 等已具备前向兼容性。
+
+## 备选方案
+
+按 device 拆分 layout/compute -- 否决（一致性优先于效率；body 必须能被 device crate 整体符号链接）。
+
+## 后果
+
+N 个 binary 编译同一份 body（全量构建更慢）；按 device 的 skip 通过 `specify_test!` / `TestCfg` 在运行时完成，而非 `cfg`（避免重新编译）。

@@ -1,0 +1,24 @@
+---
+sidebar_label: 0001 - 符号链接至 rstsr-agents
+sidebar_position: 1
+rstsr_meta:
+  date: 2026-08-08
+  rstsr_version: "0.7.9"
+  ai_generated: translated
+  translated: en
+---
+
+# ADR 0001 - 通过符号链接 rstsr-agents 实现全生态共享的 agent 配置
+
+rstsr 生态中的所有仓库（rstsr、rstsr-book、rstsr-ffi 以及各 device crate）通过将 `.agents/`、`.claude/` 与 `AGENTS.md` 符号链接到同一个 `rstsr-agents` 仓库，来共享同一份 agent 配置（`/scratch/rstsr_pack/.agents` 与 `.claude` 均解析到 `rstsr-agents`）。任何仓库都不在本地保留 agent 配置、skills 或 rules。
+
+选择此方案而非拷贝（会失同步）或 workspace-include（agent 运行时不解析 Cargo 风格的路径）：相对的 `../` 符号链接是所有 agent 运行时都能识别的唯一机制，且 skills 通过 `.claude/skills/` 自动发现。
+
+## 备选方案
+
+- 启动时拷贝（copy-on-bootstrap）-- 否决（会产生漂移）。
+- 各仓库独立配置 -- 否决（没有单一事实来源）。
+
+## 后果
+
+上游 `rstsr-agents` 一旦损坏，所有仓库会同时受影响；按仓库覆盖配置需要额外的机制层（目前尚不存在）。为求简洁而接受这一权衡。
