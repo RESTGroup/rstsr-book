@@ -14,7 +14,7 @@ rstsr-core 的测试套件是一个与 device 无关的共享 body（`core_func/
 
 刻意**没有**把 layout/manipulation 测试（结果与 device 无关）与 compute 测试（对 device 敏感）拆分、只让后者在 Faer 上运行。一致性与 Faer tensor 创建路径的覆盖优先于编译期效率 -- 每个测试都在它所编译的每个 device 上运行。`col_major` 与 `row_major` 在编译期互斥（见 `rstsr-core/Cargo.toml`），因此 row/col 天然必须是不同的 binary。
 
-Device crate 通过符号链接 `test_utils/` + `core_func/` + `doc_draft/`，并编写自己的 `entry_<device>.rs`（带自定义 `TESTCFG` skip 列表）来复用该 body。目前仅接入了 `DeviceCpuSerial` 与 `DeviceFaer`；该结构对 `DeviceOpenBLAS` 等已具备前向兼容性。
+Device crate 通过符号链接 `test_utils/` + `core_func/` + `doc_draft/`，并编写自己的 `entry_<device>.rs`（带自定义 `TESTCFG` skip 列表）来复用该 body。目前仓库中仅接入了 `DeviceCpuSerial`（row-major，`entry_row_cpu.rs`）；`entry_row_faer.rs` 与 `entry_col_cpu.rs` 已规划但尚未落地。该结构对 `DeviceOpenBLAS` 等已具备前向兼容性。
 
 ## 备选方案
 
