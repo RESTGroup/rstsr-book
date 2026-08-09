@@ -12,8 +12,8 @@ rstsr_meta:
 "Behave similarly to NumPy" is tracked as three distinct artifacts, not one tracking document:
 
 - **(a) Parity test** - in-code, in `core_func/`. Commented NumPy Python acts as the reference oracle; `assert_equal` checks rstsr agrees. Inherently row-major (NumPy is C-order by default).
-- **(b) Coverage checklist** - `rstsr-core/tests/tracking/numpy_coverage.csv`, machine-readable. One row per NumPy test function: path, class, method, version, status (`transferred`/`partial`/`not-applicable`/`skipped`), mapped `rstsr_test`, a `numpy_source_hash`, and a note. Machine-readable so a NumPy version bump can be diffed against it.
-- **(c) Differences report** - `rstsr-core/tests/tracking/numpy_differences.md`, human-readable. Each divergence tagged `intentional` / `bug` / `col-major-transfer`.
+- **(b) Coverage checklist** - `rstsr-core/tests/tracking/numpy_coverage.csv`, machine-readable. One row per NumPy test function: path, class, method, version, status (`transferred`/`partial`/`not-applicable`/`todo`), mapped `rstsr_test`, a `numpy_source_hash`, and a note. Machine-readable so a NumPy version bump can be diffed against it.
+- **(c) Differences reports** - `rstsr-core/tests/tracking/numpy_differences.md` (open divergences) and `numpy_differences_resolved.md` (divergences since fixed), human-readable. Each open divergence tagged `intentional` / `bug` / `col-major-transfer`.
 
 ## Discipline
 

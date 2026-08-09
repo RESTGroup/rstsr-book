@@ -1,0 +1,47 @@
+---
+sidebar_label: 0000 - What an ADR records
+sidebar_position: 0
+rstsr_meta:
+  date: 2026-08-09
+  rstsr_version: "0.7.9"
+  ai_generated: true
+---
+
+# ADR 0000 - What an ADR records (and what it doesn't)
+
+An ADR records an **architectural decision and its rationale** - *what we
+decided, and why*, chosen over named alternatives, with the trade-offs it creates.
+The decision constrains how code is written going forward.
+
+An ADR is **not** a changelog of completed work, nor a backlog of future work.
+
+## Structure
+
+Each ADR carries, adapted to its subject:
+
+- **Context** - the situation that forces the decision (what exists, what
+  problem we are solving). Current state may appear here to frame the decision,
+  but not as a work ledger.
+- **Decision** - the choice made, stated as a standing rule.
+- **Considered** - the alternatives rejected, and why.
+- **Consequences** - the **structural implications** of the decision (what it
+  makes easier, harder, or required), positive and negative.
+
+## Discipline
+
+- **Consequences are implications, not a work log.** "N binaries now compile the
+  same body" is a consequence; "we wrote 44 tests" is a changelog entry - keep the
+  latter out. Completed metrics and bug fixes belong in the tracking artifacts.
+- **No `Follow-up` / TODO section.** Future work goes in an issue tracker or the
+  relevant tracking file, not the ADR.
+- **One decision per ADR.** A change that is itself a decision (e.g. altering
+  public API behaviour) gets its own ADR; do not fold it into an unrelated one's
+  Consequences.
+- Coding-style rules (formatting, naming) belong in `CONTRIBUTING`
+  or elsewhere, not here - ADRs sit above style.
+
+## Scope
+
+Write an ADR for a significant, hard-to-reverse design choice: a new test
+workflow, a tracking model, a category taxonomy, an ecosystem-wide mechanism.
+Do not write one for routine implementation.

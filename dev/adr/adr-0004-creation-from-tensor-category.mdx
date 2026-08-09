@@ -1,0 +1,55 @@
+---
+sidebar_label: 0004 - creation_from_tensor test category
+sidebar_position: 4
+rstsr_meta:
+  date: 2026-08-09
+  rstsr_version: "0.7.9"
+  ai_generated: true
+---
+
+# ADR 0004 - `creation_from_tensor` test category + tracking-scope broadening
+
+rstsr implements the array-joining / construction-from-tensor functions
+(`concat`/`concatenate`, `stack`, `hstack`, `vstack`, `diag`, `meshgrid`,
+`unstack`) in `rstsr-core/src/tensor/creation_from_tensor.rs`. The prior
+NumPy-parity audit (ADR-0003) covered only the `manuplication/` surface
+(reshape/transpose/swapaxes/moveaxis/squeeze/expand_dims/flip/broadcast/to_contig/
+to_layout); `concat`/`stack`/`diag` were not covered by that audit.
+
+This ADR decides where parity tests for those functions live, and how functions
+rstsr does not yet implement are tracked.
+
+## Decision
+
+1. **Parity tests for `creation_from_tensor.rs` functions live in a dedicated
+   `creation_from_tensor/` category** under `tests/core_func/` (mirrored under
+   `doc_draft/` for doc tests). The category name mirrors the source module
+   `src/tensor/creation_from_tensor.rs`, consistent with how `manuplication/`
+   mirrors `src/tensor/manuplication/` and `linalg/` mirrors `src/tensor/linalg/`.
+2. **The tracking scope (ADR-0003 artifact (b) `numpy_coverage.csv` and the
+   `sync_numpy.py` `SURFACE`) is the manipulation + creation_from_tensor
+   surface**, not manipulation alone. Functions rstsr does not yet implement
+   (`split`/`array_split`/`hsplit`/`vsplit`/`dsplit`, `dstack`, `column_stack`,
+   `block`, `tile`) are recorded as `todo` rows - one representative NumPy test
+   method per class, with the full method count cited in the note.
+
+## Considered
+
+- **Fold join functions into `manuplication/`** - rejected. rstsr's source groups
+  them in `creation_from_tensor.rs`, not `manuplication/`; the test category
+  mirrors the source module so the mapping is mechanical.
+- **Per-function categories** (`concat/`, `stack/`, ...) - rejected; too granular.
+  One category per source module, holding all its parity tests, matches the
+  existing `manuplication/` granularity.
+
+## Consequences
+
+- The category mirrors the source module, so a function newly added to
+  `creation_from_tensor.rs` maps to a parity test in `creation_from_tensor/`
+  mechanically - no per-function category decision.
+- `todo` rows make unimplemented functions visible rather than silently absent:
+  a future implementation or a NumPy version bump surfaces them as tracked
+  candidates.
+- Divergences for this surface (intentional or since-fixed) live in the
+  ADR-0003 (c) reports (`numpy_differences.md` / `numpy_differences_resolved.md`),
+  not duplicated here.

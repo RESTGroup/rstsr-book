@@ -13,8 +13,8 @@ rstsr_meta:
 "行为与 NumPy 一致"被拆分为三个相互独立的产物来追踪，而非一份单一的追踪文档：
 
 - **(a) Parity test（一致性测试）** -- 位于代码中、在 `core_func/`。以注释形式的 NumPy Python 代码作为参考预言机（reference oracle）；用 `assert_equal` 校验 rstsr 一致。本质上是 row-major 的（NumPy 默认 C-order）。
-- **(b) Coverage checklist（覆盖清单）** -- `rstsr-core/tests/tracking/numpy_coverage.csv`，机器可读。每个 NumPy 测试函数一行：path、class、method、version、status（`transferred`/`partial`/`not-applicable`/`skipped`）、映射的 `rstsr_test`、`numpy_source_hash` 以及 note。机器可读是为了在 NumPy 版本升级时能对其做 diff。
-- **(c) Differences report（差异报告）** -- `rstsr-core/tests/tracking/numpy_differences.md`，人类可读。每条差异标注 `intentional` / `bug` / `col-major-transfer`。
+- **(b) Coverage checklist（覆盖清单）** -- `rstsr-core/tests/tracking/numpy_coverage.csv`，机器可读。每个 NumPy 测试函数一行：path、class、method、version、status（`transferred`/`partial`/`not-applicable`/`todo`）、映射的 `rstsr_test`、`numpy_source_hash` 以及 note。机器可读是为了在 NumPy 版本升级时能对其做 diff。
+- **(c) Differences reports（差异报告）** -- `rstsr-core/tests/tracking/numpy_differences.md`（开放差异）与 `numpy_differences_resolved.md`（已修复差异），人类可读。每条开放差异标注 `intentional` / `bug` / `col-major-transfer`。
 
 ## 纪律
 
