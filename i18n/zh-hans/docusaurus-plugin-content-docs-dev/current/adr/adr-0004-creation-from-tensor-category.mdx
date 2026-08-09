@@ -1,0 +1,31 @@
+---
+sidebar_label: 0004 - creation_from_tensor 测试类别
+sidebar_position: 4
+rstsr_meta:
+  date: 2026-08-09
+  rstsr_version: "0.7.9"
+  ai_generated: translated
+  translated: en
+---
+
+# ADR 0004 - `creation_from_tensor` 测试类别与追踪范围扩展
+
+rstsr 在 `rstsr-core/src/tensor/creation_from_tensor.rs` 中实现了数组拼接 / 由张量构造的函数（`concat`/`concatenate`、`stack`、`hstack`、`vstack`、`diag`、`meshgrid`、`unstack`）。此前的 NumPy parity 审计（ADR-0003）只覆盖了 `manuplication/` 这一面（reshape/transpose/swapaxes/moveaxis/squeeze/expand_dims/flip/broadcast/to_contig/to_layout）；`concat`/`stack`/`diag` 不在该审计范围内。
+
+本 ADR 决定这些函数的 parity 测试归在何处，以及 rstsr 尚未实现的函数如何被追踪。
+
+## 决策
+
+1. **`creation_from_tensor.rs` 中函数的 parity 测试归入专门的 `creation_from_tensor/` 类别**，位于 `tests/core_func/` 下（doc test 在 `doc_draft/` 下镜像一份）。类别名镜像源码模块 `src/tensor/creation_from_tensor.rs`，与 `manuplication/` 镜像 `src/tensor/manuplication/`、`linalg/` 镜像 `src/tensor/linalg/` 的做法一致。
+2. **追踪范围（ADR-0003 产物 (b) `numpy_coverage.csv` 与 `sync_numpy.py` 的 `SURFACE`）为 manipulation + creation_from_tensor 面**，而非仅 manipulation 面。rstsr 尚未实现的函数（`split`/`array_split`/`hsplit`/`vsplit`/`dsplit`、`dstack`、`column_stack`、`block`、`tile`）记录为 `todo` 行--每个 NumPy 测试类一个代表性方法，note 中给出完整的方法计数。
+
+## 备选方案
+
+- **将拼接函数并入 `manuplication/`** -- 否决。rstsr 源码将其归在 `creation_from_tensor.rs` 而非 `manuplication/`；测试类别镜像源码模块，使映射是机械的。
+- **按函数逐个建类别**（`concat/`、`stack/`、……）-- 否决；粒度太细。每个源码模块一个类别、承载其全部 parity 测试，与现有 `manuplication/` 的粒度一致。
+
+## 后果
+
+- 类别镜像源码模块，故新增到 `creation_from_tensor.rs` 的函数会机械地映射到 `creation_from_tensor/` 中的 parity 测试--无需逐函数决定类别归属。
+- `todo` 行使未实现的函数可见，而非沉默地缺席：未来的实现或 NumPy 版本升级会将其作为已追踪的候选项浮现出来。
+- 该面的差异（intentional 或已修复）记录在 ADR-0003 (c) 的报告中（`numpy_differences.md` / `numpy_differences_resolved.md`），不在此重复。

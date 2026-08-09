@@ -1,0 +1,24 @@
+---
+sidebar_label: 0002 - Entry-binary test matrix
+sidebar_position: 2
+rstsr_meta:
+  date: 2026-08-08
+  rstsr_version: "0.7.9"
+  ai_generated: true
+---
+
+# ADR 0002 - All tests run on all devices via per-(order, device) entry binaries
+
+rstsr-core's test suite is one device-agnostic body (`core_func/`, `doc_draft/`, `test_issues/`) `mod`-included by multiple entry binaries - `entry_row_cpu.rs`, `entry_row_faer.rs`, `entry_col_cpu.rs` - each defining its own `type DeviceType` and `static TESTCFG`, then pulling in the shared body. The order × device matrix is formed by entry binaries, **not** by duplicating test code.
+
+Deliberately did **not** split layout/manipulation tests (results are device-agnostic) from compute tests (device-sensitive) so only the latter run on Faer. Uniformity and Faer tensor-creation path coverage win over compile-time efficiency - every test runs on every device it is compiled for. `col_major` is compile-time mutually exclusive with `row_major` (per `rstsr-core/Cargo.toml`), so row/col are separate binaries by construction.
+
+Device crates reuse the body by symlinking `test_utils/` + `core_func/` + `doc_draft/` and writing their own `entry_<device>.rs` with a custom `TESTCFG` skip list. Only `DeviceCpuSerial` (row-major, `entry_row_cpu.rs`) is wired in the repo today; `entry_row_faer.rs` and `entry_col_cpu.rs` are planned but not yet present. The structure is future-ready for `DeviceOpenBLAS` and friends.
+
+## Considered
+
+Layout/compute split per device - rejected (uniformity over efficiency; the body must be symlinkable whole by device crates).
+
+## Consequences
+
+N binaries compile the same body (slower full builds); per-device skips are runtime via `specify_test!`/`TestCfg`, not `cfg` (avoids recompilation).
