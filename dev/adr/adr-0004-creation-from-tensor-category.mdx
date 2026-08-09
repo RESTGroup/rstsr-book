@@ -12,7 +12,7 @@ rstsr_meta:
 rstsr implements the array-joining / construction-from-tensor functions
 (`concat`/`concatenate`, `stack`, `hstack`, `vstack`, `diag`, `meshgrid`,
 `unstack`) in `rstsr-core/src/tensor/creation_from_tensor.rs`. The prior
-NumPy-parity audit (ADR-0003) covered only the `manuplication/` surface
+NumPy-parity audit (ADR-0003) covered only the `manipulation/` surface
 (reshape/transpose/swapaxes/moveaxis/squeeze/expand_dims/flip/broadcast/to_contig/
 to_layout); `concat`/`stack`/`diag` were not covered by that audit.
 
@@ -24,8 +24,8 @@ rstsr does not yet implement are tracked.
 1. **Parity tests for `creation_from_tensor.rs` functions live in a dedicated
    `creation_from_tensor/` category** under `tests/core_func/` (mirrored under
    `doc_draft/` for doc tests). The category name mirrors the source module
-   `src/tensor/creation_from_tensor.rs`, consistent with how `manuplication/`
-   mirrors `src/tensor/manuplication/` and `linalg/` mirrors `src/tensor/linalg/`.
+   `src/tensor/creation_from_tensor.rs`, consistent with how `manipulation/`
+   mirrors `src/tensor/manipulation/` and `linalg/` mirrors `src/tensor/linalg/`.
 2. **The tracking scope (ADR-0003 artifact (b) `numpy_coverage.csv` and the
    `sync_numpy.py` `SURFACE`) is the manipulation + creation_from_tensor
    surface**, not manipulation alone. Functions rstsr does not yet implement
@@ -35,12 +35,12 @@ rstsr does not yet implement are tracked.
 
 ## Considered
 
-- **Fold join functions into `manuplication/`** - rejected. rstsr's source groups
-  them in `creation_from_tensor.rs`, not `manuplication/`; the test category
+- **Fold join functions into `manipulation/`** - rejected. rstsr's source groups
+  them in `creation_from_tensor.rs`, not `manipulation/`; the test category
   mirrors the source module so the mapping is mechanical.
 - **Per-function categories** (`concat/`, `stack/`, ...) - rejected; too granular.
   One category per source module, holding all its parity tests, matches the
-  existing `manuplication/` granularity.
+  existing `manipulation/` granularity.
 
 ## Consequences
 
