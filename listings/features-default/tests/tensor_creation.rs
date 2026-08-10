@@ -38,10 +38,10 @@ fn example_03() {
     // ANCHOR: example_03
     // generate 2-D tensor from 1-D vec, without explicit data copy
     let vec = vec![1, 2, 3, 4, 5, 6];
-    let tensor = rt::asarray(vec).into_shape_assume_contig([2, 3]);
+    let tensor = rt::asarray(vec).into_compatible_shape([2, 3], RowMajor);
     println!("{:}", tensor);
 
-    // if you feel function `into_shape_assume_contig` ugly, following code also works
+    // if you feel function `into_compatible_shape` ugly, following code also works
     let vec = vec![1, 2, 3, 4, 5, 6];
     let tensor = rt::asarray(vec).into_shape([2, 3]);
     println!("{:}", tensor);
