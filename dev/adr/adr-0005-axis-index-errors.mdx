@@ -1,0 +1,36 @@
+---
+sidebar_label: 0005 - Axis and index errors
+sidebar_position: 5
+rstsr_meta:
+  date: 2026-08-12
+  rstsr_version: "0.7.9"
+  ai_generated: true
+---
+
+# ADR 0005 - Distinguished `AxisError` and `IndexError` types
+
+rstsr gains two error variants on the central `RSTSRError` enum — `AxisError { axis: isize, ndim: usize }` (structured, NumPy-faithful) and `IndexError(String)` (message-only, like Python's) — and migrates the genuine axis-selection and element-index sites off the generic `ValueOutOfRange` / `InvalidValue` / `InvalidLayout` variants.
+
+Two forces drove the split. First, **NumPy parity**: the commented-out `// assert_raises(AxisError, ...)` / `// assert_raises(IndexError, ...)` lines sprinkled through `rstsr-core/tests/` already expect these as distinct, matchable types, and a structured `AxisError` lets a caller catch a bad axis and normalize it programmatically (something a `String` cannot do). Second, **the existing surface was inconsistent**: the same logical condition — axis out of bounds — was reported via three different variants (`InvalidValue` in `normalize_axes_index`, `ValueOutOfRange` in layout code, `InvalidLayout` in concat/stack/unstack/index_select), and one site (`tensordot_to_einsum.rs`) validated axes with bare `assert!`s *inside a `Result`-returning function*, so a bad axis panicked instead of returning an error. Introducing the two types both names the concepts correctly and unifies the reporting.
+
+`AxisError` is **structured** (`{ axis, ndim }`, keeping the original possibly-negative `axis`) while `IndexError` is a **bare `String`**: axis errors are recoverable (a caller may fold a negative axis and retry), but element-index errors are not — they signal a programmer bug, and Python's `IndexError` is message-only too, so there is no recovery value to carry a structured payload. A validator macro `rstsr_check_axis!(axis, ndim)` centralizes the negative-fold-plus-bounds-check that was copy-pasted ~20 times across the layout code (with subtly different bounds at insert sites — `dim_insert`, `stack`, `into_unpack_array` use `0..=ndim`/`0..=ndim+1`, handled by `rstsr_check_axis_insert!`); this de-duplication is a concrete side benefit beyond naming.
+
+## Migration boundary
+
+**Migrated** to `AxisError`: every axis-*argument* out-of-bounds check — `normalize_axes_index` (the root used by transpose/flip/moveaxis/reductions), `dim_narrow`/`dim_select`/`dim_eliminate`/`dim_chop`/`dim_insert`/`dim_split_at`/`dim_slice`, `Layout::diagonal`/`swapaxes`, concat/stack/unstack axis args, `index_select` axis, pack/unpack axis, and the `tensordot_to_einsum` asserts (panic → `Result`).
+
+**Migrated** to `IndexError`: element-*index* checks — `Layout::index_f` per-axis bound, `Layout::dim_select` element index, `index_select_f` element index, and the backend index-range re-checks.
+
+**Left as-is**: slice `step == 0` (NumPy: `ValueError`), `dim_eliminate` shape≠1, reshape `-1` handling and size mismatch, concat/stack **ndim-equality** (a shape concern, not an axis argument), the linalg "requires 2-D matrix" checks (operation arity, not an axis argument), moveaxis source/dest **length** mismatch, and duplicate-axes errors. These are genuine value/shape/arity errors, not axis-selection or element-index errors, and conflating them would re-muddle the surface the split was meant to clarify.
+
+## Terminology
+
+The distinction the two types enforce, recorded once:
+
+- **Axis** — a dimension *slot* of a tensor, identified by an integer in `-ndim..ndim` (negative counts from the end; `-1` is the last axis). Out-of-range axis selection raises `AxisError`. *Avoid:* "dimension" where "axis" is meant (a tensor *has* `ndim` dimensions; axis `i` names dimension `i`); "indexing the axis" (say *axis selection*).
+- **Index** — an element *offset along one axis*, in `-shape[axis]..shape[axis]` (negative from the end); also covers slice bounds. An out-of-range element position or invalid slice raises `IndexError`. *Avoid:* "indexing the axis" (conflates axis selection with element offset).
+- **ndim** — the number of axes (dimensions) of a tensor; the upper bound for axis selection.
+
+## Consequences
+
+The `std::ops::Index`/`IndexMut` impls on tensors cannot return `Result` (the trait forces a panic), so an out-of-bounds element index there surfaces as a *panic* whose message now names `IndexError` — it is not catchable, by trait constraint, not by choice. The catchable `IndexError` lives in the fallible `i_f` / `i_mut_f` / `index_select_f` paths. The catchable `AxisError` lives everywhere axis arguments are validated (all fallible op paths).
