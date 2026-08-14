@@ -143,7 +143,7 @@ Notes on the configuration file below:
 - `CARGO_TARGET_DIR` is set to `debug`. Since the environment variables in VS Code are likely to be different from those you set in the terminal, to avoid the situation where different compilation settings between VS Code and the terminal frequently break incremental compilation, we suggest that VS Code and the terminal use different cargo target directories; the terminal uses the usual `target` directory, while VS Code uses the `debug` directory. Both are excluded via .gitignore and will not affect other developers.
 - `RSTSR_DEV` is set to 1. This environment variable is used to link the appropriate libraries in development mode (developers need to manually specify environment variables such as `LD_LIBRARY_PATH` to provide the locations of these libraries).
 - We have added a large number of `--exclude` options to `check.extraArgs`. Most of the time, we only need to ensure the correctness of the OpenBLAS backend; the other BLAS backends only need to be adapted in the end. If these libraries are not excluded, rust-analyzer will spend a lot of time checking the code of these BLAS backends, making rust-analyzer slower to respond. We suggest running clippy checks on the code of these BLAS backends only when finally adapting them.
-- The `--no-deps` option is passed to `cargo metadata`, so that rust-analyzer does not fetch the metadata of dependency packages. This can avoid errors in rust-analyzer caused by feature conflicts among dependency packages. For example, the `Cargo.toml` of `rstsr-book` does not declare the features mentioned in the configuration below (`backtrace`, `openmp`, `faer`); without this option, rust-analyzer would fail to work because it cannot resolve these features.
+- The `--no-deps` option is passed to `cargo metadata`, so that rust-analyzer does not fetch the metadata of dependency packages. This can avoid errors in rust-analyzer caused by feature conflicts among dependency packages. For example, the `Cargo.toml` of `rstsr-book` does not declare the features mentioned in the configuration below (`backtrace`, `openmp`, `faer`); without this option, rust-analyzer would fail to work because it cannot resolve these features. However, at the same time, the dependency libraries will no longer be indexed, so it is generally not recommended to enable this option.
 - This project requires code to be formatted with rustfmt.
 
 ```json
@@ -188,12 +188,14 @@ Notes on the configuration file below:
       "--exclude", "rstsr-tblis",
     ],
     "rust-analyzer.cargo.features": [
-      "backtrace", // better debugging in rstsr
-      "openmp",    // enable OpenMP in rstsr-openblas
-      "faer"       // enable faer for multi-threading device tests
+      // Features that are not enabled by default.
+      // But note that adding entries to this field will cause rust-analyzer to check for these features in all crates,
+      // which may lead to errors if some crates do not support these features. If that happens, use `--no-deps` in
+      // `rust-analyzer.cargo.metadataExtraArgs` to avoid checking dependencies, but that will loose convenient tracking
+      // LSP analysis of dependencies.
     ],
     "rust-analyzer.cargo.metadataExtraArgs": [
-      "--no-deps"
+      // "--no-deps"
     ],
     "[rust]": {
       "editor.defaultFormatter": "rust-lang.rust-analyzer",

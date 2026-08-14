@@ -140,7 +140,7 @@ Crate rstsr-openblas 目前默认不开启 feature `openmp`；这是因为在 co
 - `CARGO_TARGET_DIR` 设置为 `debug`。由于 VS Code 的环境变量很可能与您在 terminal 中设置的环境变量不同；为了避免 VS Code 与 terminal 编译设置不同导致增量编译经常被破坏的情况，我们建议 VS Code 与 terminal 使用不同的 cargo target 目录；terminal 使用通常的 `target` 目录，而 VS Code 使用 `debug` 目录。这两者都被 .gitignore 排除在外，不会影响其他开发者。
 - `RSTSR_DEV` 设置为 1。该环境变量用于在开发模式中链接合适的库 (需要开发者手动指定 `LD_LIBRARY_PATH` 等环境变量提供这些库的位置)。
 - 我们加了大量 `check.extraArgs` 的 `--exclude` 选项。大多数时候，我们只需要保证 OpenBLAS 后端的正确性，其余的 BLAS 后端只要最终能适配即可。如果这些库不被排除，那么 rust-analyzer 会花大量的时间在检查这些 BLAS 后端的代码上，导致 rust-analyzer 的响应速度变慢。我们建议只有在最终适配这些 BLAS 后端时，才去 clippy check 这些 BLAS 后端的代码。
-- `--no-deps` 选项传给 `cargo metadata`，使 rust-analyzer 不获取依赖包的元数据。这可以避免依赖包的 feature 冲突导致 rust-analyzer 报错。譬如在 `rstsr-book` 的 `Cargo.toml` 中，并没有声明下述配置中提到的 feature (`backtrace`, `openmp`, `faer`)；如果不引入该选项，rust-analyzer 会因无法解析这些 feature 而无法正常工作。
+- `--no-deps` 选项传给 `cargo metadata`，使 rust-analyzer 不获取依赖包的元数据。这可以避免依赖包的 feature 冲突导致 rust-analyzer 报错。譬如在 `rstsr-book` 的 `Cargo.toml` 中，并没有声明下述配置中提到的 feature (`backtrace`, `openmp`, `faer`)；如果不引入该选项，rust-analyzer 会因无法解析这些 feature 而无法正常工作。但同时，依赖库的索引也将无法进行，因此一般不建议开启该选项。
 - 该项目要求使用 rustfmt 格式化代码。
 
 ```json
@@ -185,12 +185,14 @@ Crate rstsr-openblas 目前默认不开启 feature `openmp`；这是因为在 co
       "--exclude", "rstsr-tblis",
     ],
     "rust-analyzer.cargo.features": [
-      "backtrace", // better debugging in rstsr
-      "openmp",    // enable OpenMP in rstsr-openblas
-      "faer"       // enable faer for multi-threading device tests
+      // Features that are not enabled by default.
+      // But note that adding entries to this field will cause rust-analyzer to check for these features in all crates,
+      // which may lead to errors if some crates do not support these features. If that happens, use `--no-deps` in
+      // `rust-analyzer.cargo.metadataExtraArgs` to avoid checking dependencies, but that will loose convenient tracking
+      // LSP analysis of dependencies.
     ],
     "rust-analyzer.cargo.metadataExtraArgs": [
-      "--no-deps"
+      // "--no-deps"
     ],
     "[rust]": {
       "editor.defaultFormatter": "rust-lang.rust-analyzer",
