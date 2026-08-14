@@ -133,21 +133,31 @@ rstsr-core 从设计上，预期需要实现 Python array API standard 中大部
 
 rstsr-core 默认支持的后端，都是以纯 Rust 实现；这种情况下不需要特别设置 build.rs。
 
+当启用 `openblas` 后端 feature 时，`rstsr` 的默认 feature 会一并开启 `rstsr-openblas` 的 `openmp` feature（与该设备库自身的默认设置一致），从而引入下文 `rstsr-openblas` 一节所述的 OpenMP 运行时链接要求。若以 `default-features = false` 构建 `rstsr`（例如手动开启 `openblas`），则 `openmp` 不会被启用；此时若链接以 OpenMP 编译的 OpenBLAS，线程数控制 API 将会 panic，可以通过直接依赖 `rstsr-openblas` 并开启其 `openmp` feature 的方式重新启用。
+
 ### rstsr-openblas
 
 该库并不是用户必须选择的。当用户对 BLAS 后端有需求时，才需要将 rstsr-openblas 纳入 Cargo.toml 作为依赖。
 
-- `linalg`：是否编译 `rstsr-linalg-traits` 以对线性代数的接口作实现。
+- `linalg`：是否编译 `rstsr-linalg-traits` 以对线性代数的接口作实现。默认开启。
 - `ilp64`：BLAS 中的整数类型是 `int32_t` 还是 `int64_t`。举例而言，在 Linux 系统下默认选项编译的 OpenBLAS 一般是 `int32_t`；在这种情况下不需要开启该选项。
-- `openmp`：是否增加对 OpenMP 编译的 OpenBLAS 的支持。该编译选项要求用户在 build.rs 或 `RUSTFLAGS` 中引入 OpenMP 库。一般来说建议开启该选项。如果用户确定链接的 OpenBLAS 的并行模式是 pthread，那么该选项可以不用开启；但同时需要注意，OpenBLAS 一般来说在 OpenMP 并行模式下有更高的运行效率。
+- `openmp`：对以 OpenMP 编译的 OpenBLAS 的支持（通过 OpenMP 运行时 API 控制线程数）。**自 v0.8.0 起默认开启**。OpenBLAS 在 OpenMP 并行模式下一般有更高的运行效率；且该选项与 pthread 编译的 OpenBLAS **兼容**：运行时检测到 pthread 模式后会改用 `openblas_*` API，链接的 OpenMP 运行时不会被使用。其代价是无论 OpenBLAS 以何种方式编译，都必须链接 OpenMP 运行时（见下文的 build.rs 示例）。若不希望有该链接要求，可以关闭默认 feature 并按需重新开启 `linalg`。
 
 为了能让 OpenBLAS 后端可以工作，用户需要手动在自己项目中的 build.rs 中引入如下的语句：
 ```rust
 // in build.rs
 // if your library is named `libopenblas.so`
 println!("cargo:rustc-link-lib=openblas");
-// if your openblas is compiled with OpenMP (but not pthread)
-//    and your openmp is GNU's distribution
+// required by the default `openmp` feature: the OpenMP runtime
+// (`gomp` for GNU's distribution; `omp` on macOS/LLVM; `vcomp` on MSVC)
 println!("cargo:rustc-link-lib=gomp");
 ```
 或者编译的环境变量 `RUSTFLAGS` 中引入这两个库。
+
+如果用户链接的 OpenBLAS 以 pthread 编译、且不希望链接任何 OpenMP 运行时，可以关闭默认 feature：
+
+```toml
+rstsr-openblas = { version = "0.8", default-features = false, features = ["linalg"] }
+```
+
+需要注意，cargo 的 feature 统一是全局性的：只要构建图中任一 crate 开启了 `rstsr-openblas` 的默认 feature，整个构建就会启用 `openmp`。完整的兼容性矩阵（OpenBLAS 编译方式 × feature × 链接配置，已针对两种方式编译的 OpenBLAS 0.3.34 验证）见 [`rstsr-openblas` 的文档](https://docs.rs/rstsr-openblas)。
