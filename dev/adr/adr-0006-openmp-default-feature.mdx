@@ -1,0 +1,27 @@
+---
+sidebar_label: 0006 - OpenMP as default for the OpenBLAS device
+sidebar_position: 6
+rstsr_meta:
+  date: 2026-08-14
+  rstsr_version: "0.8.0"
+  ai_generated: true
+---
+
+# ADR 0006 - `openmp` as a default feature of `rstsr-openblas`
+
+`rstsr-openblas` flips its `default` features from `["linalg"]` to `["linalg", "openmp"]`, and the integration crate `rstsr` enables it through its own default features (`"rstsr-openblas?/openmp"` in `default`, effective whenever the `openblas` backend feature is on) — there is deliberately no separate `openmp` feature at the `rstsr` level. This reverses the earlier position recorded in the crate readme ("we currently decided not make `openmp` as default feature") — that sentence is deleted along with the flip.
+
+The `openmp` feature is a pure cfg gate: it compiles in the `omp_set_num_threads` / `omp_get_max_threads` FFI references in `threading.rs`, and thereby **requires an OpenMP runtime at link time** (`gomp` on Linux-GNU, `omp` on macOS/LLVM, `vcomp` on MSVC). It does not change any Rust API. `dynamic_loading` unlocks the same runtime code paths through `libloading` with no link-time requirement, but is not a general recommendation here: with LAPACK enabled the dynamic-loading table covers too many symbols to be the default answer.
+
+Three forces drove the reversal. First, **performance**: in the project's testing, OpenBLAS built with OpenMP generally outperforms the pthread build. Second, the **footgun the non-default created**: a user with an OpenMP-built `libopenblas` and neither `openmp` nor `dynamic_loading` enabled hit a runtime panic on the threading API — and because the workspace pins the device dependency with `default-features = false`, users entering through the `rstsr` integration crate had *no* feature to escape with (the umbrella exposed no `openmp` passthrough at all). Third, the alternatives were rejected on the merits: always using `openblas_set_num_threads` is not a substitute, because the OpenMP and pthread builds behave differently and must be treated as distinct threading backends (and OpenBLAS's own getters have historically misbehaved on OpenMP builds, which is why `omp_get_max_threads` is used at all); and `dynamic_loading` for the reason above.
+
+## Blast radius
+
+- **Breaking (accepted, hence the 0.8.0 bump)**: direct users of `rstsr-openblas` default features gain a hard OpenMP-runtime link requirement. For pthread-OpenBLAS users the feature is *compatible* (runtime takes the `OPENBLAS_THREAD` path) but the extra runtime must still be linked, buying nothing; on macOS (Apple clang ships no libomp) and MSVC (`vcomp` is not auto-linked) this is a hard link error rather than an inconvenience. Opt-out: `default-features = false, features = ["linalg"]`. The same applies to users of the integration crate with default features plus `openblas` — the mainstream entry path deliberately behaves like the device crate.
+- **Also affected, the other direction**: umbrella users building `rstsr` with `default-features = false` (enabling `openblas` manually) get no `openmp` at all; against an OpenMP-built OpenBLAS the threading API panics, and the escape is a direct `rstsr-openblas` dependency with `openmp` (feature unification applies it graph-wide).
+- **Not affected**: docs.rs (compile-only). The book workspace (`rstsr-openblas >= 0.7.9` with explicit `features = ["linalg", "openmp"]`) picks the new version up transparently.
+- **Caveat**: cargo feature unification is graph-global — opting out via `default-features = false` is not hermetic if any other crate in the build graph enables `rstsr-openblas` defaults.
+
+## Consequences
+
+The panic message in `threading.rs` (reachable only for `default-features = false` builds against OpenMP-built OpenBLAS) now points out that the integration crate enables `openmp` by default, and directs non-default `rstsr` users to a direct `rstsr-openblas` dependency. The verification matrix also exposed a pre-existing bug, fixed alongside: the *internal* caching `OpenBLASConfig::get_parallel` panicked whenever both features were off, without checking what `openblas_get_parallel()` actually reported — so the documented opt-out broke `set_num_threads`/`get_num_threads` even on pthread builds. It now mirrors the free `get_parallel()`: it only panics when the library really reports `OPENBLAS_OPENMP`. CI gains a pthread job running `cargo test -p rstsr-openblas --release` with default features (and `--test-threads=1`, per the BLAS test convention) against `libopenblas-pthread-dev`, so both runtime branches (`OPENBLAS_THREAD` and `OPENBLAS_OPENMP`) are exercised under the default feature set; the pre-existing OpenMP job keeps its explicit `--features="openmp linalg"` so intent survives any future re-flip. The compatibility matrix above (feature × OpenBLAS build × link setup) is verified against locally built OpenBLAS 0.3.34 (both variants) and recorded in the crate readme as user-facing guidance.

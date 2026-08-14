@@ -134,13 +134,15 @@ Features exclusive to the integration library `rstsr` include:
 
 The default backends supported by `rstsr-core` are implemented purely in Rust, so no special build.rs setup is required.
 
+When the `openblas` backend feature is enabled, the default features of `rstsr` also turn on the `openmp` feature of `rstsr-openblas` (the same default the device crate ships), which adds the OpenMP-runtime link requirement described in the `rstsr-openblas` section below. If you build `rstsr` with `default-features = false` (for example enabling `openblas` manually), `openmp` is not enabled; an OpenMP-built OpenBLAS then makes the threading API panic, and you can re-enable it through a direct `rstsr-openblas` dependency with the `openmp` feature.
+
 ### rstsr-openblas
 
 This library is not mandatory for users. It is only required if the user needs a BLAS backend.
 
-- `linalg`: Whether to compile `rstsr-linalg-traits` to implement linear algebra interfaces.
+- `linalg`: Whether to compile `rstsr-linalg-traits` to implement linear algebra interfaces. Enabled by default.
 - `ilp64`: Whether the integer type in BLAS is `int32_t` or `int64_t`. For example, OpenBLAS compiled with default options on Linux systems typically uses `int32_t`; in such cases, this option does not need to be enabled.
-- `openmp`: Whether to add support for OpenMP-compiled OpenBLAS. This compilation option requires users to include the OpenMP library in build.rs or `RUSTFLAGS`. Generally, this option is recommended. If the user is certain that the linked OpenBLAS uses pthread for parallelism, this option can be skipped; however, note that OpenBLAS generally performs better with OpenMP parallelism.
+- `openmp`: Support for OpenMP-compiled OpenBLAS (threading control via the OpenMP runtime API). **Enabled by default** since v0.8.0. OpenBLAS generally performs better with OpenMP parallelism, and the feature is also compatible with pthread-built OpenBLAS: the runtime reports the pthread mode and the `openblas_*` API is used, with the linked OpenMP runtime simply unused. The cost is that an OpenMP runtime must always be linked (see the build.rs example below). If you do not want this requirement, disable default features and re-enable `linalg`.
 
 To make the OpenBLAS backend work, users need to manually include the following lines in their project's build.rs:
 
@@ -148,9 +150,17 @@ To make the OpenBLAS backend work, users need to manually include the following 
 // in build.rs
 // if your library is named `libopenblas.so`
 println!("cargo:rustc-link-lib=openblas");
-// if your openblas is compiled with OpenMP (but not pthread)
-//    and your openmp is GNU's distribution
+// required by the default `openmp` feature: the OpenMP runtime
+// (`gomp` for GNU's distribution; `omp` on macOS/LLVM; `vcomp` on MSVC)
 println!("cargo:rustc-link-lib=gomp");
 ```
 
 Alternatively, include these libraries in the `RUSTFLAGS` environment variable.
+
+If your OpenBLAS is built with pthread and you do not want to link any OpenMP runtime, disable the default features:
+
+```toml
+rstsr-openblas = { version = "0.8", default-features = false, features = ["linalg"] }
+```
+
+Note that cargo feature unification is graph-global: if any other crate in your build enables `rstsr-openblas` default features, `openmp` is enabled for the whole build. For the full compatibility matrix (OpenBLAS build × feature × link setup, verified against OpenBLAS 0.3.34 built both ways), see the readme of [`rstsr-openblas`](https://docs.rs/rstsr-openblas).
