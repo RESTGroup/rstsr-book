@@ -1,0 +1,139 @@
+---
+sidebar_label: FFI Header Update
+sidebar_position: 4
+rstsr_meta:
+  date: 2026-08-15
+  rstsr_version: "0.7.9"
+  ai_generated: true
+---
+
+# Updating vendored FFI headers in rstsr-ffi
+
+This guide describes how to update the vendored C headers of the
+[`rstsr-ffi`](https://github.com/RESTGroup/rstsr-ffi) repository crates and regenerate the
+Rust bindings. The worked example is the OpenBLAS bump
+v0.3.30 &rarr; v0.3.34 (branch `update-openblas-0.3.34`); the other vendor crates
+(BLIS, MKL, AOCL, KML) follow the same shape but source their headers differently, and
+are left as TODO below.
+
+## Background
+
+### Crate layout (OpenBLAS)
+
+- `header/` — vendored headers, copied from the **OpenBLAS source tree** at a release tag:
+  `cblas.h`, `common_interface.h`, `openblas_config_template.h`.
+- `scripts/perform_bindgen.py` — the generator (jupytext-paired with `scripts/tmp.ipynb`).
+  It preprocesses the headers, runs `bindgen` twice, post-processes the output, and calls
+  `util_dyload.py` (repo root) to derive the dynamic-loading files.
+- `src/blas/`, `src/cblas/` — generated bindings. `ffi_base.rs`, `ffi_extern.rs`,
+  `dyload_struct.rs`, `dyload_initializer.rs`, `dyload_compatible.rs` are all
+  machine-generated; `mod.rs` and the CBLAS enums are hand-written (enums come from
+  `rstsr-cblas-base`).
+- `src/lapack/`, `src/lapacke/` are produced by the separate Netlib-LAPACK pipeline in
+  `rstsr-lapack-ffi/scripts/` and are **not** affected by OpenBLAS version bumps.
+
+### Source-tree headers vs installed headers
+
+Do not copy headers from an installed OpenBLAS prefix. At install time
+(`Makefile.install`) OpenBLAS **generates** headers:
+
+- `openblas_config.h` is assembled from `config_last.h`, a version string and
+  `openblas_config_template.h` — it is build-configuration-specific and never exists in
+  the source tree;
+- `f77blas.h` is concatenated from `common_interface.h`;
+- `cblas.h` is sed-processed (`OPENBLAS_EXPORT` stripped, `common.h` rewritten to
+  `openblas_config.h`, optional symbol prefix/suffix rewriting).
+
+The crate vendors the **source-tree** files instead; the generator performs its own
+preprocessing (`common.h` &rarr; `common_parse.h`, `xdouble` typedef swap,
+`OPENBLAS_NEEDBUNDERSCORE`). An installed `cblas.h` will not drop in cleanly.
+
+### Toolchain
+
+| Requirement | Notes |
+| --- | --- |
+| python3 | needs `pip install tree-sitter tree-sitter-rust` (used by `util_dyload.py`) |
+| `bindgen` CLI | `cargo install bindgen-cli`; output verified byte-stable across 0.71.1/0.72.1 (only the version-stamp comment differs) |
+| cargo + rustfmt | the repo pins the toolchain via `rust-toolchain.toml` |
+
+## Procedure (worked example: OpenBLAS v0.3.30 &rarr; v0.3.34)
+
+1. **Establish the true baseline.** The readme claims a version; commit messages may be
+   mislabeled (history had a commit saying "v0.3.29" while the headers were v0.3.30).
+   Verify byte-identity against tags:
+
+   ```bash
+   git -C <openblas-clone> show v0.3.30:cblas.h | diff - rstsr-openblas-ffi/header/cblas.h
+   ```
+
+2. **Clone OpenBLAS to a temporary directory and check out the exact release tag.**
+   Never use a development checkout — it can be far ahead of the tag (the reference
+   checkout was 117 commits past v0.3.34) and contains post-tag APIs (e.g. the
+   asynchronous cancellation API) that must **not** end up in the bindings.
+
+   ```bash
+   git clone <openblas-source> /tmp/openblas-vX.Y.Z
+   git -C /tmp/openblas-vX.Y.Z checkout vX.Y.Z
+   ```
+
+3. **Audit the header diff** before touching the crate:
+
+   ```bash
+   git -C /tmp/openblas-vX.Y.Z diff v0.3.30 v0.3.34 -- cblas.h common_interface.h openblas_config_template.h
+   ```
+
+   Enumerate every added/changed/removed declaration; this becomes the verification
+   checklist for step 7. Watch for **signature changes** (v0.3.34: `cblas_[sdcz]geadd`
+   gained `CTRANS_A`/`CTRANS_C`) — they are breaking for downstream users. Watch for
+   configuration-dependent typedefs (v0.3.34: `hfloat16`, analogous to `xdouble`).
+
+4. **Branch** `update-<vendor>-<version>` from freshly fetched `origin/main` in `rstsr-ffi`.
+
+5. **Reproducibility probe.** Run the generator on the *unchanged* headers first:
+
+   ```bash
+   cd rstsr-openblas-ffi/scripts && python3 perform_bindgen.py
+   ```
+
+   Expected result: empty `git diff`, or only toolchain-version drift. Commit any drift
+   separately from the version update so reviews can tell them apart.
+
+6. **Copy the three headers** from the tag checkout into `header/`, and re-run the
+   generator.
+
+7. **Verify the audit checklist** landed: grep the new symbols in
+   `src/*/ffi_extern.rs`, confirm changed signatures, confirm the dynamic-loading
+   files (`dyload_struct.rs`, `dyload_compatible.rs`, `dyload_initializer.rs`) picked
+   up the new symbols.
+
+8. **Compile-check the feature matrix** (`cargo check -p rstsr-openblas-ffi` with
+   default / `dynamic_loading` / `ilp64` / `lapacke` / precision-feature combinations).
+   Known pre-existing failures at the time of writing: `quad_precision` fails on recent
+   nightlies (`::core::os::raw::c_ulong` no longer resolves in the injected `xdouble`
+   block; identical failure on `main`), and `quad_precision`+`ex_precision` is rejected
+   by an intentional `compile_error!` in `src/lib.rs`.
+
+9. **Paperwork.** Update the readme "Current FFI version" line and add an *unreleased*
+   changelog entry (added functions, breaking changes). The crate version number is set
+   manually by the human maintainer at release time.
+
+10. **Commit** in logical units with `<crate>: <summary>` subjects and co-author
+    trailers (see the `git-commit-coauthor` skill). Do not push unless asked.
+
+## Validation limits
+
+This procedure is a **header audit plus compile check**. The bindings are not linked or
+run against a built OpenBLAS of the target version (`cargo check` does not link), so
+symbol names are verified textually against the header diff, not by the dynamic linker.
+Breaking signature changes additionally require follow-up work in downstream consumers
+(e.g. the `rstsr-openblas` device crate in the main repository reacted to the GEADD
+change separately).
+
+## Other vendor crates
+
+- **rstsr-blis-ffi**: TODO — headers originate from a BLIS source checkout; document
+  provenance and tag rules on the next update.
+- **rstsr-mkl-ffi**: TODO — headers originate from an installed Intel oneMKL SDK;
+  record the exact SDK version and header paths.
+- **rstsr-aocl-ffi**: TODO — headers originate from an installed AMD AOCL.
+- **rstsr-kml-ffi**: TODO — headers originate from Huawei KML.
