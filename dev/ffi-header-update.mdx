@@ -108,10 +108,12 @@ preprocessing (`common.h` &rarr; `common_parse.h`, `xdouble` typedef swap,
 
 8. **Compile-check the feature matrix** (`cargo check -p rstsr-openblas-ffi` with
    default / `dynamic_loading` / `ilp64` / `lapacke` / precision-feature combinations).
-   Known pre-existing failures at the time of writing: `quad_precision` fails on recent
-   nightlies (`::core::os::raw::c_ulong` no longer resolves in the injected `xdouble`
-   block; identical failure on `main`), and `quad_precision`+`ex_precision` is rejected
-   by an intentional `compile_error!` in `src/lib.rs`.
+   Check each cargo feature **in isolation**, not only `--all-features`: the CI clippy
+   job runs `--all-features`, where the `quad_precision`+`ex_precision` guard
+   (`compile_error!` in `src/lib.rs`, suppressed under clippy via `not(clippy)`) keeps
+   that combination un-checked, so a feature combination that CI never enables alone
+   can silently rot (`quad_precision` alone was broken on `main` this way until the
+   v0.3.34 update fixed the generated `xdouble` type path).
 
 9. **Paperwork.** Update the readme "Current FFI version" line and add an *unreleased*
    changelog entry (added functions, breaking changes). The crate version number is set
