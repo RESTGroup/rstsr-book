@@ -21,4 +21,10 @@ rstsr 生态中的所有仓库（rstsr、rstsr-book、rstsr-ffi 以及各 device
 
 ## 后果
 
-上游 `rstsr-agents` 一旦损坏，所有仓库会同时受影响；按仓库覆盖配置需要额外的机制层（目前尚不存在）。为求简洁而接受这一权衡。
+上游 `rstsr-agents` 一旦损坏，所有仓库会同时受影响。为求简洁而接受这一权衡。
+
+## 修订 (2026-09-06)
+
+- 链接直接指向同级仓库 (`.claude -> ../rstsr-agents`、`CLAUDE.md -> ../rstsr-agents/AGENTS.md` 等)，不再经由 pack 根目录的中转链接；rstsr-agents 中的 `agent-setup` 技能 (`skills/agent-setup/scripts/link.sh`) 负责创建与修复。每个仓库及 pack 根目录统一使用同样的四个链接。
+- 按仓库覆盖配置的机制层现已存在，依托被 gitignore 的 `*.local*` 通配模式：`AGENTS.local.md` (开发者个人指引，在 `AGENTS.md`/`CLAUDE.md` 之外补充阅读) 与 `settings.local.json` (放在 rstsr-agents 内的个人 Claude Code 设置)。
+- 安装说明见 [AI 智能体工作流](../agent-workflow.mdx) 页面。

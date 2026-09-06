@@ -1,0 +1,83 @@
+---
+sidebar_label: AI 智能体工作流
+sidebar_position: 2
+rstsr_meta:
+  date: 2026-09-06
+  rstsr_version: "0.8.0"
+  ai_generated: translated
+  translated: en
+---
+
+# AI 智能体工作流
+
+RSTSR 采用一套跨仓库共享的 AI 代码代理（code agent）工作流，维护于
+[rstsr-agents](https://github.com/RESTGroup/rstsr-agents) 仓库。其中包含：
+
+- `AGENTS.md` - 智能体最先阅读的指令入口（生态地图、注意事项、开发资源指引）。Claude Code 以 `CLAUDE.md` 的形式读取它。
+- `skills/` - 面向具体任务的操作指引（构建/测试命令、测试撰写、发布、提交规范等）。
+- `rules/` - 供智能体按需查阅的参考材料（如 rstsr-core 代码概念）。
+- `settings.json` - 已提交的、保守的 Claude Code 权限基线。
+- `agent-setup` 技能 - 带使用说明的引导脚本，用于创建下述符号链接。
+
+本页说明各部分如何协同。操作细节见 rstsr-agents 的 `README.md`；两者不一致时，以该 README 为准。
+
+## 目录布局（pack layout）与独立检出
+
+推荐将所有仓库作为同级目录放在同一个文件夹中：
+
+```
+rstsr-pack/
+├── rstsr/           # 核心工作区（rstsr-core、各 device crate 等）
+├── rstsr-ffi/       # C BLAS/LAPACK 库的 FFI 绑定
+├── rstsr-book/      # 本文档项目
+├── rstsr-agents/    # 共享智能体工作流
+└── (你的笔记、workspace 文件等)
+```
+
+每个仓库也都可以独立使用。唯一区别是：跨仓库引用（`../rstsr-book/` 设计文档）只有在 pack 布局下才能解析。而 NumPy/SciPy/array-api 参考检出（测试技能所用）本身是开发者个人约定、而非固定布局：请把它们的路径记录在 `AGENTS.local.md` 中（如 `Reference checkouts: /path/to/dir`）。
+
+## 符号链接
+
+每个 rstsr 仓库都带有同样四个被 gitignore 的符号链接，直接指向同级的 `rstsr-agents`：
+
+| 符号链接 | 指向 | 使用者 |
+| --- | --- | --- |
+| `.claude` | `rstsr-agents` | Claude Code：技能发现、`settings.json` |
+| `.agents` | `rstsr-agents` | 智能体无关的约定 |
+| `CLAUDE.md` | `rstsr-agents/AGENTS.md` | Claude Code 指令入口 |
+| `AGENTS.md` | `rstsr-agents/AGENTS.md` | Codex、OpenCode 及其它支持 AGENTS.md 的工具 |
+
+使用相对链接可保证整个 pack 目录作为整体移动时链接仍然有效。用引导脚本创建（或修复）链接——每个仓库运行一次；如果会在 pack 根目录打开会话，也在根目录运行一次：
+
+```bash
+cd rstsr-pack/rstsr && ../rstsr-agents/skills/agent-setup/scripts/link.sh
+cd rstsr-pack && rstsr-agents/skills/agent-setup/scripts/link.sh
+```
+
+该脚本打包为 `agent-setup` 技能（Claude Code 用户可直接按名称调用该技能）。脚本是幂等的；它拒绝覆盖真实文件（例如你自己编写的 `CLAUDE.md`），除非加 `--force`（会把原文件挪到一旁）。独立检出请传 `--source /path/to/rstsr-agents`。
+
+## 本地配置：`*.local` 约定
+
+每个 rstsr 仓库都通过通配模式 `*.local*` 进行 gitignore：任何以 `.local` 结尾命名的文件都属于开发者个人，不会被提交。本工作流在两处用到该约定：
+
+- `settings.local.json` - 个人的 Claude Code 设置，直接放在 `rstsr-agents/` 目录内；通过 `.claude` 符号链接，它会被当作 `.claude/settings.local.json` 读取。请在本地说扩充权限，而不是修改已提交的基线。
+- `AGENTS.local.md` - 开发者个人的补充（或在明确说明处为覆盖）文件，可放在任何仓库根目录。`AGENTS.md` 会指示智能体在存在时读取它；`AGENTS.md`/`CLAUDE.md` 始终最先被读取。它也是记录机器相关事实的地方，例如 NumPy/SciPy/array-api 参考检出的位置。
+
+## 技能（Skills）
+
+Claude Code 通过 `.claude/skills/` 发现技能；其它智能体的用户直接让代理阅读对应的 `SKILL.md` 即可。技能目录（含适用范围与前置条件）列于 rstsr-agents 的 `README.md`。其中主要有：
+
+- `agent-setup` - 创建与修复工作流符号链接（见上文"符号链接"一节）。
+- `cargo-inst` - 构建、测试、文档、fmt 与 clippy 命令。
+- `test-conventions` + `core-test`（及 `core-issue-regression`、`core-numpy-sync`）- 撰写 rstsr-core 一致性测试、文档测试与 API 文档字符串。
+- `git-commit-coauthor` - 提交信息署名与 PR 模板。
+- `crate-publish` - 通过 release-plz 发布 `rstsr` 工作区。
+
+## 更新工作流
+
+工作流在 rstsr-agents 仓库中独立于代码仓库演进：拉取该仓库（并重启已打开的智能体会话）即可获得更新。如需贡献，遵循其"添加技能"的说明——一个目录一个 `SKILL.md`，带 `name`/`description` frontmatter，单一职责，引用共享技能而非复制内容。
+
+## 另请参阅
+
+- ADR-0001：为何使用单一符号链接源，而非各仓库独立副本。
+- rstsr-agents 的 `README.md`：权威的安装与故障排查说明。
