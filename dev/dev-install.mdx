@@ -92,9 +92,9 @@ RSTSR can be used as a standalone project, but if you want to use AI for assiste
 - rstsr-ffi: https://github.com/RESTGroup/rstsr-ffi
   - The FFI project of RSTSR, which contains binding code for C/C++ libraries.
 
-If you need to use AI for assisted development, please refer to the `AGENTS.md` file in the rstsr-agents project. Our application of AI to RSTSR is still in an exploratory stage; the general stance is permissive but cautious, and parts other than integration tests and FFI generally require explicit review.
+To set up the shared agent workflow, follow the dedicated [AI Agent Workflow](agent-workflow.mdx) page. In short: run `../rstsr-agents/skills/agent-setup/scripts/link.sh` in each repository once, and the shared instructions (`AGENTS.md`/`CLAUDE.md`), skills, and rules become available to your code agent. Our application of AI to RSTSR is still in an exploratory stage; the general stance is permissive but cautious, and parts other than testing, FFI binding, and C-code translation generally require explicit review (see also the notices in `AGENTS.md`).
 
-**The entire RSTSR project** (except rstsr-agents) **adds the common AI-assisted development file paths to .gitignore**. Developers can configure their local AI agent settings according to their own needs without affecting other developers.
+**The entire RSTSR project** (except rstsr-agents) **gitignores the common AI-assisted development file paths**. Developers can configure their local AI agent settings per their own needs (the `*.local` convention) without affecting other developers.
 
 ## BLAS Backends and Using OpenBLAS
 
@@ -136,7 +136,7 @@ Below is an example workspace configuration file, which developers can refer to 
 Note that
 - Please install the rust-analyzer extension in VS Code.
 - Please put rstsr, rstsr-book, rstsr-ffi, and rstsr-agents in the same folder (e.g., `rstsr-pack`), save the json configuration file below as `rstsr-pack.code-workspace`, and then open this workspace file in VS Code.
-- For developers using AI code agents, depending on the code agent you use (OpenCode-based or Claude-based), please symlink the folder `rstsr-agents` to `.agents` or `.claude` in the workspace directory, and symlink the key prompt file `rstsr-agents/AGENTS.md` to `AGENTS.md` or `CLAUDE.md` in the workspace directory.
+- For developers using AI code agents, run `rstsr-agents/skills/agent-setup/scripts/link.sh` once in the workspace directory, and once in each repository; see the [AI Agent Workflow](agent-workflow.mdx) page for details.
 
 Notes on the configuration file below:
 - `RAYON_NUM_THREADS` is set to the number of physical cores (rather than logical cores), to avoid thread scheduling contention.

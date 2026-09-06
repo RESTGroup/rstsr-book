@@ -1,0 +1,116 @@
+---
+sidebar_label: AI Agent Workflow
+sidebar_position: 2
+rstsr_meta:
+  date: 2026-09-06
+  rstsr_version: "0.8.0"
+  ai_generated: true
+  reviewed: true
+---
+
+# AI Agent Workflow
+
+RSTSR uses a shared, cross-repository AI code-agent workflow, maintained in the
+[rstsr-agents](https://github.com/RESTGroup/rstsr-agents) repository. It contains:
+
+- `AGENTS.md` - the instruction entry that agents read first (ecosystem map,
+  notices, developer-resource pointers). Claude Code reads it as `CLAUDE.md`.
+- `skills/` - task-dependent operational instructions (build/test commands, test
+  authoring, release, commit conventions).
+- `rules/` - reference material agents read on demand (e.g. rstsr-core code
+  concepts).
+- `settings.json` - a committed, conservative Claude Code permission baseline.
+- the `agent-setup` skill - a bootstrap script (with instructions) that creates
+  the symlinks described below.
+
+This page explains how the pieces fit together. Operational details live in the
+`README.md` of rstsr-agents, which stays authoritative when the two differ.
+
+## Pack layout and standalone checkouts
+
+The recommended setup keeps all repositories as siblings in one folder:
+
+```
+rstsr-pack/
+├── rstsr/           # core workspace (rstsr-core, device crates, ...)
+├── rstsr-ffi/       # FFI bindings to C BLAS/LAPACK libraries
+├── rstsr-book/      # this documentation project
+├── rstsr-agents/    # the shared agent workflow
+└── (your notes, workspace file, ...)
+```
+
+Each repository also works standalone. The only difference is that cross-repo
+references (`../rstsr-book/` design docs) only resolve in the pack layout.
+Reference checkouts of NumPy/SciPy/array-api - used by the test skills - are a
+per-developer convention rather than a fixed layout: record their location in
+`AGENTS.local.md` (e.g. `Reference checkouts: /path/to/dir`).
+
+## Symlinks
+
+Every rstsr repository carries the same four gitignored symlinks, pointing
+directly at the sibling `rstsr-agents`:
+
+| Symlink | Points to | Consumer |
+| --- | --- | --- |
+| `.claude` | `rstsr-agents` | Claude Code: skill discovery, `settings.json` |
+| `.agents` | `rstsr-agents` | agent-agnostic convention |
+| `CLAUDE.md` | `rstsr-agents/AGENTS.md` | Claude Code instruction entry |
+| `AGENTS.md` | `rstsr-agents/AGENTS.md` | Codex, OpenCode, other AGENTS.md-aware tools |
+
+Relative links keep the pack directory movable as a whole. Create (or repair)
+them with the bootstrap script - run it once per repository, and once at the
+pack root if you open sessions there:
+
+```bash
+cd rstsr-pack/rstsr && ../rstsr-agents/skills/agent-setup/scripts/link.sh
+cd rstsr-pack && rstsr-agents/skills/agent-setup/scripts/link.sh
+```
+
+The script is packaged as the `agent-setup` skill (Claude Code users can invoke
+the skill by name). It is idempotent; it refuses to overwrite a real file (your
+own `CLAUDE.md`, for instance) unless `--force`, which moves it aside.
+Standalone checkouts pass `--source /path/to/rstsr-agents`.
+
+## Local configuration: the `*.local` convention
+
+Every rstsr repository gitignores the catch-all pattern `*.local*`: anything
+suffixed `.local` is yours alone and never committed. The workflow uses this in
+two places:
+
+- `settings.local.json` - personal Claude Code settings, dropped into
+  `rstsr-agents/` itself; through the `.claude` symlink it is read as
+  `.claude/settings.local.json`. Extend permissions locally rather than in the
+  committed baseline.
+- `AGENTS.local.md` - a per-developer supplement (or, where explicitly stated,
+  override) placed at any repository root. `AGENTS.md` tells agents to read it
+  when present; `AGENTS.md`/`CLAUDE.md` is always read first. It is also the
+  place for machine-specific facts, such as where your NumPy/SciPy/array-api
+  reference checkouts live.
+
+## Skills
+
+Skills are discovered by Claude Code through `.claude/skills/`; users of other
+agents can simply have the agent read the corresponding `SKILL.md`. The catalog
+(with scope and prerequisites) is listed in the rstsr-agents `README.md`.
+Notably:
+
+- `agent-setup` - bootstrapping and repairing the workflow symlinks (see the
+  Symlinks section above).
+- `cargo-inst` - build, test, doc, fmt, and clippy commands.
+- `test-conventions` + `core-test` (+ `core-issue-regression`, `core-numpy-sync`)
+  - authoring rstsr-core parity tests, doc tests, and API docstrings.
+- `git-commit-coauthor` - commit trailers and the pull-request template.
+- `crate-publish` - releasing the `rstsr` workspace via release-plz.
+
+## Updating the workflow
+
+The workflow evolves in the rstsr-agents repository independently of the code
+repositories: pull that repository (and restart open agent sessions) to pick up
+changes. To contribute, follow its "Adding a skill" notes - one directory, one
+`SKILL.md` with `name`/`description` frontmatter, single-purpose, referencing
+shared skills instead of duplicating them.
+
+## See also
+
+- ADR-0001: why a single symlinked source instead of per-repo copies.
+- The rstsr-agents `README.md`: authoritative setup and troubleshooting notes.

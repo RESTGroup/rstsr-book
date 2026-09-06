@@ -89,9 +89,9 @@ RSTSR 可以是单独的一个项目，但如果要使用 AI 作辅助开发，�
 - rstsr-ffi: https://github.com/RESTGroup/rstsr-ffi
   - RSTSR 的 FFI 项目，它包含与 C/C++ 库的绑定代码。
 
-如果需要使用 AI 协助开发，请建议参考 rstsr-agents 项目的 `AGENTS.md` 文件。我们目前对 AI 在 RSTSR 的应用还处于探索阶段，基调是允许但谨慎、在集成测试与 FFI 以外的部分一般需要明确的审核。
+若要配置共享的智能体工作流，请参阅专门的 [AI 智能体工作流](agent-workflow.mdx) 页面。简而言之：在每个仓库中运行一次 `../rstsr-agents/skills/agent-setup/scripts/link.sh`，共享的指令 (`AGENTS.md`/`CLAUDE.md`)、技能 (skills) 与规则 (rules) 即对你的 code agent 生效。我们目前对 AI 在 RSTSR 的应用还处于探索阶段，基调是允许但谨慎，除测试、FFI 绑定与 C 代码翻译以外的部分一般需要明确的审核 (另见 `AGENTS.md` 中的说明)。
 
-**整个 RSTSR 项目** (除 rstsr-agents 外) **都将常见的 AI 协助开发文件路径加入到 .gitignore 中**。开发者可以依据自己的需求配置 local AI agent 设置，而不会影响其他开发者。
+**整个 RSTSR 项目** (除 rstsr-agents 外) **都将常见的 AI 协助开发文件路径加入到 .gitignore 中**。开发者可以依据自己的需求 (遵循 `*.local` 约定) 配置 local AI agent 设置，而不会影响其他开发者。
 
 ## BLAS 后端与 OpenBLAS 的使用
 
@@ -133,7 +133,7 @@ Crate rstsr-openblas 目前默认不开启 feature `openmp`；这是因为在 co
 需要注意的是
 - 请在 VS Code 中安装 rust-analyzer 插件。
 - 请将 rstsr, rstsr-book, rstsr-ffi, rstsr-agents 放在同一个文件夹下 (譬如 `rstsr-pack`)，将下述 json 配置文件保存为 `rstsr-pack.code-workspace`，然后在 VS Code 中打开该 workspace 文件。
-- 对于使用 AI code agent 的开发者，根据您使用的 code agent (OpenCode 系或 Claude 系)，请将文件夹 `rstsr-agents` 链接到 workspace 目录下的 `.agents` 或 `.claude`，将关键提示词文件 `rstsr-agents/AGENTS.md` 链接到 workspace 目录下的 `AGENTS.md` 或 `CLAUDE.md`。
+- 对于使用 AI code agent 的开发者，请在 workspace 目录下、以及每个仓库内各运行一次 `rstsr-agents/skills/agent-setup/scripts/link.sh`；详情见 [AI 智能体工作流](agent-workflow.mdx) 页面。
 
 对下述配置文件的说明：
 - `RAYON_NUM_THREADS` 设置为物理核心数 (而不是逻辑核心数)，以避免线程调度竞争。

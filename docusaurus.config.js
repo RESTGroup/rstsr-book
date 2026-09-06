@@ -35,14 +35,14 @@ const config = {
   favicon: 'img/logo-64.ico',
 
   // Set the production url of your site here
-  url: 'https://rstsr-book.readthedocs.io',
+  url: 'https://restgroup.github.io',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: '/rstsr-book/',
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
-  organizationName: 'RSTSR developer(s)', // Usually your GitHub org/user name.
+  organizationName: 'RESTGroup', // Usually your GitHub org/user name.
   projectName: 'rstsr-book', // Usually your repo name.
   trailingSlash: false,
 

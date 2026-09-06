@@ -20,4 +20,17 @@ Chosen over copying (drifts out of sync) or a workspace-include (agent runtimes 
 
 ## Consequences
 
-A broken upstream `rstsr-agents` breaks every repo at once; per-repo overrides need a separate layer (none exists yet). Accepted for simplicity.
+A broken upstream `rstsr-agents` breaks every repo at once. Accepted for simplicity.
+
+## Amendment (2026-09-06)
+
+- Links point directly at the sibling repository (`.claude -> ../rstsr-agents`,
+  `CLAUDE.md -> ../rstsr-agents/AGENTS.md`, and so on), not through intermediate
+  pack-root links; the `agent-setup` skill (`skills/agent-setup/scripts/link.sh`)
+  in rstsr-agents bootstraps and repairs them. Uniform four links in every repo
+  and at the pack root.
+- The per-repo override layer now exists, via the gitignored `*.local*` catch-all:
+  `AGENTS.local.md` (per-developer instructions, read in addition to
+  `AGENTS.md`/`CLAUDE.md`) and `settings.local.json` (personal Claude Code
+  settings placed inside rstsr-agents).
+- See the [AI Agent Workflow](../agent-workflow.mdx) page for setup.
