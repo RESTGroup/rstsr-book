@@ -1,0 +1,18 @@
+---
+sidebar_label: 0007 - Doctest-verified API docs
+sidebar_position: 7
+rstsr_meta:
+  date: 2026-09-06
+  rstsr_version: "0.8.0"
+  ai_generated: true
+---
+
+# ADR 0007 - Doctest-verified API documentation
+
+API docstring examples in `rstsr-core` are verified **twice**: they are real rustdoc doctests executed by `cargo test -p rstsr-core --doc` in CI, and each originates from a `tests/doc_draft/` integration test that additionally asserts the *printed output string* matches what the docstring displays. Policy: skill `api-doc-conventions` (`rstsr-agents/skills/api-doc-conventions/SKILL.md`) §5.
+
+The motivation is a structural blind spot of rustdoc: doctests compile and run the example code, but they say nothing about the `// output:` comments shown next to it — pasted output can rot silently while every doctest stays green. rstsr-book's listings policy had already confronted this (`doc-guide.mdx`: output "must be real, and must not be given based on guessing", with `assert_eq!(format!(...))` as the future mandatory check), but `doc_draft` tests (61 at the time of the decision) asserted only values (`rt::allclose`, shape/stride `assert_eq!`), never the printed string — so displayed output was trust-based. A 2026-09-06 baseline run established the starting point: 90 doctests pass, 0 fail, 2 ignored (`ignore`-fenced migration guides), in ~3 s — making CI gating essentially free.
+
+Three alternatives were considered and rejected. *Doctests only* (add `--doc` to CI, skip string assertions) leaves the displayed-output rot hole open. *Extraction sync tests* (a test that parses docstrings and diffs code blocks against `doc_draft` anchors) verifies the strongest property — docstring↔test identity — but is fragile machinery around rustdoc's parsing (hidden `#` lines, `compile_fail`/`text` fences) for marginal gain over the chosen scheme. *Convention only* (keep "paste real output" as an unenforced instruction) is what existed, and it did not survive contact with AI-generated docs, where invented-but-plausible output is the default failure mode.
+
+The accepted cost is deliberate duplication: an example that shows output exists in two places (docstring with hidden setup lines, `doc_draft` with assertions), and byte-identity between them is explicitly *not* required — the docstring may trim lines. The invariant that matters is one-directional: **doc_draft first, docstring second**; displayed output lines come from the run unchanged; any edit goes through the doc_draft run again. String assertions (`assert_eq!(format!("{result}"), ...)`) are mandatory in the twin exactly when the docstring displays that output; hidden in-docstring `# assert!` lines remain SHOULD (they verify values in-situ, cheaply). Future maintainers reading `doc_draft` should not "simplify away" the string assertions as redundant with the value asserts — they are the only guard on the *displayed text*, which is what users read.

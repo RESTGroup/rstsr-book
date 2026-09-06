@@ -1,0 +1,19 @@
+---
+sidebar_label: 0007 - 经 doctest 验证的 API 文档
+sidebar_position: 7
+rstsr_meta:
+  date: 2026-09-06
+  rstsr_version: "0.8.0"
+  ai_generated: translated
+  translated: en
+---
+
+# ADR 0007 - 经 doctest 验证的 API 文档
+
+`rstsr-core` 的 API docstring 示例经过**双重验证**：它们是由 CI 中 `cargo test -p rstsr-core --doc` 执行的真正 rustdoc doctest；同时每个示例都源自 `tests/doc_draft/` 中的集成测试，后者额外断言*打印输出的字符串*与 docstring 中展示的内容一致。规范文件：skill `api-doc-conventions`（`rstsr-agents/skills/api-doc-conventions/SKILL.md`）§5。
+
+其动机源于 rustdoc 的一个结构性盲区：doctest 会编译并运行示例代码，但对旁边展示的 `// output:` 注释毫无约束——粘贴的输出可能悄然失效（rot），而所有 doctest 依然通过。rstsr-book 的 listings 规范早已面对过这一问题（`doc-guide.mdx`：输出"必须真实，不得凭猜测给出"，并计划在未来将 `assert_eq!(format!(...))` 设为强制检查），但 `doc_draft` 测试（决策时共 61 个）只断言了数值（`rt::allclose`、shape/stride 的 `assert_eq!`），从未断言打印字符串——因此展示的输出建立在信任之上。2026-09-06 的基线运行确立了起点：90 个 doctest 通过、0 个失败、2 个忽略（`ignore` 标注的迁移指南），耗时约 3 秒——接入 CI 门禁几乎零成本。
+
+我们考虑并否决了三种替代方案。*仅 doctest*（CI 加入 `--doc`，不做字符串断言）留下了展示输出失效的漏洞。*提取式同步测试*（解析 docstring 并将其代码块与 `doc_draft` 锚点做 diff 的测试）验证的属性最强——docstring 与测试的一致性——但需要围绕 rustdoc 解析行为（隐藏的 `#` 行、`compile_fail`/`text` 围栏）搭建脆弱的机制，相对所选方案收益有限。*仅靠约定*（把"粘贴真实输出"保留为不强制执行的指令）正是决策前的现状，而它无法在与 AI 生成文档的接触中幸存——凭空捏造但貌似合理的输出正是 AI 的默认失效模式。
+
+被接受的代价是刻意重复：一个展示输出的示例存在于两处（带隐藏设置行的 docstring、带断言的 `doc_draft` 孪生测试），且二者之间的字节级一致**不**作要求——docstring 可以裁剪行。真正要紧的不变量是单向的：**先 doc_draft，后 docstring**；展示的输出行逐字来自实际运行；任何修改都必须重新经过 doc_draft 运行。当 docstring 展示了某输出时，孪生测试中的字符串断言（`assert_eq!(format!("{result}"), ...)`）是强制性的；docstring 内隐藏的 `# assert!` 行保持 SHOULD 级别（它们就地验证数值，成本低廉）。未来阅读 `doc_draft` 的维护者不应把字符串断言当作与数值断言冗余而"简化"掉——它们是*展示文本*（用户真正阅读的内容）的唯一防线。
