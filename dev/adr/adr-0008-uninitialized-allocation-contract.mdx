@@ -1,0 +1,93 @@
+---
+sidebar_label: 0008 - Uninitialized allocation contract
+sidebar_position: 8
+rstsr_meta:
+  date: 2026-09-17
+  rstsr_version: "0.8.0"
+  ai_generated: true
+---
+
+# ADR 0008 - Uninitialized allocation: `MaybeUninit` by default, POD FFI buffers, unsafe `empty`
+
+## Context
+
+`rstsr-common` provides an allocation family
+
+```rust
+pub unsafe fn uninitialized_vec<T>(size: usize) -> Result<Vec<T>>
+```
+
+plus an aligned variant. It returns a `Vec<T>` whose elements have **never been written** — the length is set before the memory is initialized. This is how `empty` allocates, and it is what makes 64-byte-aligned buffers for large BLAS work possible.
+
+Whether this is sound depends only on the element type `T`:
+
+- **Plain numbers** (`f32`, `f64`, `Complex<_>`, `blas_int`): the only mistake is *reading a slot before writing it* — you get a garbage value. Allocating and freeing are always fine, because dropping a number does nothing.
+- **`MaybeUninit<T>`**: no hazard at all. This is the intended element type.
+- **Types with a destructor** (`String`, `Vec<...>`, `BigInt`, ...): a never-written slot is undefined behavior to *read or drop*, because the destructor runs on garbage bits — e.g. freeing a pointer that was never a pointer. A panic while the buffer is half-filled also unwinds through such slots.
+
+There is a second, subtler rule about **how** the buffer is filled. In Rust, assignment drops the old value of the place first:
+
+```rust
+let mut v: Vec<String> = unsafe { uninitialized_vec(n)? };
+v[0] = s;      // UB: this DROPS the old (uninitialized) String first
+v[0].write(s); // OK: overwrites without reading or dropping the slot
+```
+
+So a kernel that fills a fresh output must not merely "assign into it" — it must use a write-only code path. Assignment-based kernels are only correct on buffers the caller already initialized.
+
+## Decision
+
+1. **Keep the family.** Aligned allocation is a real performance requirement, and `empty` needs a by-contract-unspecified backing.
+2. **Every use must fit one of three blessed patterns** (details below):
+   - *Generic code* allocates `Vec<MaybeUninit<T>>` via `uninit_impl` and finishes with one `assume_init_impl`.
+   - *FFI buffers* whose element type is statically a BLAS POD type **and** whose callee fully defines the buffer (or never reads it).
+   - *`empty` / `empty_like`*, which stay `pub unsafe fn` — their unspecified contents *are* the API.
+3. **Everything else is forbidden.** Instantiating the family with a free `T` (in particular a `T` with a destructor) is a review-reject. Internal rstsr-core code does not call `empty` at all.
+4. **Kernels that fill a fresh output must be write-only** — `assign_uninit` (`ci.write(...)`) and `matmul_uninit` (never reads `c`). Assignment-based kernels (`assign`, `*ci = ai.clone()`) may only target caller-initialized buffers.
+
+The rules are written down once, in `rstsr-common/src/alloc_vec_contract.md`, and rendered into the rustdoc of all three functions via `#[doc = include_str!(...)]`. The contract is deliberately centralized; per-site comments at call points would drift from it.
+
+## Details
+
+### Pattern 1 — generic code: `uninit_impl` + `assume_init_impl`
+
+The shape is always: allocate `MaybeUninit` storage, fill every slot with a write-only kernel, then convert once at the end. The conversion is the single place that asserts "everything is initialized".
+
+Current consumers: the operator kernels and reductions, the naive matmul fallbacks, the allocating matmul wrapper (`op_refa_refb_matmul`: `uninit_impl` → `matmul_uninit` → one `assume_init`), `diag` (2-D extraction) and `concatenate` (`uninit_impl` → `assign_uninit` → `assume_init_impl`; the `concatenate` slices partition the concatenation axis and so cover the storage exactly once, and the storage size comes from `layout.bounds_index()`, checked like the `empty` constructor).
+
+### Pattern 2 — POD FFI buffers for BLAS/LAPACK
+
+Both facts must hold:
+
+1. The element type is **statically** one of the four BLAS types — the drivers are monomorphized over `f32`/`f64`/`Complex<f32>`/`Complex<f64>` via `duplicate_item`, so the bound holds by construction, not by hope.
+2. The callee fully defines the buffer, or never reads it. This is the interface meaning of the BLAS convention that with `beta = 0`, `C` "need not be initialized on input"; of LAPACK workspaces (written by the routine before any read, sized via the `lwork = -1` query); and of operand packs written in full before the call.
+
+An `out=` buffer used with `beta != 0` is advanced usage and arrives initialized from the caller.
+
+### Pattern 3 — `empty` / `empty_like`
+
+They stay `pub unsafe fn`: handing the user a tensor of unspecified contents is inherently the caller's safety obligation. After the migrations described below, rstsr-core contains **no internal non-test callers** of `empty`; a new internal caller is a review-reject — route it through pattern 1 instead.
+
+### The write-only kernel pairs
+
+| reads / drops the old value | write-only counterpart |
+|---|---|
+| `OpAssignAPI::assign` (`*ci = ai.clone()`) | `OpAssignAPI::assign_uninit` (`ci.write(ai.clone())`) |
+| `DeviceMatMulAPI::matmul` (reads `c` for `beta` scaling) | `DeviceMatMulAPI::matmul_uninit` (write-only `c = alpha * (a @ b)`, never reads `c`) |
+
+- `matmul_uninit` is how the allocating matmul avoids both a zero-fill pass and any read of undefined values. POD dtypes run the existing BLAS/faer machinery: the `MaybeUninit` storage is reinterpreted to the POD type after `TypeId` dispatch, and `beta = 0` invokes the non-read convention (faer uses `Accum::Replace` at `beta = 0`). Other dtypes run dedicated write-only naive kernels in `rstsr-native-impl`. Note for implementors: `matmul_uninit` is a new **required** trait method — semver-relevant for downstream `DeviceMatMulAPI` implementors.
+- The naive `beta`-scaling kernels (serial and rayon gemm/gemv/gevm/inner-dot) carry a `beta.is_zero()` guard, so even the `beta`-scaling path skips the read when `beta = 0`. A user-visible consequence: on the naive fallbacks, `matmul_from`/`matmul_with_output` with `beta = 0` no longer propagate a non-finite value from `c` through `0 * c` — matching what BLAS devices always did.
+- Direct uses of the family outside rstsr-core follow the same shapes: the `f64` quadrature tables in `rstsr-sci-traits` (`integrate/lebedev.rs`) fit pattern 2 with the callee replaced by an initialization loop in the same function; the distance kernels (`distance/native_impl.rs`) allocate `Vec<MaybeUninit<M::Out>>` with write-only fills and re-view via `Vec::from_raw_parts` only after every slot is written — sound for any `M::Out`, whose trait bound is deliberately left unconstrained.
+
+## Alternatives considered
+
+- **Migrate all FFI buffers to `MaybeUninit` too.** Rejected for now. It would shrink the unsound window to one post-call transmute and make mid-call unwinding unconditionally safe, but costs touching ~85 call sites across rstsr-blas-traits and five device crates. The static POD bounds already exclude the only genuinely dangerous `T`, so the marginal gain is panic-safety in paths whose kernels do not panic. Revisit if a driver ever grows fallible initialization between `set_len` and full definition.
+- **Zero-fill generic outputs instead** (`full` instead of `empty`). Rejected: it costs an extra initialization pass on every allocation, and the fill is immediately overwritten — pattern 1 achieves soundness without the pass.
+- **Keep the status quo without a written rule.** Rejected: violations are invisible — no warning or error, only UB for allocatable `T` and silent `NaN` contamination for `f64` on recycled memory. Without a rule, the next caller cannot tell blessed patterns from forbidden ones.
+- **Remove the family in favor of allocator APIs.** Rejected: `aligned_alloc`-backed 64-byte alignment for large buffers is a real performance requirement, and `empty` needs a by-contract-unspecified backing.
+
+## Consequences
+
+- Reviewers check new allocation sites against the three patterns and the write-only rule — against the contract document, not against per-site comments.
+- The empirical guard is the standalone rstsr-core integration test `tests/allocatable_dtype.rs` (deliberately outside the ADR-0002 entry matrix, to avoid imposing a `num-bigint` dev-dependency on device crates that symlink the shared test body). It drives an allocatable dtype (`BigInt`) through the safe API surface — creation, element-wise ops, reductions, allocating matmul, `diag`, `concatenate` — with exact-value assertions, and pairs each allocating path with a drop-counting non-POD guard type whose `created == dropped` invariant fails if any kernel drops uninitialized memory, double-drops, or leaks. The `rstsr-sci-traits` distance kernels carry analogous in-crate tests with a non-POD `MetricDistAPI::Out`.
+- Semver: `matmul_uninit` is a new required method of `DeviceMatMulAPI`; `uninit_impl`/`assume_init_impl`/`assign_uninit` were already available.
