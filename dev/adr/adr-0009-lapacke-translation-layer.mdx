@@ -1,5 +1,5 @@
 ---
-sidebar_label: 0009 - LAPACKE translation layer policy
+sidebar_label: 0009 - LAPACKE translation layer
 sidebar_position: 9
 rstsr_meta:
   date: 2026-10-11
@@ -7,138 +7,151 @@ rstsr_meta:
   ai_generated: true
 ---
 
-# ADR 0009 - LAPACKE translation layer: layout taxonomy, workspace protocol, and deliberate divergences
+# ADR 0009 - LAPACKE translation layer: raw-Fortran driver implementations
 
 ## Context
 
-The BLAS-device backends (`rstsr-blas-traits` + the `crates-device/*`
-vendor crates) call Fortran LAPACK through raw FFI. LAPACK is
-column-major-only; users hand us tensors in arbitrary layouts; and several
-routines need workspace arrays whose size rules vary per routine. The C
-ecosystem solved this twice: **LAPACKE** (the reference C interface:
-two-tier `xxx`/`xxx_work` API, row-major bridging via transposed copies,
-per-routine workspace query/formula policy) and **scipy's** C++ layer
-(copy-to-Fortran + one-malloc arena + an `overwrite_*` buffer-reuse fast
-path). rstsr needs the same job done in rust — and, since translations are
-largely agent-authored, done *deterministically*: the policy must be
-explicit enough that different agents converge on the same code.
+The BLAS device backends call Fortran LAPACK through raw FFI. LAPACK is
+column-major only; routines need workspace arrays with per-routine sizing
+rules; and callers hand the driver tier row-major buffers. The C ecosystem
+solved the same problems in **LAPACKE** - a two-tier `lapacke_xxx` /
+`lapacke_xxx_work` interface whose `_work` tier bridges row-major arguments
+into Fortran and whose high tier sizes and allocates the workspace.
+
+LAPACKE is not universally available: only a few vendored BLAS libraries
+export it, and even OpenBLAS - the most commonly used - cannot be assumed to
+carry the LAPACKE symbols (commonly distributed builds, e.g. Debian or conda,
+ship CBLAS and the raw Fortran LAPACK without LAPACKE).
+`rstsr-blas-traits/driver_impl/` therefore holds two implementations
+of one driver API - `driver_impl/lapacke/`, a thin passthrough to a vendor
+LAPACKE, and `driver_impl/lapack/`, which re-expresses the same LAPACKE logic
+in Rust over the raw Fortran entry points. Translation, not invention, is what
+makes the raw-Fortran tree reviewable and deterministic: an agent producing
+driver code must land on the same implementation every time.
 
 ## Decision
 
-### 1. Input taxonomy: f-prefer pass-through, clone everything else
+### 1. Scope
 
-Each 2-D tensor input is classified as **f-prefer** (its stride structure
-admits a column-major interpretation; f-contiguous is the special case with
-a contiguous buffer and `ld == nrows`), **c-prefer** (likewise row-major),
-or **fully non-contiguous**.
+The **LAPACKE translation layer** is the tree
+`rstsr-blas-traits/driver_impl/lapack/**`, one file per LAPACK routine. Each
+file is a direct translation of that routine's LAPACKE source
+(`LAPACKE/src/lapacke_x*_work.c` plus `lapacke_x*.c`), with
+`driver_impl/lapacke/**` as its passthrough sibling for the vendors that
+export LAPACKE. The layer is raw FFI: it receives pointers, `blas_int`
+dimensions, and one `FlagOrder`, and returns a `blas_int`. It knows nothing of
+rstsr tensors, layout preference, or error types - those belong to the LAPACK
+interface layer above it (ADR-0010), which reaches it through the
+`XxxDriverAPI` trait.
 
-- f-prefer inputs pass **zero-copy** into LAPACK by raw pointer with `ld`
-  derived from the strides (`ld` need not equal any dimension).
-- All non-f-prefer inputs (c-contig, c-prefer, fully non-contiguous) are
-  **cloned** into a fresh F-order buffer.
-- Routines that overwrite their input clone-or-consume **regardless of
-  contiguity**.
+The tree is compiled into every vendor crate by directory symlink
+(`driver_impl/lapack/` into all five; `driver_impl/lapacke/` into MKL and
+OpenBLAS only).
 
-This generalizes LAPACKE's col-major case (stride-derived ld) while keeping
-its copy semantics for everything else; fully-non-contiguous support is an
-rstsr extension LAPACKE cannot express. The scipy Cholesky uplo-flip
-(computing a C-ordered factor via the flipped triangle) was considered and
-rejected for uniformity: one bridge shape everywhere is worth more for
-deterministic translation than the saved O(N²) copy against O(N³) compute.
+### 2. Two tiers in one file
 
-### 2. Output order: hybrid
+Each file mirrors LAPACKE's split:
 
-- **Fresh outputs** are allocated in the **device default order** — the
-  numpy-compatible rule (numpy linalg outputs are input-order-independent
-  and always C-ordered; scipy's are C by default). On row-major devices
-  this costs one F→C bridge copy per fresh output.
-- **In-place / overwritable outputs** reuse the input buffer and therefore
-  its order (scipy `overwrite_*` semantics). This maximally utilizes an
-  f-prefer mutable input (e.g. `solve_general`'s `b`): no bridge copy, no
-  extra memory, even on a row-major device.
-- View-only f-prefer inputs always pass zero-copy regardless of output
-  policy.
+- `pub unsafe fn xxx_work(order, ..) -> blas_int` - the `lapacke_xxx_work`
+  equivalent; carries the layout branch.
+- the `XxxDriverAPI` implementation - the `lapacke_xxx` high-level
+  equivalent: query, allocate, compute. The trait definitions live in
+  `src/lapack_*` and are fixed.
 
-### 3. Vendor file shape: two tiers, one file, traits unchanged
+### 3. Layout branch
 
-Mirrors LAPACKE's `lapacke_xxx` / `lapacke_xxx_work` split, with both tiers
-in one physical file shared across vendor crates by symlink:
+The `_work` tier branches on the call's single `order` (the Rust counterpart
+of LAPACKE's `matrix_layout`):
 
-- `pub unsafe fn xxx_work(..) -> blas_int` — the pure FFI thunk (Fortran
-  argument order; `lwork = -1` ⇒ LAPACK query semantics). `pub` for
-  cross-crate reachability, but internal-purpose; never prelude-exported.
-- the `XxxDriverAPI` trait impl — a thin wrapper: query call → allocate →
-  compute call, both calls routed through `xxx_work`.
-- `driver_xxx` trait signatures stay fixed; workspace ownership and clamps
-  live in the builder layer, not the thunk.
+- **ColMajor** - call the Fortran entry point directly with the caller's lds.
+- **RowMajor** - derive the output-shape table (`nrows_u`, `ncols_u`,
+  `nrows_vt`, `ncols_vt`) and template lds `MAX(1, rows)`; check the incoming
+  lds; short-circuit the `lwork = -1` query; allocate column-major
+  temporaries; transpose the input in, call, transpose the outputs back.
 
-### 4. Workspace protocol: LAPACKE-faithful per-routine policy + O(1) hardening
+Both calls (query and compute) route through `xxx_work`, the query issued with
+the lds the compute call will use.
 
-Query (`lwork=-1`) where LAPACKE queries (gesvd, getri, dsysv, syev, sygv;
-double query lwork+liwork for syevd/sygvd), documented fixed formulas where
-LAPACK exposes no query (gesdd `iwork = MAX(1, 8·min(m,n))` — allocated
-*before* the work query; complex gesvd `rwork = MAX(1, 5·min(m,n))`; the
-complex gesdd lrwork formula). The gesvd `superb` superdiagonal follows
-LAPACKE exactly (`work[i+1]` real / `rwork[i]` complex) and is returned as
-the driver's 4th output.
+### 4. Translation conventions
 
-Mandatory hardening, all constant-budget: query with the real col-major
-lds; `MAX(1,·)` on formulas; `lwork==0 → 1` clamp; checked integer
-conversion of query values; a `nextafter` guard for f32/c64 query values
-(the query result travels the f32 mantissa; ≥2²⁴ values truncate low on
-integer conversion → undersized buffers). Fudge factors (scipy's 1.01) are
-rejected — vendor-specific workarounds are not policy.
+- `duplicate_item` supplies the four dtypes per routine (real `f32`/`f64`,
+  complex `Complex<f32>`/`Complex<f64>`); `num` supplies the complex
+  arithmetic traits.
+- The driver trait is generic over `T: BlasFloat`, so one implementation
+  serves both `T` and `Complex<T>` whenever the two Fortran argument lists are
+  parallel - complex real-scalar outputs (`s`, `superb`) are `T::Real`.
+  Routines whose real and complex Fortran signatures genuinely differ (real
+  `?geev` returns `wr`/`wi`; complex returns `w`) do not fit one signature and
+  need an explicit, per-routine decision.
+- `blas_int` is the FFI integer throughout (`i32`, or `i64` under `ilp64`).
 
-### 5. Error mapping
+### 5. Workspace protocol
 
-The thunk returns raw LAPACK `info`. The builder maps: `info<0` →
-illegal-argument internal-bug error (with argument index); `info>0` →
-per-routine semantic message ("SVD did not converge", "matrix is
-singular"); allocation and bridge failures → normal rstsr errors. LAPACKE's
-`info−1` remap is not adopted (it exists only because LAPACKE inserts
-`matrix_layout` as argument 1; rstsr has no such argument), and synthetic
-malloc sentinels do not ride the info channel. Vendor disagreement
-arbitration: reference LAPACK / OpenBLAS behavior wins.
+Query (`lwork = -1`) where LAPACKE queries (gesvd, getri, dsysv, syev, sygv;
+double query lwork+liwork for syevd/sygvd); documented fixed formulas where
+LAPACK exposes no query (gesdd `iwork = MAX(1, 8·min(m,n))`, allocated before
+the work query; complex gesvd `rwork = MAX(1, 5·min(m,n))`; the complex gesdd
+`lrwork` formula). The gesvd `superb` superdiagonal is copied out after the
+compute call (`work[i+1]` real, `rwork[i]` complex, for `i < min(m,n)−1`).
 
-### 6. Deliberate divergences
+Hardening, all constant-budget:
 
-- **No NaN/finite pre-check** (numpy precedent — `numpy.linalg` performs
-  none). Risk acceptance, not oversight: the LAPACKE nancheck is
-  diagnostics + callee-side robustness, not caller memory safety, and the
-  callee hazard survives a rust caller (a NaN pivot in `?sptrf/?hptrf`
-  reads uninitialized offsets and writes past `ipiv` while leaving
-  `INFO=0`; scipy documents "crashes, non-termination" when its check is
-  disabled). Future adoption path: a defaulted `driver_xxx` forwarding to
-  `driver_adv_xxx(nthreads, nan_check, ..)` trait shape — a separate
-  structural task. When implemented, the scan covers only the logical
-  matrix through `lda` (uplo triangle for sy/po), mirroring LAPACKE's
-  checkers.
-- **Zero-size matrices** are synthesized in the builder (identity
-  sub-blocks, empty vectors) without calling the driver — LAPACK-faithful
-  results, no vendor edge-case exposure.
-- **No triangle-only bridge copies** (no `dsy_trans` analog): uniform
-  full-matrix bridges; triangle-only is a sanctioned future optimization.
-- **Bridge copies use the per-device orderchange infra** with ambient
-  threading, matching every other rstsr copy. A dedicated
-  multi-threaded-transpose policy is an open flag, deliberately deferred.
-- **`lapack` vs `lapacke` impl trees coexist**, mutually exclusive crate
-  features: most BLAS vendors ship no LAPACKE, so the raw-Fortran tree is
-  primary; the LAPACKE passthrough stays for openblas+mkl. Validation runs
-  the driver suite under each config separately (a past cross-path
-  discrepancy was traced to a LAPACKE bug, so cross-validation retains
-  value). OpenBLAS is the only vendor validated locally and in CI.
-- **No batching** at the driver tier (2-D only); n-dim linalg lives at
-  higher tiers (faer device).
+- `MAX(1, ·)` around every formula term; `lwork == 0 → 1` after each read-back.
+- Checked integer conversion of the query value, with a one-ulp growth for
+  `f32`-mantissa results - LAPACKE's truncating `(lapack_int)` cast can round
+  those down.
+- No fudge factors (scipy's `1.01` is vendor-specific and rejected).
+- Complex routines needing rwork at query time allocate it before the query.
+
+### 6. Error channel
+
+The thunk returns raw LAPACK `info`. Negative values carry the routine's
+**Fortran argument numbering** (verified against the reference-LAPACK source),
+so the reported argument index can be checked directly against the Fortran
+documentation. LAPACKE numbers negative `info` one higher because it inserts
+`matrix_layout` as argument 1; the `lapack/` tree has no such argument and
+does not apply that adjustment - its row-major leading-dimension checks are
+written directly in Fortran indices.
+
+Allocation and bridge failures reuse LAPACKE's sentinel values `-1010` (work)
+and `-1011` (transpose), matching `LAPACK_WORK_MEMORY_ERROR` /
+`LAPACK_TRANSPOSE_MEMORY_ERROR`; real LAPACK info magnitudes never reach 1010.
+The interface layer decodes them (ADR-0010).
+
+### 7. Divergences from LAPACKE
+
+- **No NaN pre-check.** LAPACKE's high tier optionally scans its inputs for
+  NaNs and returns early; this tree performs no scan (numpy precedent).
+- **Hardened query read-back** (§5), where LAPACKE truncates.
+- **Negative-`info` numbering** (§6), unshifted from LAPACKE's.
+- **Full-matrix bridges only** - no triangle-only transpose variants.
+- **2-D only** at this tier.
+
+`lapack/` and `lapacke/` remain two implementations of one driver API: they
+produce the same outputs and the same `info` for every input LAPACK itself
+handles, and differ only in the places listed above.
+
+## Considered
+
+- **Bridge the layouts in the interface layer and keep the driver
+  column-major.** Rejected: it duplicates LAPACKE's row-major logic (shape
+  tables, template lds, per-output transpose conditions) at every call site
+  and forfeits the per-branch query short-circuit; the translation layer
+  exists to hold that logic once, per routine.
+- **Depend on a vectorized LAPACKE everywhere.** Not possible: most vendored
+  BLAS libraries do not export LAPACKE.
+- **Triangle-only transpose bridges** (a `dsy_trans` analogue) or the scipy
+  Cholesky uplo-flip. Rejected for uniformity: one full-matrix bridge shape
+  everywhere, at O(N²) copy against O(N³) compute.
+- **Adopt LAPACKE's negative-`info` shift.** Rejected: it exists only because
+  LAPACKE inserts `matrix_layout` as argument 1; without that argument the
+  Fortran indices are the ones a reader can look up.
 
 ## Consequences
 
-- A translating agent needs only the companion skill `lapacke-translation`
-  (`rstsr-agents/skills/`; decision tables, skeleton, test matrix) plus the
-  routine's LAPACKE source; the skill's gap-notice rule (stop and report
-  uncovered situations) keeps unattended translations from improvising.
-- f-prefer views with derived lds mean vendor libraries see lds they rarely
-  encounter elsewhere; the skill's layout test matrix exists precisely to
-  pin those paths against the f-contig baseline.
-- Without a nancheck, NaN-input pathologies surface as whatever the vendor
-  LAPACK does rather than an early clean error; this ADR records why that
-  is accepted.
+- A routine is reviewed against its LAPACKE source line by line, with the
+  `lapacke/` passthrough as the behavioural oracle.
+- The row-major path performs transposed copies; the threading policy for
+  those copies is not decided here and is the likeliest point of refactor.
+- A routine whose real and complex Fortran signatures are not parallel cannot
+  share an implementation and needs an explicit decision.
