@@ -1,0 +1,157 @@
+---
+sidebar_label: 0009 - LAPACKE translation layer
+sidebar_position: 9
+rstsr_meta:
+  date: 2026-10-11
+  rstsr_version: "0.10.0-alpha.1"
+  ai_generated: true
+---
+
+# ADR 0009 - LAPACKE translation layer: raw-Fortran driver implementations
+
+## Context
+
+The BLAS device backends call Fortran LAPACK through raw FFI. LAPACK is
+column-major only; routines need workspace arrays with per-routine sizing
+rules; and callers hand the driver tier row-major buffers. The C ecosystem
+solved the same problems in **LAPACKE** - a two-tier `lapacke_xxx` /
+`lapacke_xxx_work` interface whose `_work` tier bridges row-major arguments
+into Fortran and whose high tier sizes and allocates the workspace.
+
+LAPACKE is not universally available: only a few vendored BLAS libraries
+export it, and even OpenBLAS - the most commonly used - cannot be assumed to
+carry the LAPACKE symbols (commonly distributed builds, e.g. Debian or conda,
+ship CBLAS and the raw Fortran LAPACK without LAPACKE).
+`rstsr-blas-traits/driver_impl/` therefore holds two implementations
+of one driver API - `driver_impl/lapacke/`, a thin passthrough to a vendor
+LAPACKE, and `driver_impl/lapack/`, which re-expresses the same LAPACKE logic
+in Rust over the raw Fortran entry points. Translation, not invention, is what
+makes the raw-Fortran tree reviewable and deterministic: an agent producing
+driver code must land on the same implementation every time.
+
+## Decision
+
+### 1. Scope
+
+The **LAPACKE translation layer** is the tree
+`rstsr-blas-traits/driver_impl/lapack/**`, one file per LAPACK routine. Each
+file is a direct translation of that routine's LAPACKE source
+(`LAPACKE/src/lapacke_x*_work.c` plus `lapacke_x*.c`), with
+`driver_impl/lapacke/**` as its passthrough sibling for the vendors that
+export LAPACKE. The layer is raw FFI: it receives pointers, `blas_int`
+dimensions, and one `FlagOrder`, and returns a `blas_int`. It knows nothing of
+rstsr tensors, layout preference, or error types - those belong to the LAPACK
+interface layer above it (ADR-0010), which reaches it through the
+`XxxDriverAPI` trait.
+
+The tree is compiled into every vendor crate by directory symlink
+(`driver_impl/lapack/` into all five; `driver_impl/lapacke/` into MKL and
+OpenBLAS only).
+
+### 2. Two tiers in one file
+
+Each file mirrors LAPACKE's split:
+
+- `pub unsafe fn xxx_work(order, ..) -> blas_int` - the `lapacke_xxx_work`
+  equivalent; carries the layout branch.
+- the `XxxDriverAPI` implementation - the `lapacke_xxx` high-level
+  equivalent: query, allocate, compute. The trait definitions live in
+  `src/lapack_*` and are fixed.
+
+### 3. Layout branch
+
+The `_work` tier branches on the call's single `order` (the Rust counterpart
+of LAPACKE's `matrix_layout`):
+
+- **ColMajor** - call the Fortran entry point directly with the caller's lds.
+- **RowMajor** - derive the output-shape table (`nrows_u`, `ncols_u`,
+  `nrows_vt`, `ncols_vt`) and template lds `MAX(1, rows)`; check the incoming
+  lds; short-circuit the `lwork = -1` query; allocate column-major
+  temporaries; transpose the input in, call, transpose the outputs back.
+
+Both calls (query and compute) route through `xxx_work`, the query issued with
+the lds the compute call will use.
+
+### 4. Translation conventions
+
+- `duplicate_item` supplies the four dtypes per routine (real `f32`/`f64`,
+  complex `Complex<f32>`/`Complex<f64>`); `num` supplies the complex
+  arithmetic traits.
+- The driver trait is generic over `T: BlasFloat`, so one implementation
+  serves both `T` and `Complex<T>` whenever the two Fortran argument lists are
+  parallel - complex real-scalar outputs (`s`, `superb`) are `T::Real`.
+  Routines whose real and complex Fortran signatures genuinely differ (real
+  `?geev` returns `wr`/`wi`; complex returns `w`) do not fit one signature and
+  need an explicit, per-routine decision.
+- `blas_int` is the FFI integer throughout (`i32`, or `i64` under `ilp64`).
+
+### 5. Workspace protocol
+
+Query (`lwork = -1`) where LAPACKE queries (gesvd, getri, dsysv, syev, sygv;
+double query lwork+liwork for syevd/sygvd); documented fixed formulas where
+LAPACK exposes no query (gesdd `iwork = MAX(1, 8·min(m,n))`, allocated before
+the work query; complex gesvd `rwork = MAX(1, 5·min(m,n))`; the complex gesdd
+`lrwork` formula). The gesvd `superb` superdiagonal is copied out after the
+compute call (`work[i+1]` real, `rwork[i]` complex, for `i < min(m,n)−1`).
+
+Hardening, all constant-budget:
+
+- `MAX(1, ·)` around every formula term; `lwork == 0 → 1` after each read-back.
+- Checked integer conversion of the query value, with a one-ulp growth for
+  `f32`-mantissa results - LAPACKE's truncating `(lapack_int)` cast can round
+  those down.
+- No fudge factors (scipy's `1.01` is vendor-specific and rejected).
+- Complex routines needing rwork at query time allocate it before the query.
+
+### 6. Error channel
+
+The thunk returns raw LAPACK `info`. Negative values carry the routine's
+**Fortran argument numbering** (verified against the reference-LAPACK source),
+so the reported argument index can be checked directly against the Fortran
+documentation. LAPACKE numbers negative `info` one higher because it inserts
+`matrix_layout` as argument 1; the `lapack/` tree has no such argument and
+does not apply that adjustment - its row-major leading-dimension checks are
+written directly in Fortran indices.
+
+Allocation and bridge failures reuse LAPACKE's sentinel values `-1010` (work)
+and `-1011` (transpose), matching `LAPACK_WORK_MEMORY_ERROR` /
+`LAPACK_TRANSPOSE_MEMORY_ERROR`; real LAPACK info magnitudes never reach 1010.
+The interface layer decodes them (ADR-0010).
+
+### 7. Divergences from LAPACKE
+
+- **No NaN pre-check.** LAPACKE's high tier optionally scans its inputs for
+  NaNs and returns early; this tree performs no scan (numpy precedent).
+- **Hardened query read-back** (§5), where LAPACKE truncates.
+- **Negative-`info` numbering** (§6), unshifted from LAPACKE's.
+- **Full-matrix bridges only** - no triangle-only transpose variants.
+- **2-D only** at this tier.
+
+`lapack/` and `lapacke/` remain two implementations of one driver API: they
+produce the same outputs and the same `info` for every input LAPACK itself
+handles, and differ only in the places listed above.
+
+## Considered
+
+- **Bridge the layouts in the interface layer and keep the driver
+  column-major.** Rejected: it duplicates LAPACKE's row-major logic (shape
+  tables, template lds, per-output transpose conditions) at every call site
+  and forfeits the per-branch query short-circuit; the translation layer
+  exists to hold that logic once, per routine.
+- **Depend on a vectorized LAPACKE everywhere.** Not possible: most vendored
+  BLAS libraries do not export LAPACKE.
+- **Triangle-only transpose bridges** (a `dsy_trans` analogue) or the scipy
+  Cholesky uplo-flip. Rejected for uniformity: one full-matrix bridge shape
+  everywhere, at O(N²) copy against O(N³) compute.
+- **Adopt LAPACKE's negative-`info` shift.** Rejected: it exists only because
+  LAPACKE inserts `matrix_layout` as argument 1; without that argument the
+  Fortran indices are the ones a reader can look up.
+
+## Consequences
+
+- A routine is reviewed against its LAPACKE source line by line, with the
+  `lapacke/` passthrough as the behavioural oracle.
+- The row-major path performs transposed copies; the threading policy for
+  those copies is not decided here and is the likeliest point of refactor.
+- A routine whose real and complex Fortran signatures are not parallel cannot
+  share an implementation and needs an explicit decision.

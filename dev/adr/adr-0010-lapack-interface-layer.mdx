@@ -1,0 +1,122 @@
+---
+sidebar_label: 0010 - LAPACK interface layer
+sidebar_position: 10
+rstsr_meta:
+  date: 2026-10-12
+  rstsr_version: "0.10.0-alpha.1"
+  ai_generated: true
+---
+
+# ADR 0010 - LAPACK interface layer: call order, buffer reuse, output layout
+
+## Context
+
+Above the raw LAPACKE translation layer (ADR-0009) sits the **LAPACK
+interface layer**: the builders in `rstsr-blas-traits/src/lapack_{solve,eigh,svd}/`.
+A builder receives rstsr tensors - arbitrary layouts and ownership, plus a
+device - and drives an `XxxDriverAPI` implementation whose signature takes raw
+pointers, one `FlagOrder`, and dimensions.
+
+This layer decides everything the raw driver cannot: which single order the
+whole call runs in, how each tensor becomes a pointer and a leading dimension,
+where outputs are allocated, and how a raw `info` becomes an rstsr error. It
+answers the same questions scipy answers with a copy-to-Fortran arena and its
+`overwrite_*` fast path, but per call and on the caller's own layouts.
+
+The BLAS layer (`src/blas3/` - gemm, trsm, syhemm) keeps a different
+contract: its routines take user-visible `out=` buffers and transposition
+flags, so a row-major call is served by rewriting the algebra - swapping
+operands, flipping trans/`uplo`/`side` flags, reversing axes - in the spirit
+of CBLAS but per argument, letting c-prefer and f-prefer inputs mix freely.
+This ADR does not govern that layer.
+
+A LAPACK routine admits no such rewrite: factorizations take no per-argument
+transposition flags and overwrite their inputs. The LAPACK interface layer
+therefore specifies one order and works at that order - every tensor is
+converted to it, and the driver's layout branch (ADR-0009) supplies the
+row-major adaptation as transposed temporaries.
+
+## Decision
+
+### 1. One call order per call
+
+Each call runs in a single order, chosen once by, in priority order:
+
+1. **explicit output buffers** (`out=`), if present - the output's own order
+   wins outright;
+2. **the matrix inputs' layout preferences** - a c-prefer input elects
+   `RowMajor`, an f-prefer input elects `ColMajor`;
+3. otherwise **the device default**.
+
+Ambiguous inputs are **neutral** in stage 2: size-0 and single-row/column
+matrices report both preferences at once, neither-prefer reports none, and
+neither elects an order. The mechanics (first-class slots, votes, the
+exactly-one-prefer rule) are `util_layout::get_output_order`'s documented
+contract.
+
+The driver takes one order for every matrix of the call. For the
+single-matrix-input routines built so far (gesvd, gesdd, ...) this reduces
+to: f-prefer input → `ColMajor`, c-prefer → `RowMajor`, otherwise the device
+default.
+
+### 2. Input conversion
+
+- **f-prefer** inputs pass **zero-copy** by raw pointer, with the leading
+  dimension derived from the strides (it need not equal any dimension).
+- **c-prefer** and **fully non-contiguous** inputs are **cloned** into the
+  call order. Fully non-contiguous support is an rstsr extension: LAPACKE
+  itself admits only the two contiguous-preferred forms.
+- Routines that **overwrite** their input (factorizations, in-place solves)
+  clone-or-consume regardless of contiguity. An owned buffer already in the
+  call order is written through in place; a view - or an owned buffer in the
+  other order - is materialized first. A zero-copy f-prefer pass is therefore
+  available only to an owned input of an overwriting routine.
+- 1-D arguments (`ipiv`, `tau`, `s`, `w`) carry no layout; they are allocated,
+  or made contiguous, before pointerizing.
+
+### 3. Output layout
+
+- **Fresh outputs** are allocated in the **call order**. For a prefer input
+  the output strides follow the input layout. Values are unchanged; only the
+  strides differ, and only for minority-layout inputs.
+- **In-place / overwritable outputs** reuse the input buffer and its order -
+  the scipy `overwrite_*` analogue. This maximally utilizes an f-prefer
+  mutable input: no bridge copy and no extra allocation, even on a row-major
+  device.
+- **Zero-size** results (`min(m,n) == 0`) are synthesized in the builder in
+  the call order - identity sub-blocks for the requested factors, empty
+  vectors for the rest - and the driver is not called.
+
+### 4. Error mapping
+
+`info == 0` is success. `info < 0` is an illegal argument - an internal bug,
+since the builder validates every argument before the call - reported with its
+index. `info > 0` is a routine-specific failure. The tier-internal sentinels
+`-1010` and `-1011` (ADR-0009 §6) decode to `MemoryError`. All mapping goes
+through `util_error::map_lapack_info`.
+
+### 5. 2-D only
+
+Builders at this layer are 2-D. N-dimensional (stacked) linalg lives at a
+higher tier (the faer device), not here.
+
+## Considered
+
+- **Fresh outputs in the device default order** - LAPACK's own convention, and
+  numpy/scipy's default. Rejected: the driver runs in one order, so
+  device-default outputs would force either a post-call output bridge or a
+  wasted input clone, forfeiting the zero-copy f-prefer pass.
+- **A scipy-style single-arena copy to Fortran.** Rejected: it treats every
+  input alike and discards the f-prefer zero-copy path.
+- **Never reuse the caller's buffer** (copy-on-write for all outputs).
+  Rejected: buffer reuse for owned inputs is the point of the `overwrite_*`
+  interface.
+
+## Consequences
+
+- A caller's f-prefer buffer can reach LAPACK untouched; its transposed twin
+  is never materialized.
+- Output strides depend on the input layout, so a test must compare values,
+  not strides.
+- The builder carries layout, ownership, and error policy only; all FFI and
+  workspace mechanics stay in the driver tier (ADR-0009).
