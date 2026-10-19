@@ -1,0 +1,188 @@
+---
+sidebar_label: 0011 - Zero-size layout policy
+sidebar_position: 11
+rstsr_meta:
+  date: 2026-10-19
+  rstsr_version: "0.10.2"
+  ai_generated: true
+  reviewed: true
+---
+
+# ADR 0011 - Zero-size layout policy: strides, leading dimensions, empty operands
+
+## Context
+
+Zero-size tensors are ordinary operands in rstsr: slicing, empty creation and
+partially empty linalg calls all produce layouts with a zero-length axis.
+Semantically they follow the NumPy and array-API rule: a layout with no
+element has no legal index, its strides are never consumed, and it is
+simultaneously C- and F-contiguous. rstsr's predicates already implement that
+rule - `f_prefer` and `c_prefer` short-circuit to `true` for size 0, and
+`check_strides` returns early.
+
+Two properties make the policy non-trivial. First, an empty *view* - a slice,
+reorder or reversal of a base tensor - can carry arbitrary strides, and those
+strides are legal precisely because no element can be read through them, so
+the stride values alone cannot identify emptiness. Second, the BLAS/LAPACK
+boundary consumes a *leading dimension*, an integer derived from a stride or
+a shape; the reference routines validate it before their `m == 0 || n == 0`
+quick return, so an empty operand still needs a legal value. CBLAS leaves
+that obligation to its caller, which supplies a declared layout and leading
+dimensions; rstsr derives both from tensor layouts, so the wrapper has to
+decide.
+
+## Decision
+
+### 1. Semantic rule
+
+A layout with zero elements has no legal index. Its strides are
+**unspecified**, every such layout is both c-prefer and f-prefer, and no code
+may dereference it. This is normative for all of rstsr; the remaining
+decisions make it operational.
+
+### 2. Zero-stride constructor convention
+
+`stride_f_contig` and `stride_c_contig` return all zeros when any shape axis
+is 0, for both `Ix<N>` and `IxD`; `stride_contig` inherits. `Layout`'s
+contiguous constructors (`c`, `f`, `new_c_contig`, `new_f_contig`) thereby
+produce deterministic, dimension-type-independent strides for empty shapes.
+
+This is a **constructor convention, not a global invariant**: an empty view
+may carry any strides (NumPy behaves the same way - it zeroes strides when
+allocating, but reshape and slicing of empty arrays restores computed
+strides). Code must therefore never rely on zero strides to recognize an
+empty tensor; it must check the shape.
+
+### 3. Leading-dimension contract
+
+`TensorBase::ld_row` and `ld_col` (2-D) report a usable BLAS leading
+dimension, or `None`:
+
+- `None` if the layout is not preferred under the requested order.
+- An axis of length 0 or 1 carries no stride information, so the reported
+  leading dimension is the minimal legal value `max(1, other_axis)`.
+- Otherwise the raw stride is the leading dimension, provided
+  `stride >= max(1, other_axis)`; a smaller stride describes an overlapping
+  layout and yields `None`. The comparison is signed, before any `usize`
+  cast, so a negative stride cannot wrap into a large positive value.
+
+`ld_row`/`ld_col`/`ld` remain the infallible queries returning `Option`;
+`TensorBase::testify_ld(order, operand)` is the fallible form used at FFI
+boundaries. It converts `None` into an `InvalidLayout` error whose message
+names the operand and prints the offending layout. No BLAS/LAPACK call site
+unwraps a leading dimension.
+
+For a `[m, 0]` layout the two directions differ by construction: `ld_col`
+returns `m` through the size-0 branch, while `ld_row` returns `None` because
+its zero row stride fails the `max(1, 0) = 1` bound. Both answers are
+consistent with the contract, and neither is reached by a driver call - empty
+operands are returned before any leading dimension is computed.
+
+### 4. BLAS-3 empty operands
+
+Each wrapper's `run` derives the logical `m` and `n` from shapes first. If
+either is 0, it delegates directly to `internal_run` in `ColMajor` without
+voting on an order, transposing operands, or making contiguity copies.
+`internal_run` performs the device and shape validation, returns `C` (or
+`B`) in the requested order, and stops before deriving any leading
+dimension. This is the rstsr equivalent of CBLAS's caller obligation,
+moved inside the wrapper because rstsr, unlike CBLAS, derives the leading
+dimensions from layouts instead of receiving them.
+
+`k == 0` with `m, n > 0` is **not** an empty operand: BLAS still performs
+`C := beta * C`. There the leading dimensions are derived from the shapes
+(`lda = max(1, a.nrow())`, `ldb = 1`), since A and B are never dereferenced.
+
+### 5. LAPACK empty operands
+
+- Solve and factorization builders (`gesv`, `sysv`, `getrf`, `getri`,
+  `potrf`) return empty pivots and the converted inputs when the system is
+  empty.
+- Eigensolvers (`syev`, `syevd`, `sygv`, `sygvd`) return an empty eigenvalue
+  vector and the converted input.
+- `gesvd`/`gesdd` already synthesized the zero-size result (`s` empty,
+  identity sub-blocks for U/VT); that branch now runs before the leading
+  dimension is derived.
+- `nrhs == 0` is not an empty operand: the solve builders still call the
+  driver, so A is factored and a singular A reports an error, as in the
+  reference routines. B is never dereferenced, so the driver receives a
+  zero-filled scratch buffer and the smallest legal leading dimension per
+  order (1 row-major, `max(1, n)` column-major); the row-major bridge would
+  otherwise slice `n * ldb` values out of an empty allocation.
+
+The reference routines validate `ld* >= max(1, nrow)` before the
+`m == 0 || n == 0` quick return, so an empty operand never protects itself:
+the wrapper must return first. CBLAS has no zero-size handling at all - it
+forwards the caller's `layout` and leading dimensions - whereas rstsr derives
+them from tensor strides, which is why the boundary sits here.
+
+Libraries disagree on `nrhs == 0`: netlib `gesv`/`sysv` factor A regardless,
+while OpenBLAS's optimized `dgesv` up to 0.3.31 returned before the
+factorization (fixed in 0.3.32, OpenBLAS #5663). rstsr follows the reference;
+the zero-right-hand-side tests are muted on the older libraries.
+
+## Prior state
+
+Before this ADR, rstsr implemented the semantic rule in its predicates but
+not in the stride generators or in `ld_col`: the contiguous stride generators
+differed between `Ix` and `IxD` (the static forms multiplied by `.max(1)`,
+the dynamic forms literally), and `ld_col` fell back to the raw stride of an
+empty layout. Reversing an `[0, 18]` layout yields `[18, 0]` with the same
+strides `[1, 1]`, so the old `ld_col` reported 1 where LAPACK requires 18;
+LAPACK validates leading dimensions before its quick return, so the no-op
+call failed in `xerbla` (issue #161). The decisions above replace that state.
+
+## Considered
+
+- **"As if zero were 1"** - keep multiplying strides through a zero axis as
+  if its length were one (the old static `Ix<N>` behavior). Rejected as a
+  general policy: it invents an addressable layout for data that does not
+  exist, differs from the dynamic behavior only because one implementation
+  happened to apply `.max(1)`, and says nothing about empty views, whose
+  strides never pass through the constructor.
+- **Only flooring `ld_col` at 1 for empty layouts** - the minimal patch for
+  issue #161. Rejected as insufficient: it happens to produce a legal value
+  for one stride pattern and leaves both the stride values and the leading
+  dimensions of arbitrary empty views unspecified.
+- **Handling empties per routine, without a layout policy.** Rejected: the
+  same ambiguity recurs at every wrapper and in `ld_*`; the layout rule plus
+  a uniform early return treats it once.
+- **Calling the driver with an empty operand** - what CBLAS effectively
+  does, relying on the Fortran quick return. Rejected: validation precedes
+  the quick return, so a stride-derived leading dimension from an empty
+  layout can still fail `xerbla` (issue #161).
+
+## Consequences
+
+- Every empty tensor from a contiguous constructor reports all-zero strides;
+  `Debug` and DLPack views of empty tensors change accordingly. Tests must
+  not assert the old nonzero strides on empty tensors.
+- `ld_row`/`ld_col` can return `None` for empty layouts. BLAS/LAPACK
+  wrappers never reach that point for empty operands, so the error path only
+  protects direct driver users.
+- Empty views may still carry nonzero strides; assuming the zero-stride
+  convention outside constructor output is incorrect.
+- `gesv` with `nrhs == 0` returns an unfactored A on OpenBLAS <= 0.3.31
+  (library behavior, fixed upstream); rstsr does not compensate.
+- Order selection, ownership conversion and error mapping are unchanged from
+  ADR-0010; this ADR adds the empty-operand boundary and, for `nrhs == 0`,
+  the scratch right-hand side in front of them.
+
+## References
+
+- NumPy: `numpy/_core/src/multiarray/flagsobject.c:127-131` (size-0 arrays
+  report both C and F contiguous), `numpy/_core/src/multiarray/ctors.c:820-830`
+  and numpy/numpy#21477 (allocation zeroes strides),
+  `numpy/linalg/umath_linalg.cpp` (`linearize_matrix`) and
+  `numpy/linalg/_linalg.py:265` (`_is_empty_2d`; linalg handles empty
+  systems explicitly rather than passing their strides to LAPACK).
+- LAPACK reference BLAS: `BLAS/SRC/dtrsm.f:241-257`, `dgemm.f:284-301`,
+  `dsymm.f:248-262` - argument validation, including leading dimensions,
+  precedes the quick return.
+- OpenBLAS: issue #5662 and PR #5663 (`dc8b16c57`) - the optimized `?GESV`
+  returned before `GETRF` for `NRHS == 0` up to 0.3.31; the fix ships in
+  0.3.32.
+- rstsr implementation: `rstsr-common/src/layout/shape.rs` and
+  `layoutbase.rs` (stride convention), `rstsr-core/src/tensor/tensor2_impl.rs`
+  (`ld_*`, `testify_ld`), `rstsr-blas-traits/src/blas3/` and
+  `rstsr-blas-traits/src/lapack_*` (empty-operand guards).
