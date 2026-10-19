@@ -13,5 +13,5 @@ rayon = { workspace = true }
 num = { version = "0.4" }
 rand = { version = "0.8" }
 lapack = { version = "0.20" }
-faer-ext = { version = "0.6" }
+faer-ext = { version = "0.8" }
 libm = { version = "0.2" }
