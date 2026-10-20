@@ -79,7 +79,7 @@ They stay `pub unsafe fn`: handing the user a tensor of unspecified contents is 
 - The naive `beta`-scaling kernels (serial and rayon gemm/gemv/gevm/inner-dot) carry a `beta.is_zero()` guard, so even the `beta`-scaling path skips the read when `beta = 0`. A user-visible consequence: on the naive fallbacks, `matmul_from`/`matmul_with_output` with `beta = 0` no longer propagate a non-finite value from `c` through `0 * c` — matching what BLAS devices always did.
 - Direct uses of the family outside rstsr-core follow the same shapes: the `f64` quadrature tables in `rstsr-sci-traits` (`integrate/lebedev.rs`) fit pattern 2 with the callee replaced by an initialization loop in the same function; the distance kernels (`distance/native_impl.rs`) allocate `Vec<MaybeUninit<M::Out>>` with write-only fills and re-view via `Vec::from_raw_parts` only after every slot is written — sound for any `M::Out`, whose trait bound is deliberately left unconstrained.
 
-## Alternatives considered
+## Considered
 
 - **Migrate all FFI buffers to `MaybeUninit` too.** Rejected for now. It would shrink the unsound window to one post-call transmute and make mid-call unwinding unconditionally safe, but costs touching ~85 call sites across rstsr-blas-traits and five device crates. The static POD bounds already exclude the only genuinely dangerous `T`, so the marginal gain is panic-safety in paths whose kernels do not panic. Revisit if a driver ever grows fallible initialization between `set_len` and full definition.
 - **Zero-fill generic outputs instead** (`full` instead of `empty`). Rejected: it costs an extra initialization pass on every allocation, and the fill is immediately overwritten — pattern 1 achieves soundness without the pass.

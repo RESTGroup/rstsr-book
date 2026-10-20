@@ -9,16 +9,45 @@ rstsr_meta:
 
 # ADR 0003 - Three-artifact NumPy-faithfulness model
 
-"Behave similarly to NumPy" is tracked as three distinct artifacts, not one tracking document:
+## Context
 
-- **(a) Parity test** - in-code, in `core_func/`. Commented NumPy Python acts as the reference oracle; `assert_equal` checks rstsr agrees. Inherently row-major (NumPy is C-order by default).
-- **(b) Coverage checklist** - `rstsr-core/tests/tracking/numpy_coverage.csv`, machine-readable. One row per NumPy test function: path, class, method, version, status (`transferred`/`partial`/`not-applicable`/`todo`), mapped `rstsr_test`, a `numpy_source_hash`, and a note. Machine-readable so a NumPy version bump can be diffed against it.
-- **(c) Differences reports** - `rstsr-core/tests/tracking/numpy_differences.md` (open divergences) and `numpy_differences_resolved.md` (divergences since fixed), human-readable. Each open divergence tagged `intentional` / `bug` / `col-major-transfer`.
+"Behave similarly to NumPy" must be tracked across parity tests, coverage
+progress, and divergence reports. Each consumer needs a different shape:
+the parity oracle is inherently in-code, the checklist must be
+machine-readable (for semi-auto NumPy drift detection), and the report is
+read by humans.
 
-## Discipline
+## Decision
 
-A divergence found during (a) is filed as a bug *or* recorded in (c) - never silently left in a comment.
+NumPy faithfulness is tracked as three distinct artifacts, not one tracking
+document:
 
-## Rationale
+- **(a) Parity test** - in-code, in `core_func/`. Commented NumPy Python
+  acts as the reference oracle; `assert_equal` checks rstsr agrees.
+  Inherently row-major (NumPy is C-order by default).
+- **(b) Coverage checklist** - `rstsr-core/tests/tracking/numpy_coverage.csv`,
+  machine-readable. One row per NumPy test function: path, class, method,
+  version, status (`transferred`/`partial`/`not-applicable`/`todo`), mapped
+  `rstsr_test`, a `numpy_source_hash`, and a note. Machine-readable so a
+  NumPy version bump can be diffed against it.
+- **(c) Differences reports** - `rstsr-core/tests/tracking/numpy_differences.md`
+  (open divergences) and `numpy_differences_resolved.md` (divergences since
+  fixed), human-readable. Each open divergence tagged `intentional` / `bug` /
+  `col-major-transfer`.
 
-Split over a single tracking file because the checklist must be machine-readable (for semi-auto NumPy drift detection) while the report must be human-readable and the parity tests are inherently in-code. Col-major transfer difficulties fold into (c) under the `col-major-transfer` tag rather than a fourth file.
+A divergence found during (a) is filed as a bug *or* recorded in (c) - never
+silently left in a comment.
+
+## Considered
+
+A single tracking file - rejected: the checklist must be machine-readable
+(for semi-auto NumPy drift detection) while the report must be
+human-readable and the parity tests are inherently in-code. Col-major
+transfer difficulties fold into (c) under the `col-major-transfer` tag
+rather than a fourth file.
+
+## Consequences
+
+The three artifacts are maintained by different moments of the workflow:
+(a) grows when a parity test lands, (b) when coverage is audited, (c) when a
+divergence is discovered or resolved.

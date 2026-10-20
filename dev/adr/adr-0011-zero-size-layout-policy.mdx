@@ -121,17 +121,6 @@ while OpenBLAS's optimized `dgesv` up to 0.3.31 returned before the
 factorization (fixed in 0.3.32, OpenBLAS #5663). rstsr follows the reference;
 the zero-right-hand-side tests are muted on the older libraries.
 
-## Prior state
-
-Before this ADR, rstsr implemented the semantic rule in its predicates but
-not in the stride generators or in `ld_col`: the contiguous stride generators
-differed between `Ix` and `IxD` (the static forms multiplied by `.max(1)`,
-the dynamic forms literally), and `ld_col` fell back to the raw stride of an
-empty layout. Reversing an `[0, 18]` layout yields `[18, 0]` with the same
-strides `[1, 1]`, so the old `ld_col` reported 1 where LAPACK requires 18;
-LAPACK validates leading dimensions before its quick return, so the no-op
-call failed in `xerbla` (issue #161). The decisions above replace that state.
-
 ## Considered
 
 - **"As if zero were 1"** - keep multiplying strides through a zero axis as
@@ -167,6 +156,17 @@ call failed in `xerbla` (issue #161). The decisions above replace that state.
 - Order selection, ownership conversion and error mapping are unchanged from
   ADR-0010; this ADR adds the empty-operand boundary and, for `nrhs == 0`,
   the scratch right-hand side in front of them.
+
+## Prior state
+
+Before this ADR, rstsr implemented the semantic rule in its predicates but
+not in the stride generators or in `ld_col`: the contiguous stride generators
+differed between `Ix` and `IxD` (the static forms multiplied by `.max(1)`,
+the dynamic forms literally), and `ld_col` fell back to the raw stride of an
+empty layout. Reversing an `[0, 18]` layout yields `[18, 0]` with the same
+strides `[1, 1]`, so the old `ld_col` reported 1 where LAPACK requires 18;
+LAPACK validates leading dimensions before its quick return, so the no-op
+call failed in `xerbla` (issue #161). The decisions above replace that state.
 
 ## References
 
