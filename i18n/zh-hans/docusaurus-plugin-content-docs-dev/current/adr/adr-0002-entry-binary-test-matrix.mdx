@@ -10,6 +10,9 @@ rstsr_meta:
 
 # ADR 0002 - 所有测试通过 per-(order, device) entry binary 在所有 device 上运行
 
+> **已废弃（2026-10-20）** — 已被 [ADR-0012](adr-0012-entry-binary-test-matrix.mdx) 取代。规范记录现位于 [rstsr-agents](https://github.com/RESTGroup/rstsr-agents) 仓库（`adr/`）；下文的决策原文仅为保留原始 rationale。如与 ADR-0012 冲突，以 ADR-0012 为准。
+
+
 rstsr-core 的测试套件是一个与 device 无关的共享 body（`core_func/`、`doc_draft/`、`test_issues/`），由多个 entry binary -- `entry_row_cpu.rs`、`entry_row_faer.rs`、`entry_col_cpu.rs` -- 通过 `mod` 引入。每个 entry 定义自己的 `type DeviceType` 与 `static TESTCFG`，然后引入共享 body。order × device 矩阵由 entry binary 构成，**而非**通过复制测试代码。
 
 刻意**没有**把 layout/manipulation 测试（结果与 device 无关）与 compute 测试（对 device 敏感）拆分、只让后者在 Faer 上运行。一致性与 Faer tensor 创建路径的覆盖优先于编译期效率 -- 每个测试都在它所编译的每个 device 上运行。`col_major` 与 `row_major` 在编译期互斥（见 `rstsr-core/Cargo.toml`），因此 row/col 天然必须是不同的 binary。

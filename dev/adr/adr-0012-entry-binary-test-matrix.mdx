@@ -1,0 +1,117 @@
+---
+sidebar_label: 0012 - Entry-binary test matrix
+sidebar_position: 12
+rstsr_meta:
+  date: 2026-10-20
+  rstsr_version: "0.10.3"
+  ai_generated: true
+---
+
+# ADR 0012 - Entry-binary test matrix: naming, sharing sets, and device exceptions
+
+> Canonical record: `adr/adr-0012-entry-binary-test-matrix.md` of the
+> [rstsr-agents](https://github.com/RESTGroup/rstsr-agents) repository. This
+> page mirrors it for the book; fix drift there first.
+
+Supersedes [ADR-0002](https://github.com/RESTGroup/rstsr-agents/blob/main/adr/deprecated/adr-0002-entry-binary-test-matrix.md).
+
+## Context
+
+rstsr-core's test body must run across an order × device matrix (row/col major
+× CPU serial, faer, OpenBLAS, MKL, ...). Which order applies is a **runtime
+device property**: every device carries a default order
+(`device.set_default_order(...)`), so a single binary can exercise either
+order - an entry sets it once in `TESTCFG`, and individual tests may pin the
+other order where a case needs it. What separates row and col is not the
+binary: order-dependent functions return **different results** under the two
+orders, so their tests cannot share assertions; and the `row_major` /
+`col_major` cargo features, which are mutually exclusive and fix the
+crate-wide default order and some compile-time dispatch, make a col-major
+build its own feature configuration. Per device, the body must not be
+duplicated at all.
+
+ADR-0002 established entry binaries as the mechanism but has drifted from the
+tree: device entry files are named `tests_core_row.rs` rather than after the
+entry convention, `doc_draft/` was never symlinked into device crates, and two
+arrangements the tree relies on - the BLAS driver body and per-file dedicated
+exceptions - were never recorded. A new device (CUDA) is expected soon, so the
+convention must be explicit enough to onboard one without re-deriving these
+choices.
+
+## Decision
+
+1. **Entry files are named `entry_<order>_<device>.rs`** and each defines
+   `type DeviceType`, a `static TESTCFG`, and the `mod` declarations that pull
+   in its body. Core entries are `entry_row_cpu.rs`, `entry_row_faer.rs`,
+   `entry_col_cpu.rs`; device-crate entries are `entry_row_openblas.rs`,
+   `entry_row_mkl.rs`, `entry_row_blis.rs`, `entry_row_aocl.rs`,
+   `entry_row_kml.rs`, with `entry_col_<device>.rs` added when a device gains a
+   col-major entry. rstsr-core gates its order entries with
+   `[[test]] required-features = ["row_major"]` (or `col_major`); device-crate
+   entries build under the crate's default configuration. The
+   `tests_driver_impl.rs` / `tests_linalg_func.rs` entries are named after the
+   shared body they pull and keep those names.
+
+2. **The core body is one device-agnostic unit** (`core_func/`, `doc_draft/`,
+   `test_issues/`, `test_utils/`) shared by all core entries. Layout and
+   manipulation tests are not split from compute tests, even though only the
+   latter are device-sensitive: uniformity and full device-path coverage win
+   over compile-time and runtime savings.
+
+3. **A device crate shares `core_func/` and `test_utils/` (and `test_issues/`,
+   so core regressions run on every backend) by symlink.** It does not share
+   `doc_draft/`: docstring examples are verified by doctests under default
+   features (ADR-0007), and repeating those assertions per device crate adds
+   build time without coverage.
+
+4. **BLAS device crates share a third body**: the device-agnostic driver and
+   linalg test files in `rstsr-blas-traits/src/blas_tests_impl/`, together with
+   their SciPy/NumPy validator scripts. The body lives in the traits crate
+   because it is device-agnostic and its validators sit beside the tests. Each
+   crate symlinks the individual files under `tests/driver_impl/` and
+   `tests/linalg_func/` and declares `tests_driver_impl.rs` /
+   `tests_linalg_func.rs` entries aliasing `DeviceBLAS` to its own device type.
+
+5. **Dedicated-file exception**: a device crate may replace one individual
+   shared file with a real file when device semantics genuinely differ. The
+   exception covers only that file; everything else stays symlinked. Precedent:
+   KML `driver_impl/f64/gesvd.rs`, whose U vectors are non-unique at zero
+   singular values.
+
+6. **Divergences are recorded, not hidden**: each device crate's
+   `tests/README.md` lists its entry set and every divergence from the shared
+   bodies. Per-device skips are runtime (`specify_test!` / `TestCfg`), not
+   `cfg`, to avoid recompilation. `include!` and copied bodies are not
+   sanctioned sharing mechanisms.
+
+## Considered
+
+- **Amend ADR-0002 in place** - rejected. Three independent drifts plus the
+  unrecorded BLAS body and exception pattern would make the amendment a
+  rewrite; the corpus supersedes with a new record and keeps the old one
+  readable under `adr/deprecated/`.
+- **Duplicate test bodies per device** - rejected (drift; a fix applied to one
+  copy silently misses the others).
+- **`include!` instead of symlinks** - rejected (fragile relative paths, and
+  the shared file is less visible in the tree). Symlinks are the project's
+  established sharing mechanism.
+- **Split layout/manipulation from compute tests** - rejected (uniformity; the
+  body must be symlinkable whole).
+- **Symlink `doc_draft/` into device crates** - rejected (doctests already
+  cover the examples; per-device repetition adds build time only).
+- **Copy the BLAS driver tests per crate** - rejected (drift; validators would
+  fork per backend).
+
+## Consequences
+
+N entry binaries compile the same body, so full builds are slower; runtime
+skips keep the extra binaries cheap to run. Correcting a shared test fixes
+every device at once, and a device that genuinely differs must declare its
+exception in `tests/README.md`, keeping divergences visible and enumerable.
+
+Onboarding a device costs one entry file, the symlink set (plus the BLAS
+bodies for BLAS crates), an optional dedicated-file exception, the crate's
+`tests/README.md`, and a CI tier assignment. Currently rstsr-core wires only
+`entry_row_cpu.rs`; `entry_row_faer.rs` and `entry_col_cpu.rs` remain future
+entries, and all five BLAS device crates run the shared `core_func/` body
+through their `entry_row_<device>.rs`.
